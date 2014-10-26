@@ -1,5 +1,6 @@
 ##Excel sheets
 *.xlsx
+*.tgn
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
