@@ -1,0 +1,20 @@
+\documentclass{article}
+\usepackage{cite}
+
+\begin{document}
+\subsection{Cassandra}
+
+Apache Cassandra, originally developped at Facebook but later open-sourced, combines the data-model of Google's BigTable system with the architecture and distribution strategy of Amazon's DynamoDB. It is intended for flexible, highly-available storage of very large datasets, running on cheap commodity hardware and offering high write throughput while not sacrificing read efficiency \cite{lakshman2010cassandra}.\\\\
+
+%datamodel en CQL
+
+%distribution + concurrency + CAP dink
+In order to be able to scale linearly in the number of nodes to very large datasets, Cassandra operates in a fully masterless fashion. In terms of the CAP-theorem, it focusses on availability and partition-tolerance, rather than immediate consistency (though the user has control over the level of consistency, as will be explained). %TODO concurrency (quorum, CAS, row-atomicity) ; tunable consistency; failure detection/handling
+
+%extra's (Spark, Solr)
+
+%afronden
+
+\bibliography{biblio}{}
+\bibliographystyle{plain}
+\end{document}
