@@ -81,3 +81,4 @@ month = nov,
 year = {2014},
 howpublished={\url{http://cassandra.apache.org/doc/cql3/CQL.html}}
 }
+http://cassandra.apache.org/doc/cql3/CQL.html

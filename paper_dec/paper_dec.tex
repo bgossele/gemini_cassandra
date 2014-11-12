@@ -1,17 +1,18 @@
 \documentclass{article}
 \usepackage{cite}
+\usepackage{url}
 
 \begin{document}
-\subsection{Cassandra}
+\section{Cassandra}
 
-Apache Cassandra, originally developped at Facebook but later open-sourced, combines the data-model of Google's BigTable system with the architecture and distribution strategy of Amazon's DynamoDB. It is intended for flexible, highly-available storage of very large datasets, running on cheap commodity hardware and offering high write throughput while not sacrificing read efficiency \cite{lakshman2010cassandra}.\\\\
-
-%datamodel en CQL
-
-%distribution + concurrency + CAP dink
-In order to be able to scale linearly in the number of nodes to very large datasets, Cassandra operates in a fully masterless fashion. In terms of the CAP-theorem, it focusses on availability and partition-tolerance, rather than immediate consistency (though the user has control over the level of consistency, as will be explained). %TODO concurrency (quorum, CAS, row-atomicity) ; tunable consistency; failure detection/handling
-
-%extra's (Spark, Solr)
+Apache Cassandra, originally developped at Facebook but later open-sourced, combines the data-model of Google's BigTable system with the architecture and distribution strategy of Amazon's DynamoDB. It is intended for flexible, highly-available storage of very large datasets, running on cheap commodity hardware and offering high write throughput while not sacrificing read efficiency \cite{lakshman2010cassandra}.
+\\
+Since its inception Cassandra has however diverged slightly from the BigTable data model. It now offers tables and composite columns -much like in a conventional schema, and comes with its own query language, CQL\cite{cassandra_then&now}. CQL resembles SQL in many ways, but comes with some restrictions. For instance, it doesn't feature the JOIN clause \cite{cassandra_cql}. It strongly encourages physically collocating data that will be queried together, and supports denormalization with features such as collection types.\\
+In order to scale linearly in the number of nodes to very large datasets, Cassandra operates in a fully masterless fashion. In terms of the CAP-theorem, it focusses on availability and partition-tolerance, rather than immediate consistency (though the user has control over the level of consistency, as will be explained). High availability and partition tolerance are achieved through asynchronous replication of rows over several nodes in the cluster, using consistent hashing and virtual nodes to handle high churn and incremental addition of nodes \cite{decandia2007dynamo} \cite{lakshman2010cassandra} \cite{cassandra_then&now}. The amount of replicas can be chosen by the client. Furthermore, Cassandra provides cross-datacenter replication to cope with entire datacenter failures.
+\\On reads and writes, the client can specify the desired quorum, that is the number of replicas that acknowledge the operation. Although Cassandra was built with eventual consistency in mind, strong consistency can be obtained by choosing the quorum larger than the number of replicas \cite{grolinger2013data}.\\
+In terms of concurrency control, Cassandra offers atomicity for single-row operations and serializable \textit{lightweight transactions}, essentially a compare-and-set functionality for larger operations \cite{cassandra_lightweight_trans}.\\
+Being an open-source project, Cassandra is freely available, but there is an enterprise version with extra features such as integration with Apache Spark and Apache Solr, for complex analytical and search tasks \cite{cassandra_solr} \cite{cassandra_spark}.\\\\
+In conclusion, Cassandra offers flexible data-modeling with decent querying and indexing support through its CQL-interface and scales incrementally to vast datasets, thanks to its extensive replication and failure-handling features.
 
 %afronden
 
