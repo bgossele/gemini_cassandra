@@ -3,7 +3,8 @@
 \usepackage{url}
 
 \begin{document}
-\section{Cassandra}
+\section{Columnar stores}
+\subsection{Cassandra}
 
 Apache Cassandra, originally developped at Facebook but later open-sourced, combines the data-model of Google's BigTable system with the architecture and distribution strategy of Amazon's DynamoDB. It is intended for flexible, highly-available storage of very large datasets, running on cheap commodity hardware and offering high write throughput while not sacrificing read efficiency \cite{lakshman2010cassandra}.
 \\
@@ -14,7 +15,11 @@ In terms of concurrency control, Cassandra offers atomicity for single-row opera
 Being an open-source project, Cassandra is freely available, but there is an enterprise version with extra features such as integration with Apache Spark and Apache Solr, for complex analytical and search tasks \cite{cassandra_solr} \cite{cassandra_spark}.\\\\
 In conclusion, Cassandra offers flexible data-modeling with decent querying and indexing support through its CQL-interface and scales incrementally to vast datasets, thanks to its extensive replication and failure-handling features.
 
-%afronden
+\subsection{HBase}
+
+Apache HBase is an open source datastore using Google BigTable's datamodel, but running on top of the Hadoop Distributed File System (HDFS) instead of the Google File System (GFS).
+\\Since its launch, HBase has adopted several secondary indexing mechanisms. HBase doesn't offer an SQL-like advanced querying language, but because of its HDFS underpinnings it can function as both input and output for Map/Reduce jobs.
+\\The strong points of HBase are its strong consistency, which is rare among NoSQL-stores, and its concurrency model: ACID-compliant single row transactions and optimistic concurrency control using multiversioning for wider scope transactions\cite{hbase_acid}\cite{grolinger2013data}\cite{borthakur2011apache}.
 
 \bibliography{biblio}{}
 \bibliographystyle{plain}
