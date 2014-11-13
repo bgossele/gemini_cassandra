@@ -19,7 +19,18 @@ In conclusion, Cassandra offers flexible data-modeling with decent querying and 
 
 Apache HBase is an open source datastore using Google BigTable's datamodel, but running on top of the Hadoop Distributed File System (HDFS) instead of the Google File System (GFS).
 \\Since its launch, HBase has adopted several secondary indexing mechanisms. HBase doesn't offer an SQL-like advanced querying language, but because of its HDFS underpinnings it can function as both input and output for Map/Reduce jobs.
-\\The strong points of HBase are its strong consistency, which is rare among NoSQL-stores, and its concurrency model: ACID-compliant single row transactions and optimistic concurrency control using multiversioning for wider scope transactions\cite{hbase_acid}\cite{grolinger2013data}\cite{borthakur2011apache}.
+\\The strong points of HBase are its strong consistency, which is rare among NoSQL-stores, and its concurrency model: ACID-compliant single row transactions and optimistic multi-version concurrency control for wider scope operations\cite{hbase_acid}\cite{grolinger2013data}\cite{borthakur2011apache}.\\\\
+In conclusion, HBase offers flexible data-modeling and is especially useful when there is already a HDFS dataset and when Map/Reduce compatibility is desired. It scales well to very large datasets and offers excellent concurrency control and strong consistency.
+
+\section{NewSQL}
+\subsection{VoltDB}
+
+VoltDB is a relational in-memory distributed database, aiming to offer the guarantees of classical SQL-stores and the performance and scaling of NoSQL systems\cite{stonebraker2013voltdb}. %TODO rewrite
+\\VoltDB stores data in the traditional relational model, but replicated and partitioned (using consistent hashing) over several nodes\cite{grolinger2013data}. The data is queryable through a (growing) subset of SQL-92 \cite{voltdb2010voltdb}.
+Relying entirely on DRAM makes it expensive to scale to petabyte scale datavolumes, but VoltDB can export data to other, more suited DMBSs such as columnar NoSQL stores.
+\\In terms of concurrency control, VoltDB offers full ACID-transactions which execute simultaneously on all replicas. Main memory is divided into chunks and these are statically assigned to individual, single-threaded cores. A global controller serializes all multi-node transactions single-node transactions and are inserted into the transactions queues of the respective nodes. In this way, VoltDB obviates the need for locking and latching techniques.
+\\\\
+In short, VoltDB provides relational in memory storage for relatively large datasets, with very fast SQL-query capacities and ACID transactions. It is thus more suited for computation intensive applications that don't work on exorbitantly large data volumes but require very low latency.
 
 \bibliography{biblio}{}
 \bibliographystyle{plain}
