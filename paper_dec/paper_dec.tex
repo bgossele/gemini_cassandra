@@ -3,6 +3,12 @@
 \usepackage{url}
 
 \begin{document}
+
+\section{Methodology}
+
+Because of the enormous choice of NoSQL and NewSQL datastores, reviewing all of them wasn't possible. This survey reviews the most popular datastores in a few relevant categories, namely document stores, wide columnar stores and NewSQL stores. A selection was then made based on similar criteria as in \cite{grolinger2013data}, following the ranking of DB-Engine Ranking \cite{db_engine_rank} as an indicator of popularity. This ranking tries to measure popularity based on a few parameters, such as the number of mentions on Web sites, general interest according to Google Trends, frequency of technical discussions on the Web, number of job offers, and number of professional profiles in which the systems are mentioned. The result were the document stores MongoDB and CouchBase Server, wide columnar stores Cassandra and HBase and NewSQL database VoltDB. There is already an existing application of MongoDB in the sequencing pipeline, making it even more relevant. Lastly, NewSQl query engine Cloudera Impala was also taken into consideration because of explicit interested from researchers in the lab.
+These 6 systems were then compared on characteristics relevant to high performance computing, such as indexing mechanisms, client interfaces to the data, distribution strategy, concurrency control and consistency models.
+
 \section{Columnar stores}
 \subsection{Cassandra}
 
@@ -31,6 +37,14 @@ Relying entirely on DRAM makes it expensive to scale to petabyte scale datavolum
 \\In terms of concurrency control, VoltDB offers full ACID-transactions which execute simultaneously on all replicas. Main memory is divided into chunks and these are statically assigned to individual, single-threaded cores. A global controller serializes all multi-node transactions single-node transactions and are inserted into the transactions queues of the respective nodes. In this way, VoltDB obviates the need for locking and latching techniques.
 \\\\
 In short, VoltDB provides relational in memory storage for relatively large datasets, with very fast SQL-query capacities and ACID transactions. It is thus more suited for computation intensive applications that don't work on exorbitantly large data volumes but require very low latency.
+
+\subsection{Cloudera Impala}
+
+Cloudera Impala is a distributed SQL-engine running on top of the Hadoop stack, either on HDFS or HBase \cite{cloudera_impala}. It is intended specifically for analytical use, focussing on delivering real-time querying capacities and not on high-throughput on writes.
+\\Data is accessible through a form of SQL-92.
+\\Impala has a highly efficient I/O-layer keeping disk- and CPU-utilization high at all times, resulting in considerably faster performance than other SQL-on-Hadoop solutions such as Apache Hive \cite{floratou2014sql}. However, this comes with the drawback that the working set of a query has to fit in the aggregate physical memory of the cluster it runs on. This puts some restrictions on the size of datasets processible with Impala, not fully using the scaling capacity of the underlying Hadoop layer.
+\\Because of its analytical purposes, Impala doesn't offer extensive concurrency control features, relying on the datalayer underneath. With HBase's excellent concurrency control features, this doesn't necessarily pose a great problem.
+ 
 
 \bibliography{biblio}{}
 \bibliographystyle{plain}
