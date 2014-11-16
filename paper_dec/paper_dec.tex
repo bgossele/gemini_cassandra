@@ -13,13 +13,20 @@ These 6 systems were then compared on characteristics relevant to high performan
 
 \subsection{MongoDB}
 
-MongoDB stores data in .BSON (binary JSON) documents. It has powerful indexing support, with the ability to define secondary indexes of a wide array of types on all attributes, much like in the traditional relational model \cite{mongodb_indexes}. To aid with denormalization, the documents can contain embedded documents and arrays, thus obviating the need for joins in the query language.
+MongoDB stores data in BSON (binary JSON) documents. It has powerful indexing support, with the ability to define secondary indexes of a wide array of types on all attributes, much like in the traditional relational model \cite{mongodb_indexes}. To aid with denormalization, the documents can contain embedded documents and arrays, thus obviating the need for joins in the query language.
 \\MongoDB offers API's in many languages and the functionality to define the equivalent of SQL WHERE-clauses as javascript expressions. These are then translated to MongoDB's proprietary internal querying language \cite{grolinger2013data}. The MongoDB query optimizer processes queries and chooses the most efficient query plan for a query given the available indexes. These plans are cached if there are multiple viable options, and can be reevaluated as the data evolves \cite{mongodb_query_plans}.
-\\The consistency of MongoDB is configurable, strong consistency can be attained in two ways: setting the connection to read-only from the master node (which has the most up-to-date version of the data), or forcing a write to succeed only after all replicas have acknowledged it. The former degrades the scaling ability of read requests, the later the latency of write requests \cite{grolinger2013data}.
+\\The consistency of MongoDB is configurable, strong consistency can be attained in two ways: setting the connection to read-only from the master node (which has the most up-to-date version of the data), or forcing a write to succeed only after all replicas have acknowledged it. The former degrades the scaling ability of read requests, the latter the latency of write requests \cite{grolinger2013data}.
 For concurrency control, MongoDB offers single-document atomicity and implements reader-writer locks. Having to lock on writes severely impacts performance in write-intensive scenarios.
 \\\\As a wrap-up, MongoDB stores BSON-files accessible through many API's with flexible querying and indexing techniques, but its concurrency and consistency model have some drawbacks.
 
 \subsection{CouchBase Server}
+
+CouchBase, result of the merger of CouchDB and Membase, stores data in JSON documents. It uses the memcached protocol for distributed caching and is intended for highly interactive applications with low-latency requirements \cite{grolinger2013data}\cite{couchbase_about}.
+\\The JSON documents can be nested and are queryable through a SQL-like language, N1QL (note: the latest version, released March 2014, was still a developer preview)\cite{couchbase_n1ql}.
+\\Within one cluster, transactions are strongly consistent, but between multiple clusters only eventually consistent.
+\\Couchbase lets clients choose between optimistic (using compare-and-swap) and pessimistic (using 'finegrained locking') concurrency control.
+\\\\With its flexible data modelling, caching and concurrency control, Couchbase is a good fit for applications requiring fast and intensive interaction between client and data.
+
 
 \section{Columnar stores}
 \subsection{Cassandra}
