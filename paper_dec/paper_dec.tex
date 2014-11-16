@@ -11,7 +11,15 @@ These 6 systems were then compared on characteristics relevant to high performan
 
 \section{Document stores}
 
+\subsection{MongoDB}
 
+MongoDB stores data in .BSON (binary JSON) documents. It has powerful indexing support, with the ability to define secondary indexes of a wide array of types on all attributes, much like in the traditional relational model \cite{mongodb_indexes}. To aid with denormalization, the documents can contain embedded documents and arrays, thus obviating the need for joins in the query language.
+\\MongoDB offers API's in many languages and the functionality to define the equivalent of SQL WHERE-clauses as javascript expressions. These are then translated to MongoDB's proprietary internal querying language \cite{grolinger2013data}. The MongoDB query optimizer processes queries and chooses the most efficient query plan for a query given the available indexes. These plans are cached if there are multiple viable options, and can be reevaluated as the data evolves \cite{mongodb_query_plans}.
+\\The consistency of MongoDB is configurable, strong consistency can be attained in two ways: setting the connection to read-only from the master node (which has the most up-to-date version of the data), or forcing a write to succeed only after all replicas have acknowledged it. The former degrades the scaling ability of read requests, the later the latency of write requests \cite{grolinger2013data}.
+For concurrency control, MongoDB offers single-document atomicity and implements reader-writer locks. Having to lock on writes severely impacts performance in write-intensive scenarios.
+\\\\As a wrap-up, MongoDB stores BSON-files accessible through many API's with flexible querying and indexing techniques, but its concurrency and consistency model have some drawbacks.
+
+\subsection{CouchBase Server}
 
 \section{Columnar stores}
 \subsection{Cassandra}
