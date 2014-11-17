@@ -1,14 +1,27 @@
 \documentclass{article}
 \usepackage{cite}
 \usepackage{url}
+%\usepackage{lscape}
+
+\usepackage{graphicx}
+\usepackage{pdflscape}
+\usepackage{rotating}
+%\usepackage[a4paper,margin=.5in,landscape]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
 
 \begin{document}
+
+\title{A survey on NoSQL and NewSQL datastores}
+\author{Brecht Gossel\'e}
+\maketitle
 
 \section{Methodology}
 
 Because of the enormous choice of NoSQL and NewSQL datastores, reviewing all of them wasn't possible. This survey reviews the most popular datastores in a few relevant categories, namely document stores, wide columnar stores and NewSQL stores. A selection was then made based on similar criteria as in \cite{grolinger2013data}, following the ranking of DB-Engine Ranking \cite{db_engine_rank} as an indicator of popularity. This ranking tries to measure popularity based on a few parameters, such as the number of mentions on Web sites, general interest according to Google Trends, frequency of technical discussions on the Web, number of job offers, and number of professional profiles in which the systems are mentioned. The result were the document stores MongoDB and CouchBase Server, wide columnar stores Cassandra and HBase and NewSQL database VoltDB. There is already an existing application of MongoDB in the sequencing pipeline, making it even more relevant. Lastly, NewSQl query engine Cloudera Impala was also taken into consideration because of explicit interested from researchers in the lab.
 These 6 systems were then compared on characteristics relevant to high performance computing, such as indexing mechanisms, client interfaces to the data, distribution strategy, concurrency control and consistency models.
 
+%\include{tabel}
 \section{Document stores}
 
 \subsection{MongoDB}
@@ -60,10 +73,14 @@ In short, VoltDB provides relational in memory storage for relatively large data
 \subsection{Cloudera Impala}
 
 Cloudera Impala is a distributed SQL-engine running on top of the Hadoop stack, either on HDFS or HBase \cite{cloudera_impala}. It is intended specifically for analytical use, focussing on delivering real-time querying capacities and not on high-throughput on writes.
-\\Data is accessible through a form of SQL-92.
+\\Data is accessible through a subset of SQL-92.
 \\Impala has a highly efficient I/O-layer keeping disk- and CPU-utilization high at all times, resulting in considerably faster performance than other SQL-on-Hadoop solutions such as Apache Hive \cite{floratou2014sql}. However, this comes with the drawback that the working set of a query has to fit in the aggregate physical memory of the cluster it runs on. This puts some restrictions on the size of datasets processible with Impala, not fully using the scaling capacity of the underlying Hadoop layer.
 \\Because of its analytical purposes, Impala doesn't offer extensive concurrency control features, relying on the datalayer underneath. With HBase's excellent concurrency control features, this doesn't necessarily pose a great problem.
  
+\section{Conclusions}
+
+In recent years, progress in microbiology and bioinformatics has driven down the cost of DNA-sequencing. As DNA of more and more organisms, people,... is being sequenced, the question arises to make this process ever more efficient and to store the generated data in a scalable, performant and accessible way. This study has focused on NoSQL and NewSQL datastores to be used in both the sequencing pipeline as in the storage and analysis of the results. These solutions offer elastic scalability, flexible data modelling, good behavior in a distributed setting and resilience to failures.\\
+Specifically, this paper has reviewed 6 different datastores, 2 of the most popular ones in three categories, and compared them on a selection of properties relevant to HPC applications. 
 
 \bibliography{biblio}{}
 \bibliographystyle{plain}
