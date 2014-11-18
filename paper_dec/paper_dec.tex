@@ -1,5 +1,5 @@
-\documentclass{IEEEtran}
-%\documentclass{article}
+%\documentclass{IEEEtran}
+\documentclass{article}
 \usepackage{cite}
 \usepackage{url}
 %\usepackage{lscape}
@@ -95,8 +95,8 @@ Cloudera Impala is a distributed SQL-engine running on top of the Hadoop stack, 
  
 \section{Conclusions}
 
-In recent years, progress in microbiology and bioinformatics has driven down the cost of DNA-sequencing. As DNA of more and more organisms, people,... is being sequenced, the question arises to make this process ever more efficient and to store the generated data in a scalable, performant and accessible way. This study has focused on NoSQL and NewSQL datastores to be used in both the sequencing pipeline as in the storage and analysis of the results. These solutions offer elastic scalability, flexible data modelling, good behavior in a distributed setting and resilience to failures.\\
-Specifically, this paper has reviewed 6 different datastores, 2 of the most popular ones in three categories, and compared them on a selection of properties relevant to HPC applications. 
+In recent years, progress in microbiology and bioinformatics has driven down the cost of DNA-sequencing. As DNA of more and more organisms is being sequenced, the question arises to make this process ever more efficient and to store the generated data in a scalable, performant and accessible way. This study has focused on NoSQL and NewSQL datastores to be used in both the sequencing pipeline as in the storage and analysis of the results. These solutions offer elastic scalability, flexible data modelling, good behavior in a distributed setting and resilience to failures.\\
+Specifically, this paper has reviewed 6 different datastores, 2 of the most popular ones in three categories, and compared them on a selection of properties relevant to HPC applications. Columnar stores like Apache Cassandra and HBase are well suited to the task of storing extremely large datasets in a reliable and performant way, and could handle the storage of already sequenced genomes. VoltDB and CouchBase Server offer low latency on reads and writes, albeit (especially VoltDB) on smaller datasets, but would thus be very useful for storing intermediate, rapidly changing, data in the sequencing pipeline. %TODO quod Impala & MongoDB?
 
 \bibliography{biblio}{}
 \bibliographystyle{plain}
