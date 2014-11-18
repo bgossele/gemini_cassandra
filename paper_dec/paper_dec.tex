@@ -21,10 +21,20 @@
 
 Advances in bioinformatics have driven down the cost of genome sequencing dramatically over the past years. This raises the question how to efficiently and flexibly handle and store the large amount of data this process generates. Similar developments in web technology have over the last decade, spawned numerous NoSQL and NewSQL datastores, which offer robust, highly scalable distributed storage and flexible data modelling. This paper reviews 6 such datastores and compares them on characteristics relevant to high performance computing in general and bioinformatics more specifically %TODO bioinformatics ding, is dit wel zo?.
 
+\section{Introduction}
+
+%Getalletjes over DNA-sequencing
+%NoSQL datamodellen, CAP, NewSQL fifolosie
+%Tabel?
+
+
+
 \section{Methodology}
 
 Because of the enormous choice of NoSQL and NewSQL datastores, an exhaustive study wasn't possible. This survey reviews the most popular datastores in a few relevant categories, namely document stores, wide columnar stores and NewSQL stores. A selection was then made based on similar criteria as in \cite{grolinger2013data}, following the ranking of DB-Engine Ranking \cite{db_engine_rank} as an indicator of popularity. This ranking tries to measure popularity based on a few parameters, such as the number of mentions on Web sites, general interest according to Google Trends, frequency of technical discussions on the Web, number of job offers, and number of professional profiles in which the systems are mentioned. The result were the document stores MongoDB and CouchBase Server, wide columnar stores Cassandra and HBase and NewSQL database VoltDB. There is already an existing application of MongoDB in the sequencing pipeline, making it even more relevant. Lastly, NewSQl query engine Cloudera Impala was also taken into consideration because of explicit interested from researchers in the lab.
 These 6 systems were then compared on characteristics relevant to high performance computing, such as indexing mechanisms, client interfaces to the data, distribution strategy, concurrency control and consistency models.
+
+\include{tabel}
 
 %\include{tabel}
 \section{Document stores}
@@ -47,6 +57,7 @@ CouchBase, result of the merger of CouchDB and Membase, stores data in JSON docu
 
 
 \section{Columnar stores}
+%TODO LSM trees & bloom filters for both
 \subsection{Cassandra}
 
 Apache Cassandra, originally developped at Facebook but later open-sourced, combines the data-model of Google's BigTable system with the architecture and distribution strategy of Amazon's DynamoDB. It is intended for flexible, highly-available storage of very large datasets, running on cheap commodity hardware and offering high write throughput while not sacrificing read efficiency \cite{lakshman2010cassandra}.
