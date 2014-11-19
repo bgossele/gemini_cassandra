@@ -7,7 +7,6 @@
 \usepackage{graphicx}
 \usepackage{pdflscape}
 \usepackage{rotating}
-%\usepackage[a4paper,margin=.5in,landscape]{geometry}
 \usepackage{booktabs}
 \usepackage{array}
 
@@ -17,11 +16,20 @@
 \author{Brecht Gossel\'e}
 \maketitle
 
-\section{Abstract}
-
+\begin{abstract}
 Advances in bioinformatics have driven down the cost of genome sequencing dramatically over the past years. This raises the question how to efficiently and flexibly handle and store the large amount of data this process generates. Similar developments in web technology have over the last decade, spawned numerous NoSQL and NewSQL datastores, which offer robust, highly scalable distributed storage and flexible data modelling. This paper reviews 6 such datastores and compares them on characteristics relevant to high performance computing in general and bioinformatics more specifically. %TODO bioinformatics ding, is dit wel zo?
+\end{abstract}
+
 
 \section{Introduction}
+
+Scientific progress has caused the cost of genome sequencing to drop at an exponential rate over the past decade and a half, even outpacing Moore's law since 2008 \cite{wetterstrand_sequencing_cost}. As in all sorts of biological, medical and pharmaceutical research, more and more genomes are being sequenced, the amount of data generated increases rapidly. The intermediary data generated in the sequencing pipeline for a human genome, ranges in the order of ?? TB. Also, a single human genome takes ?? MB/GB to store when sequenced,%TODO source
+ so as this scales to genomes of millions of people and other organisms, storage requirements become ever more demanding in terms of scalability, latency and concurrency.
+\\Increasing popularity of web services such as social networks has caused a similar explosion of data for web companies. To handle this so-called Big Data\cite{mashey1997big} in an adequate way, traditional relational DBMS no longer suffice. Therefor, large web companies such as Google and Amazon have developped new storage solutions that meet the demands for high scalability, low latency and high availability\cite{baker2011megastore}. This has spawned many so called NoSQL ('Not only SQL') databases, which loosen the rigid relational datamodel in favour of better scaling and easier distribution of the data.
+\\NoSQL datastores come in multiple flavours and can be divided in a few categories based on the datamodel they use:
+\begin{itemize}
+\item Columnar stores: based on the datamodel pioneered by Google's BigTable, these store data in "a sparse, distributed, persistent multidimensional sorted map" \cite{chang2008bigtable}. In BigTable's case this is a map of row key, column key and a timestamp. In this way, multiple versions of the data can be stored in chronological order. Because the system doesn't interpret the data, relationships can't be modeled. This is left to application logic\cite{hecht2011nosql}
+\end{itemize}
 
 %Getalletjes over DNA-sequencing
 %NoSQL datamodellen, CAP, NewSQL fifolosie
