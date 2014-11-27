@@ -1,5 +1,5 @@
-%\documentclass{IEEEtran}
-\documentclass{article}
+\documentclass{IEEEtran}
+%\documentclass{article}
 \usepackage{cite}
 \usepackage{url}
 %\usepackage{lscape}
@@ -29,7 +29,8 @@ Scientific progress has caused the cost of genome sequencing to drop at an expon
 \\NoSQL datastores come in multiple flavours and can be divided in a few categories based on the datamodel they use:
 \begin{itemize}
 \item Columnar stores: based on the datamodel pioneered by Google's BigTable, these store data in "a sparse, distributed, persistent multidimensional sorted map" \cite{chang2008bigtable}. In BigTable's case this is a map of row key, column key and a timestamp. In this way, multiple versions of the data can be stored in chronological order. Because the system doesn't interpret the data, relationships can't be modeled. This is left to application logic\cite{hecht2011nosql}.
-\item Document stores: these encapsulate key-value pairs in JSON or JSON-like documents.
+\item Document stores: these store data as key-value pairs in documents. Values can be of a wide variety of types, such as nested documents, lists or scalar values. Attribute names can be dynamically specified at runtime and need not adhere to a fixed schema\cite{cattell2011scalable}. This is well suited for modelling complex data structures. Many document stores use the JSON-fileformat (or some derived form). In contrast to columnar stores, the values in documents are not opaque to the system and can thus be queried and indexed\cite{hecht2011nosql}.\\
+The term NewSQL data stores is being used to classify a set of solutions that aim to combine the horizontal scalability and fault tolerance of NoSQL stores with the relational data model. Though they all use the relational model and offer SQL, NewSQL stores vary greatly under the hood, depending on the architecture they are built on\cite{grolinger2013data}. This paper proceeds first by elaborating on the methodology used to select and compare the chosen databases and then by reviewing each of the six datastores in detail.
 \end{itemize}
 
 %NoSQL datamodellen, CAP, NewSQL fifolosie
