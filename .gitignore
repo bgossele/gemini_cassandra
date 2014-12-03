@@ -5,6 +5,9 @@ elprep
 *.xlsx
 *.tgn
 
+##vim swp
+*.swp
+
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
