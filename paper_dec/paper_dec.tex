@@ -34,14 +34,11 @@ so as this scales to genomes of millions of people and other organisms, storage 
 The term NewSQL data stores is being used to classify a set of solutions that aim to combine the scalability, distribution and fault tolerance of NoSQL stores with the relational data model. Though they all use the relational model and offer SQL, NewSQL stores vary greatly under the hood, depending on the architecture they are built on\cite{grolinger2013data}. This paper proceeds first by elaborating on the methodology used to select and compare the chosen databases and then by reviewing each of the six datastores in detail.
 \end{itemize}
 
-%NoSQL datamodellen, CAP, NewSQL fifolosie
 %Tabel?
-
-
 
 \section{Methodology}
 
-Because of the enormous choice of NoSQL and NewSQL datastores, an exhaustive study wasn't feasible. This survey reviews the most popular datastores in a few relevant categories, namely document stores, wide columnar stores and NewSQL stores. A selection was then made based on similar criteria as in \cite{grolinger2013data}, following the ranking of DB-Engine Ranking \cite{db_engine_rank} as an indicator of popularity. This ranking tries to measure popularity based on a few parameters, such as the number of mentions on Web sites, general interest according to Google Trends, frequency of technical discussions on the Web, number of job offers, and number of professional profiles in which the systems are mentioned. The result were the document stores MongoDB and CouchBase Server, wide columnar stores Cassandra and HBase and NewSQL database VoltDB. There is already an existing application of MongoDB in the DNA sequencing pipeline used in the ExaScience Life Lab\cite{elprep_mongo}. Lastly, NewSQL query engine Cloudera Impala was also taken into consideration because of explicit interested from researchers in the aforementioned lab. %TODO eerste vermelding van lab?
+Because of the enormous choice of NoSQL and NewSQL datastores, an exhaustive study wasn't feasible. This survey reviews the most popular datastores in a few relevant categories, namely document stores, wide columnar stores and NewSQL stores. A selection was then made based on similar criteria as in \cite{grolinger2013data}, following the ranking of DB-Engine Ranking \cite{db_engine_rank} as an indicator of popularity. This ranking tries to measure popularity based on a few parameters, such as the number of mentions on Web sites, general interest according to Google Trends, frequency of technical discussions on the Web, number of job offers, and number of professional profiles in which the systems are mentioned. The result were the document stores MongoDB and CouchBase Server, wide columnar stores Cassandra and HBase and NewSQL database VoltDB. There is already an existing application of MongoDB in the DNA sequencing pipeline used in the ExaScience Life Lab\cite{elprep_mongo}. Lastly, NewSQL query engine Cloudera Impala was also taken into consideration because of explicit interested from researchers in the aforementioned lab.
 These 6 systems were then compared on characteristics relevant to high performance computing, such as indexing mechanisms, client interfaces to the data, distribution strategy, concurrency control and consistency models.
 
 %\include{tabel}
@@ -87,7 +84,7 @@ In conclusion, HBase offers flexible data-modeling and is especially useful when
 \section{NewSQL}
 \subsection{VoltDB}
 
-VoltDB is a relational in-memory distributed database, aiming to offer the guarantees of classical SQL-stores and the performance and scaling of NoSQL systems\cite{stonebraker2013voltdb}. %TODO rewrite
+VoltDB is a relational in-memory distributed database, aiming to offer the guarantees of classical SQL-stores and the scaling of NoSQL systems at very high speeds\cite{stonebraker2013voltdb}.
 \\VoltDB stores data in the traditional relational model, but replicated and partitioned (using consistent hashing) over several nodes\cite{grolinger2013data}. The data is queryable through a (growing) subset of SQL-92 \cite{voltdb2010voltdb}.
 Relying entirely on DRAM makes it expensive to scale to petabyte scale datavolumes, but VoltDB can export data to other, more suited DMBSs such as columnar NoSQL stores.
 \\In terms of concurrency control, VoltDB offers full ACID-transactions which execute simultaneously on all replicas. Main memory is divided into chunks and these are statically assigned to individual, single-threaded cores. A global controller serializes all multi-node transactions to a sequence of single-node transactions and inserts those into the transactions queues of the respective nodes. In this way, VoltDB obviates the need for locking and latching techniques.
@@ -98,6 +95,7 @@ In short, VoltDB provides relational in memory storage for relatively large data
 
 Cloudera Impala is a distributed SQL-engine running on top of the Hadoop stack, either on HDFS or HBase \cite{cloudera_impala}. It is intended specifically for analytical use, focussing on delivering real-time querying capacities and not on high-throughput on writes.
 \\Data is accessible through a subset of SQL-92.
+\\Contrary to the options discussed before, Impala doesn't partition rows by default. It does offer the possibility and leaves the user free to partition data should the data size call for it\cite{impala_partitioning}.
 \\Impala has a highly efficient I/O-layer keeping disk- and CPU-utilization high at all times, resulting in considerably faster performance than other SQL-on-Hadoop solutions such as Apache Hive \cite{floratou2014sql}. However, this comes with the drawback that the working set of a query has to fit in the aggregate physical memory of the cluster it runs on. This puts some restrictions on the size of datasets processible with Impala, not fully using the scaling capacity of the underlying Hadoop layer.
 \\Because of its analytical purposes, Impala doesn't offer extensive concurrency control features, relying on the datalayer underneath. With HBase's excellent concurrency control features, this doesn't necessarily pose a problem.
  
