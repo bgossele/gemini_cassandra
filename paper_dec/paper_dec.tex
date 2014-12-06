@@ -1,8 +1,8 @@
 \documentclass{IEEEtran}
 \usepackage{cite}
 \usepackage{url}
-%\usepackage{lscape}
-
+\usepackage{lscape}
+\usepackage[final]{pdfpages}
 \usepackage{graphicx}
 \usepackage{pdflscape}
 \usepackage{rotating}
@@ -39,6 +39,9 @@ The term NewSQL data stores is being used to classify a set of solutions that ai
 Because of the enormous choice of NoSQL and NewSQL datastores, an exhaustive study wasn't feasible. This survey reviews the most popular datastores in a few relevant categories, namely document stores, wide columnar stores and NewSQL stores. A selection was then made based on similar criteria as in \cite{grolinger2013data}, following the ranking of DB-Engine Ranking \cite{db_engine_rank} as an indicator of popularity. This ranking tries to measure popularity based on a few parameters, such as the number of mentions on Web sites, general interest according to Google Trends, frequency of technical discussions on the Web, number of job offers, and number of professional profiles in which the systems are mentioned. The resulting selection consists of the document stores MongoDB and CouchBase Server, wide columnar stores Cassandra and HBase and NewSQL database VoltDB. There already exists an extension of the DNA sequencing pipeline used in the ExaScience Life Lab that allows for using MongoDB databases as input and/or output targets, making MongoDB even more relevant\cite{elprep_mongo}. Lastly, NewSQL query engine Cloudera Impala was also taken into consideration because of explicit interest from researchers in the aforementioned lab.
 These 6 systems were then compared on characteristics relevant to high performance computing, such as indexing mechanisms, client interfaces to the data, distribution strategy, concurrency control and consistency models.
 
+\begin{landscape}
+\includepdf[angle=90]{NoSQL_table.pdf}
+\end{landscape}
 \section{Document stores}
 
 \subsection{MongoDB}
@@ -95,6 +98,7 @@ In short, VoltDB provides relational in memory storage for relatively large data
 
 Cloudera Impala is a distributed SQL-engine running on top of the Hadoop stack, either on HDFS or HBase \cite{cloudera_impala}. It is intended specifically for analytical use, focussing on delivering real-time querying capacities and not on high-throughput on writes.
 \\Data is accessible through a subset of SQL-92.
+\\Impala's architecture is almost perfectly symmetrically distributed: all nodes execute the same \texttt{impalad}-process, which is responsible for the main database functionality. Queries can be sent to any node which will then function as coordinator for the specific query. There are however two processes that run on only one (not necessarily the same) node in the cluster, performing bookkeeping tasks and relaying metadata changes through the cluster\cite{impala_components}.
 \\Contrary to the options discussed before, Impala doesn't partition rows by default. It does offer the possibility and leaves the user free to partition data should the data size call for it\cite{impala_partitioning}.
 \\Impala has a highly efficient I/O-layer keeping disk- and CPU-utilization high at all times, resulting in considerably faster performance than other SQL-on-Hadoop solutions such as Apache Hive \cite{floratou2014sql}. However, this comes with the drawback that the working set of a query has to fit in the aggregate physical memory of the cluster it runs on. This puts some restrictions on the size of datasets processible with Impala, not fully using the scaling capacity of the underlying Hadoop layer.
 \\Because of its analytical purposes, Impala doesn't offer extensive concurrency control features, relying on the datalayer underneath. With HBase's excellent concurrency control features, this doesn't necessarily pose a problem.
