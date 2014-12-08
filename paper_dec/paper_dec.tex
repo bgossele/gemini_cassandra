@@ -16,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-Advances in bioinformatics have driven down the cost of genome sequencing dramatically over the past years. This raises the question how to efficiently and flexibly handle and store the large amount of data this process generates. Similar developments in web technology have spawned numerous NoSQL and NewSQL datastores in the last decade, which offer robust, highly scalable distributed storage and flexible data modelling. This paper reviews 6 such datastores and compares them on characteristics relevant to high performance computing in general and bioinformatics more specifically. %TODO bioinformatics ding, is dit wel zo?
+Advances in bioinformatics have driven down the cost of genome sequencing dramatically over the past years. This raises the question how to efficiently and flexibly handle and store the large amount of data this process generates. Similar developments in web technology have spawned numerous NoSQL and NewSQL datastores in the last decade, which offer robust, highly scalable distributed storage and flexible data modelling. This paper reviews 6 such datastores and compares them on characteristics relevant to high performance computing in general and bioinformatics more specifically.
 \end{abstract}
 
 
@@ -88,7 +88,7 @@ In conclusion, HBase allows users to flexibly model data and is especially usefu
 \subsection{VoltDB}
 
 VoltDB is a relational in-memory distributed database, aiming to couple the guarantees of classical SQL-stores with the scaling of NoSQL systems while performing at very high speeds\cite{stonebraker2013voltdb}.
-\\VoltDB stores data in the traditional relational model, but replicated and partitioned (using consistent hashing) over several nodes\cite{grolinger2013data}. The data is queryable through a (growing) subset of SQL-92 \cite{voltdb2010voltdb}.
+\\VoltDB stores data in the traditional relational model, but replicated and partitioned (using consistent hashing) over several nodes\cite{grolinger2013data}. The data is queryable through a (growing) subset of SQL-92 \cite{voltdb2010voltdb}. VoltDB supports primary and secondary indexing, and leaves the user the choice between hash- and tree-indexes\cite{voltdb_indexes}.
 Relying entirely on DRAM makes it expensive to scale to petabyte scale datavolumes, but VoltDB can export data to other, more suited DMBSs such as columnar NoSQL stores.
 \\In terms of concurrency control, VoltDB supports full ACID-transactions which execute simultaneously on all replicas. Main memory is divided into chunks and these are statically assigned to individual, single-threaded cores. A global controller serializes all multi-node transactions to a sequence of single-node transactions and inserts those into the transactions queues of the respective nodes. In this way, VoltDB obviates the need for locking and latching techniques.
 \\\\
