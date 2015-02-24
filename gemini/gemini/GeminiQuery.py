@@ -1,25 +1,24 @@
 #!/usr/bin/env python
 
-import os
-import sys
-import sqlite3
-import re
-import itertools
+import abc
+import cassandra
+from cassandra.cluster import Cluster
 import collections
 import json
-import abc
+import os
 import re
+import sys
+
+import compression
+from gemini_constants import HOM_ALT, HOM_REF, HET, UNKNOWN
+from gemini_subjects import get_subjects
+from gemini_utils import (OrderedSet, OrderedDict, itersubclasses, partition_by_fn)
+import gemini_utils as util
 import numpy as np
+from sql_utils import ensure_columns, get_select_cols_and_rest
+
 
 # gemini imports
-import gemini_utils as util
-from gemini_constants import *
-from gemini_utils import (OrderedSet, OrderedDict, itersubclasses, partition,
-                          partition_by_fn)
-import compression
-from sql_utils import ensure_columns, get_select_cols_and_rest
-from gemini_subjects import get_subjects
-
 class RowFormat:
     """A row formatter to output rows in a custom format.  To provide
     a new output format 'foo', implement the class methods and set the
@@ -169,9 +168,9 @@ class TPEDRowFormat(RowFormat):
         chrom = row['chrom'].split("chr")[1]
         chrom = chrom if chrom in VALID_CHROMOSOMES else "0"
         start = str(row.row['start'])
-        end = str(row.row['end'])
+        """end = str(row.row['end'])
         ref = row['ref']
-        alt = row['alt']
+        alt = row['alt']"""
         geno = [re.split('\||/', x) for x in row.row['gts'].split(",")]
         geno = [self._fix_genotype(chrom, start, genotype, self.samples[i].sex)
                 for i, genotype in enumerate(geno)]
@@ -458,11 +457,11 @@ class GeminiQuery(object):
         self.sample_info = collections.defaultdict(list)
 
         # map sample names to indices. e.g. self.sample_to_idx[NA20814] -> 323
-        self.sample_to_idx = util.map_samples_to_indices(self.c)
+        self.sample_to_idx = util.map_samples_to_indices(self.session)
         # and vice versa. e.g., self.idx_to_sample[323] ->  NA20814
-        self.idx_to_sample = util.map_indices_to_samples(self.c)
-        self.idx_to_sample_object = util.map_indices_to_sample_objects(self.c)
-        self.sample_to_sample_object = util.map_samples_to_sample_objects(self.c)
+        self.idx_to_sample = util.map_indices_to_samples(self.session)
+        self.idx_to_sample_object = util.map_indices_to_sample_objects(self.session)
+        self.sample_to_sample_object = util.map_samples_to_sample_objects(self.session)
         self.formatter = out_format
         self.predicates = [self.formatter.predicate]
 
@@ -543,34 +542,6 @@ class GeminiQuery(object):
             h += ["families"]
         return self.formatter.header(h)
 
-    @property
-    def sample2index(self):
-        """
-        Return a dictionary mapping sample names to
-        genotype array offsets::
-
-            gq = GeminiQuery("my.db")
-            s2i = gq.sample2index
-
-            print s2i['NA20814']
-            # yields 1088
-        """
-        return self.sample_to_idx
-
-    @property
-    def index2sample(self):
-        """
-        Return a dictionary mapping sample names to
-        genotype array offsets::
-
-            gq = GeminiQuery("my.db")
-            i2s = gq.index2sample
-
-            print i2s[1088]
-            # yields "NA20814"
-        """
-        return self.idx_to_sample
-
     def next(self):
         """
         Return the GeminiRow object for the next query result.
@@ -583,9 +554,9 @@ class GeminiQuery(object):
 
         while (1):
             try:
-                row = self.c.next()
+                row = self.session.next()
             except Exception as e:
-                self.conn.close()
+                self.cluster.close()
                 raise StopIteration
             gts = None
             gt_types = None
@@ -718,19 +689,19 @@ class GeminiQuery(object):
         """
         # open up a new database
         if os.path.exists(self.db):
-            self.conn = sqlite3.connect(self.db)
-            self.conn.isolation_level = None
+            self.cluster = Cluster(self.db)
+            #self.cluster.isolation_level = None
             # allow us to refer to columns by name
-            self.conn.row_factory = sqlite3.Row
-            self.c = self.conn.cursor()
+            #self.cluster.row_factory = sqlite3.Row
+            self.session = self.cluster.cursor()
 
 
     def _collect_sample_table_columns(self):
         """
         extract the column names in the samples table into a list
         """
-        self.c.execute('select * from samples limit 1')
-        self.sample_column_names = [tup[0] for tup in self.c.description]
+        self.session.execute('select * from samples limit 1')
+        self.sample_column_names = [tup[0] for tup in self.session.description]
 
     def _is_gt_filter_safe(self):
         """
@@ -765,9 +736,9 @@ class GeminiQuery(object):
 
     def _execute_query(self):
         try:
-            self.c.execute(self.query)
-        except sqlite3.OperationalError as e:
-            print "SQLite error: {0}".format(e)
+            self.session.execute(self.query)
+        except cassandra.InvalidRequest as e:
+            print "Cassandra error: {0}".format(e)
             sys.exit("The query issued (%s) has a syntax error." % self.query)
 
     def _apply_query(self):
@@ -789,13 +760,14 @@ class GeminiQuery(object):
 
             # we only need genotype information if the user is
             # querying the variants table
-            self.query = self._add_gt_cols_to_query()
+            
+            # self.query = self._add_gt_cols_to_query()
 
             self._execute_query()
 
-            self.all_query_cols = [str(tuple[0]) for tuple in self.c.description
-                                   if not tuple[0].startswith("gt") \
-                                      and ".gt" not in tuple[0]]
+            self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.c.description
+                                   if not description_tuple[0].startswith("gt") \
+                                      and ".gt" not in description_tuple[0]]
 
             if "*" in self.select_columns:
                 self.select_columns.remove("*")
@@ -809,31 +781,9 @@ class GeminiQuery(object):
         # and as such, we don't need to do anything fancy.
         else:
             self._execute_query()
-            self.all_query_cols = [str(tuple[0]) for tuple in self.c.description
-                                   if not tuple[0].startswith("gt")]
+            self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.session.description
+                                   if not description_tuple[0].startswith("gt")]
             self.report_cols = self.all_query_cols
-
-    def _correct_genotype_col(self, raw_col):
-        """
-        Convert a _named_ genotype index to a _numerical_
-        genotype index so that the appropriate value can be
-        extracted for the sample from the genotype numpy arrays.
-
-        These lookups will be eval()'ed on the resuting rows to
-        extract the appropriate information.
-
-        For example, convert gt_types.1478PC0011 to gt_types[11]
-        """
-        if raw_col == "*":
-            return raw_col.lower()
-        # e.g., "gts.NA12878"
-        elif '.' in raw_col:
-            (column, sample) = raw_col.split('.', 1)
-            corrected = column.lower() + "[" + str(self.sample_to_idx[sample]).lower() + "]"
-        else:
-            # e.g. "gts" - do nothing
-            corrected = raw_col
-        return corrected
 
     def _get_matching_sample_ids(self, wildcard):
         """
@@ -844,13 +794,13 @@ class GeminiQuery(object):
         """
         query = 'SELECT sample_id, name FROM samples '
         if wildcard.strip() != "*":
-           query += ' WHERE ' + wildcard
+            query += ' WHERE ' + wildcard
 
         sample_info = [] # list of sample_id/name tuples
-        self.c.execute(query)
-        for row in self.c:
+        self.session.execute(query)
+        for row in self.session:
             # sample_ids are 1-based but gt_* indices are 0-based
-            sample_info.append((int(row['sample_id']) - 1, str(row['name'])))
+            sample_info.append(str(row['name']))
         return sample_info
 
     def _correct_genotype_filter(self):
@@ -909,8 +859,10 @@ class GeminiQuery(object):
                     if len(t) == 0:
                         continue
                     if (t.find("gt") >= 0 or t.find("GT") >= 0):
-                        corrected = self._correct_genotype_col(t)
-                        corrected_gt_filter.append(corrected)
+                        #TODO: niet meer nodig, denk ik?
+                        #corrected = self._correct_genotype_col(t)
+                        #corrected_gt_filter.append(corrected)
+                        corrected_gt_filter.append(t)
                     else:
                         t = _swap_genotype_for_number(t)
                         corrected_gt_filter.append(t)
@@ -940,19 +892,37 @@ class GeminiQuery(object):
                 # constructed below.
                 self.sample_info[token_idx] = self._get_matching_sample_ids(wildcard)
 
-                # Replace HET, etc. with 1, et.c to avoid eval() issues.
+                # Replace HET, etc. with 1, et.session to avoid eval() issues.
                 wildcard_rule = _swap_genotype_for_number(wildcard_rule)
 
                 # build the rule based on the wildcard the user has supplied.
-                if wildcard_op in ["all", "any"]:
-                    rule = wildcard_op + "(" + column + '[sample[0]]' + wildcard_rule + " for sample in self.sample_info[" + str(token_idx) + "])"
+                if wildcard_op == "all":
+                    rule = "("
+                    for idx, sample in enumerate(self.sample_info[token_idx]):
+                        rule += column + '.' + str(sample) + wildcard_rule
+                        if idx < len(self.sample_info[token_idx]) - 1:
+                            rule += ' and '
+                    rule += ")"
+                elif wildcard_op == "any":
+                    rule = "("
+                    for idx, sample in enumerate(self.sample_info[token_idx]):
+                        rule += column + '.' + str(sample) + wildcard_rule
+                        if idx < len(self.sample_info[token_idx]) - 1:
+                            rule += ' or '
+                    rule += ")"
                 elif wildcard_op == "none":
-                    rule = "not any(" + column + '[sample[0]]' + wildcard_rule + " for sample in self.sample_info[" + str(token_idx) + "])"
+                    rule = "( not "
+                    for idx, sample in enumerate(self.sample_info[token_idx]):
+                        rule += column + '.' + str(sample) + wildcard_rule
+                        if idx < len(self.sample_info[token_idx]) - 1:
+                            rule += ' and not '
+                    rule += ")"
                 elif "count" in wildcard_op:
+                    sys.exit("Not yet implemented. Exiting." % wildcard_op)
                     # break "count>=2" into ['', '>=2']
-                    tokens = wildcard_op.split('count')
-                    count_comp = tokens[len(tokens) - 1]
-                    rule = "sum(" + column + '[sample[0]]' + wildcard_rule + " for sample in self.sample_info[" + str(token_idx) + "])" + count_comp
+                    # tokens = wildcard_op.split('count')
+                    # count_comp = tokens[len(tokens) - 1]
+                    # rule = "sum(" + column + '[sample[0]]' + wildcard_rule + " for sample in self.sample_info[" + str(token_idx) + "])" + count_comp
                 else:
                     sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
 
@@ -974,7 +944,7 @@ class GeminiQuery(object):
         columns, so therefore, we have to modify the select statement to add
         it.
 
-        In essence, when a gneotype filter has been requested, we always add
+        In essence, when a genotype filter has been requested, we always add
         the gts, gt_types and gt_phases columns.
         """
 
@@ -1051,6 +1021,7 @@ class GeminiQuery(object):
         self.query = "select " + select_clause + rest_of_query
         return self.query
 
+    #TODO: undo conversion from sample names to indices?
     def _split_select(self):
         """
         Build a list of _all_ columns in the SELECT statement
@@ -1072,7 +1043,7 @@ class GeminiQuery(object):
         self.gt_name_to_idx_map = {}
         self.gt_idx_to_name_map = {}
 
-        # iterate through all of the select columns andclear
+        # iterate through all of the select columns and clear
         # distinguish the genotype-specific columns from the base columns
         if "from" not in self.query.lower():
             sys.exit("Malformed query: expected a FROM keyword.")
@@ -1098,30 +1069,12 @@ class GeminiQuery(object):
 
                 # maintain a list of the sample indices that should
                 # be displayed as a result of the SELECT'ed wildcard
-                wildcard_indices = []
                 for (idx, sample) in enumerate(sample_info):
-                    wildcard_display_col = column + '.' + str(sample[1])
-                    wildcard_mask_col = column + '[' + str(sample[0]) + ']'
-                    wildcard_indices.append(sample[0])
+                    wildcard_col = column + '.' + str(sample)
+                    self.all_columns_new.append(wildcard_col)
+                    self.all_columns_orig.append(wildcard_col)
 
-                    new_col = wildcard_mask_col
-                    self.all_columns_new.append(new_col)
-                    self.all_columns_orig.append(wildcard_display_col)
-                    self.gt_name_to_idx_map[wildcard_display_col] = wildcard_mask_col
-                    self.gt_idx_to_name_map[wildcard_mask_col] = wildcard_display_col
-
-            # it is a basic genotype column
-            elif (token.find("gt") >= 0 or token.find("GT") >= 0) \
-                and '.(' not in token and not ').' in token \
-                and "length" not in token:     # e.g., no aa_lenGTh, etc. false positives
-                new_col = self._correct_genotype_col(token)
-
-                self.all_columns_new.append(new_col)
-                self.all_columns_orig.append(token)
-                self.gt_name_to_idx_map[token] = new_col
-                self.gt_idx_to_name_map[new_col] = token
-
-            # it is neither
+            # it isn't
             else:
                 self.select_columns.append(token)
                 self.all_columns_new.append(token)
