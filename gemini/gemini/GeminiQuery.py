@@ -737,7 +737,7 @@ class GeminiQuery(object):
     def _execute_query(self):
         try:
             self.session.execute(self.query)
-        except cassandra.InvalidRequest as e:
+        except cassandra.protocol.SyntaxException as e:
             print "Cassandra error: {0}".format(e)
             sys.exit("The query issued (%s) has a syntax error." % self.query)
 
@@ -765,7 +765,7 @@ class GeminiQuery(object):
 
             self._execute_query()
 
-            self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.c.description
+            self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.session.description
                                    if not description_tuple[0].startswith("gt") \
                                       and ".gt" not in description_tuple[0]]
 

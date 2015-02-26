@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import  cassandra
 import sys
 from itertools import repeat
 import contextlib
@@ -292,6 +291,8 @@ def create_tables(session):
                     rvis_pct float,                                 \
                     mam_phenotype_id text,                          \
                     in_cosmic_census int)''')
+    
+    session.execute('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)''')
 
 def create_sample_table(session, args):
     NUM_BUILT_IN = 6
@@ -355,23 +356,28 @@ def insert_variation(session, buffer):
         session.execute("END TRANSACTION")
     except psycopg2.ProgrammingError:
         session.execute("END TRANSACTION")
-        _insert_variation_one_per_transaction(session, buffer)
-
-
-def insert_variation_impacts(session, contents):
+        _insert_variation_one_per_transaction(session, buffer)  
+    
+def generic_batch_insert(session, table, columns, contents):
     """
-    Populate the variant_impacts table with each variant in the buffer.
+    Populate the given table with the given values
     """
-    insert_impact = session.prepare('INSERT INTO variant_impacts VALUES (?,?,?,?,?,?,?,?, \
-                                                            ?,?,?,?,?,?,?,?, \
-                                                            ?,?,?)')
+    column_names = ','.join(columns)
+    question_marks = ",".join(list(repeat("?",len(columns))))
+    insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
+    
     batch = BatchStatement()
 
-    for impact in contents:
-        batch.add(insert_impact, impact)
+    for entry in contents:
+        batch.add(insert_query, entry)
         
-    session.execute(batch)    
-
+    session.execute(batch)
+    
+def generic_insert(session, table, columns, contents):
+    column_names = ','.join(columns)
+    placeholders = ",".join(list(repeat("%s",len(columns))))
+    insert_query = 'INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + placeholders + ')'
+    session.execute(insert_query, contents)
 
 def insert_sample(session, sample_list):
     """
@@ -390,46 +396,6 @@ def insert_sample(session, sample_list):
     
     session.execute("END")
 
-#TODO: string with all the columns names
-def insert_gene_detailed(session, table_contents):
-    insert_gene = session.prepare('INSERT INTO gene_detailed VALUES (?,?,?,?,?,?,?,?,?, \
-                                                                     ?,?,?,?,?,?,?,?,?, \
-                                                                     ?)')
-    batch = BatchStatement()
-
-    for gene in table_contents:
-        batch.add(insert_gene, gene)
-        
-    session.execute(batch)    
-
-def insert_gene_summary(session, contents):
-    insert_gene = session.prepare('INSERT INTO gene_summary VALUES (?,?,?,?,?,?,?,?, \
-                                                                    ?,?,?,?,?)')
-    batch = BatchStatement()
-
-    for gene in contents:
-        batch.add(insert_gene, gene)
-        
-    session.execute(batch)   
-    
-def insert_resources(session, resources):
-    """Populate table of annotation resources used in this database.
-    """
-    insert_resource = session.prepare('INSERT INTO resources (name, resource) VALUES (?,?)')
-    batch = BatchStatement()
-    
-    for resource in resources:
-        batch.add(insert_resource, resource)
-        
-    session.execute(batch)
-
-def insert_version(session, version):
-    """Populate table of documenting which
-    gemini version was used for this database.
-    """
-    session.execute('INSERT INTO version (version) VALUES (%s)', (version,))
-
-
 def close_and_commit(session, connection):
     """
     Commit changes to the DB and close out DB session.
@@ -446,7 +412,6 @@ def close_and_commit(session, connection):
 
     #print "closing"
     connection.close()
-
 
 def empty_tables(session):
     session.execute('''delete * from variation''')

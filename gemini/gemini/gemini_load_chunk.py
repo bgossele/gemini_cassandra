@@ -16,7 +16,7 @@ import version
 from ped import default_ped_fields, load_ped_file
 import gene_table
 import infotag
-import database
+import database_cassandra
 import annotations
 import func_impact
 import severe_impact
@@ -25,6 +25,7 @@ import structural_variants as svs
 from gemini_constants import *
 from compression import pack_blob
 from gemini.config import read_gemini_config
+from cassandra.cluster import Cluster
 
 
 class GeminiLoader(object):
@@ -65,17 +66,17 @@ class GeminiLoader(object):
     def store_vcf_header(self):
         """Store the raw VCF header.
         """
-        database.insert_vcf_header(self.c, self.vcf_reader.raw_header)
+        database_cassandra.generic_insert(self.session, 'vcf_header', self._get_column_names('vcf_header'), self.vcf_reader.raw_header)
 
     def store_resources(self):
         """Create table of annotation resources used in this gemini database.
         """
-        database.insert_resources(self.c, annotations.get_resources( self.args ))
+        database_cassandra.generic_batch_insert(self.session, 'resources', self._get_column_names('resources'), annotations.get_resources( self.args ))
 
     def store_version(self):
         """Create table documenting which gemini version was used for this db.
         """
-        database.insert_version(self.c, version.__version__)
+        database_cassandra.generic_insert(self.session, 'version', self._get_column_names('version'), version.__version__)
 
     def _get_vid(self):
         if hasattr(self.args, 'offset'):
@@ -117,8 +118,8 @@ class GeminiLoader(object):
                 if buffer_count >= self.buffer_size:
                     sys.stderr.write("pid " + str(os.getpid()) + ": " +
                                      str(self.counter) + " variants processed.\n")
-                    database.insert_variation(self.c, self.var_buffer)
-                    database.insert_variation_impacts(self.c,
+                    database_cassandra.insert_variation(self.session, self.var_buffer)
+                    database_cassandra.generic_batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -134,8 +135,8 @@ class GeminiLoader(object):
             os.remove(extra_file)
         # final load to the database
         self.v_id -= 1
-        database.insert_variation(self.c, self.var_buffer)
-        database.insert_variation_impacts(self.c, self.var_impacts_buffer)
+        database_cassandra.insert_variation(self.session, self.var_buffer)
+        database_cassandra.insert_variation_impacts(self.session, self.var_impacts_buffer)
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
         if self.args.passonly:
@@ -169,9 +170,9 @@ class GeminiLoader(object):
         db connection
         """
         # index our tables for speed
-        database.create_indices(self.c)
+        database_cassandra.create_indices(self.session)
         # commit data and close up
-        database.close_and_commit(self.c, self.conn)
+        database_cassandra.close_and_commit(self.session, self.conn)
 
     def _get_vcf_reader(self):
         # the VCF is a proper file
@@ -243,17 +244,18 @@ class GeminiLoader(object):
         private method to open a new DB
         and create the gemini schema.
         """
-        # open up a new database
-        if os.path.exists(self.args.db):
-            os.remove(self.args.db)
-        self.conn = sqlite3.connect(self.args.db)
-        self.conn.isolation_level = None
-        self.c = self.conn.cursor()
-        self.c.execute('PRAGMA synchronous = OFF')
-        self.c.execute('PRAGMA journal_mode=MEMORY')
+        self.cluster = Cluster()
+        self.session = self.cluster.connect()
+        self.session.execute("""CREATE KEYSPACE IF NOT EXISTS gemini_keyspace
+                                WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""")
+        self.session.set_keyspace('gemini_keyspace')
         # create the gemini database tables for the new DB
-        database.create_tables(self.c)
-        database.create_sample_table(self.c, self.args)
+        database_cassandra.create_tables(self.session)
+        database_cassandra.create_sample_table(self.session, self.args)
+        
+    def _get_column_names(self, table):
+        columns = self.cluster.metadata.keyspaces['gemini_keyspace'].tables[table].columns
+        return ','.join(columns.keys())
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -566,7 +568,7 @@ class GeminiLoader(object):
                 # if there is no ped file given, just fill in the name and
                 # sample_id and set the other required fields to None
                 sample_list = [i, 0, sample, 0, 0, -9, -9]
-            database.insert_sample(self.c, sample_list)
+            database_cassandra.insert_sample(self.session, sample_list)
             
     def _get_gene_detailed(self):
         """
@@ -592,7 +594,7 @@ class GeminiLoader(object):
                                  table.transcript_start,table.transcript_end,
                                  table.strand,table.synonym,table.rvis,table.mam_phenotype]
                 table_contents.append(detailed_list)
-        database.insert_gene_detailed(self.c, table_contents)
+        database_cassandra.generic_batch_insert(self.session, 'gene_detailed', self._get_column_names("gene_detailed"), table_contents)
         
     def _get_gene_summary(self):
         """
@@ -620,12 +622,12 @@ class GeminiLoader(object):
                                 table.synonym,table.rvis,table.mam_phenotype,
                                 cosmic_census]
                 contents.append(summary_list)
-        database.insert_gene_summary(self.c, contents)
+        database_cassandra.generic_batch_insert(self.session, 'gene_summary', self._get_column_names("gene_summary"), contents)
 
     def update_gene_table(self):
         """
         """
-        gene_table.update_cosmic_census_genes(self.c, self.args)
+        gene_table.update_cosmic_census_genes(self.session, self.args)
 
     def _init_sample_gt_counts(self):
         """
@@ -653,16 +655,16 @@ class GeminiLoader(object):
         """
         Update the count of each gt type for each sample
         """
-        self.c.execute("BEGIN TRANSACTION")
+        self.session.execute("BEGIN TRANSACTION")
         for idx, gt_counts in enumerate(self.sample_gt_counts):
-            self.c.execute("""insert into sample_genotype_counts values \
+            self.session.execute("""insert into sample_genotype_counts values \
                             (?,?,?,?,?)""",
                            [idx,
                             int(gt_counts[HOM_REF]),  # hom_ref
                             int(gt_counts[HET]),  # het
                             int(gt_counts[HOM_ALT]),  # hom_alt
                             int(gt_counts[UNKNOWN])])  # missing
-        self.c.execute("END")
+        self.session.execute("END")
 
 
 def load(parser, args):
