@@ -327,8 +327,8 @@ def create_sample_table(cursor, args):
     creation = "create table if not exists samples ({0})".format(structure)
     cursor.execute(creation)
 
-def _insert_variation_one_per_transaction(cursor, buffer):
-    for variant in buffer:
+def _insert_variation_one_per_transaction(cursor, variants_buffer):
+    for variant in variants_buffer:
         try:
             cursor.execute("BEGIN TRANSACTION")
             cursor.execute('insert into variants values     (?,?,?,?,?,?,?,?,?,?, \
@@ -355,9 +355,9 @@ def _insert_variation_one_per_transaction(cursor, buffer):
             print "Error %s:" % (e.args[0])
             sys.exit(1)
 
-def insert_variation(cursor, buffer):
+def insert_variation(cursor, variant):
     """
-    Populate the variants table with each variant in the buffer.
+    Populate the variants table with each variant in the variant.
     """
     try:
         cursor.execute("BEGIN TRANSACTION")
@@ -374,12 +374,12 @@ def insert_variation(cursor, buffer):
                                                          ?,?,?,?,?,?,?,?,?,?, \
                                                          ?,?,?,?,?,?,?,?,?,?, \
                                                          ?,?,?,?,?,?,?,?,?,?, \
-                                                         ?,?,?,?,?,?,?,?,?,?)', buffer)
+                                                         ?,?,?,?,?,?,?,?,?,?)', variant)
 
         cursor.execute("END TRANSACTION")
     except sqlite3.ProgrammingError:
         cursor.execute("END TRANSACTION")
-        _insert_variation_one_per_transaction(cursor, buffer)
+        _insert_variation_one_per_transaction(cursor, variant)
 
 
 def insert_variation_impacts(cursor, buffer):

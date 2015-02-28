@@ -39,20 +39,20 @@ class GeminiLoader(object):
         self.vcf_reader = self._get_vcf_reader()
         
         if not self.args.no_genotypes:
-            self.samples = self.vcf_reader.samples
+            self.samples = blist(self.vcf_reader.samples)
             (self.gt_column_names, typed_column_names) = self._get_typed_gt_column_names()
         # create the gemini database
         self._create_db(typed_column_names)
         # load sample information
 
-        if not self.args.no_genotypes and not self.args.no_load_genotypes:
+        '''if not self.args.no_genotypes and not self.args.no_load_genotypes:
             # load the sample info from the VCF file.
             self._prepare_samples()
             # initialize genotype counts for each sample
             self._init_sample_gt_counts()
             self.num_samples = len(self.samples)
         else:
-            self.num_samples = 0
+            self.num_samples = 0'''
 
         self.buffer_size = buffer_size
         self._get_anno_version()
@@ -89,21 +89,18 @@ class GeminiLoader(object):
         return v_id
     
     def _get_typed_gt_column_names(self):
-        
-        def flatten(l):
-            return [num for elem in l for num in elem]
             
-        gt_cols = [('gts', 'text'),
+        gt_cols = blist([('gts', 'text'),
                    ('gt_types', 'int'),
                    ('gt_phases', 'int'),
                    ('gt_depths', 'int'),
                    ('gt_ref_depths', 'int'),
                    ('gt_alt_depths', 'int'),
                    ('gt_quals', 'float'),
-                   ('gt_copy_numbers', 'float')]
+                   ('gt_copy_numbers', 'float')])
         
-        column_names = flatten(map(lambda x: map(lambda y: x[0] + '.' + y, self.samples), gt_cols))
-        typed_column_names = flatten(map(lambda x: map(lambda y: x[0] + '.' + y + ' ' + x[1], self.samples), gt_cols))
+        column_names = concat(map(lambda x: map(lambda y: x[0] + '.' + y, self.samples), gt_cols))
+        typed_column_names = concat(map(lambda x: map(lambda y: x[0] + '.' + y + ' ' + x[1], self.samples), gt_cols))
         
         return (column_names, typed_column_names)
 
@@ -140,7 +137,8 @@ class GeminiLoader(object):
                 if buffer_count >= self.buffer_size:
                     sys.stderr.write("pid " + str(os.getpid()) + ": " +
                                      str(self.counter) + " variants processed.\n")
-                    database_cassandra.insert_variation(self.session, self.var_buffer)
+                    #TODO: column_names cachen?
+                    database_cassandra.batch_insert(self.session, 'variants', self.get_column_names('variants'), self.var_buffer)
                     database_cassandra.batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
                     # binary.genotypes.append(var_buffer)
@@ -157,7 +155,7 @@ class GeminiLoader(object):
             os.remove(extra_file)
         # final load to the database
         self.v_id -= 1
-        database_cassandra.insert_variation(self.session, self.var_buffer)
+        database_cassandra.batch_insert(self.session, 'variants', self.get_column_names('variants'), self.var_buffer)
         database_cassandra.batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'), self.var_impacts_buffer)
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
@@ -286,7 +284,7 @@ class GeminiLoader(object):
         Extracts variant information, variant impacts and extra fields for annotation.
         """
         extra_fields = {}
-        # these metric require that genotypes are present in the file
+        # these metrics require that genotypes are present in the file
         call_rate = None
         hwe_p_value = None
         pi_hat = None
@@ -426,27 +424,29 @@ class GeminiLoader(object):
         # these arrays will be pickled-to-binary, compressed,
         # and loaded as SqlLite BLOB values (see compression.pack_blob)
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
-            gt_bases = np.array(var.gt_bases, np.str)  # 'A/G', './.'
-            gt_types = np.array(var.gt_types, np.int8)  # -1, 0, 1, 2
-            gt_phases = np.array(var.gt_phases, np.bool)  # T F F
-            gt_depths = np.array(var.gt_depths, np.int32)  # 10 37 0
-            gt_ref_depths = np.array(var.gt_ref_depths, np.int32)  # 2 21 0 -1
-            gt_alt_depths = np.array(var.gt_alt_depths, np.int32)  # 8 16 0 -1
-            gt_quals = np.array(var.gt_quals, np.float32)  # 10.78 22 99 -1
-            gt_copy_numbers = np.array(var.gt_copy_numbers, np.float32)  # 1.0 2.0 2.1 -1
+            gt_bases = blist(var.gt_bases)  # 'A/G', './.'
+            gt_types = blist(var.gt_types)  # -1, 0, 1, 2
+            gt_phases = blist(var.gt_phases)  # T F F
+            gt_depths = blist(var.gt_depths)  # 10 37 0
+            gt_ref_depths = blist(var.gt_ref_depths)  # 2 21 0 -1
+            gt_alt_depths = blist(var.gt_alt_depths)  # 8 16 0 -1
+            gt_quals = blist(var.gt_quals)  # 10.78 22 99 -1
+            gt_copy_numbers = blist(var.gt_copy_numbers)  # 1.0 2.0 2.1 -1
 
             # tally the genotypes
             self._update_sample_gt_counts(gt_types)
         else:
-            gt_bases = None
-            gt_types = None
-            gt_phases = None
-            gt_depths = None
-            gt_ref_depths = None
-            gt_alt_depths = None
-            gt_quals = None
-            gt_copy_numbers = None
-
+            gt_bases = []
+            gt_types = []
+            gt_phases = []
+            gt_depths = []
+            gt_ref_depths = []
+            gt_alt_depths = []
+            gt_quals = []
+            gt_copy_numbers = []
+            
+        gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
+        
         if self.args.skip_info_string is False:
             info = var.INFO
         else:
@@ -481,10 +481,7 @@ class GeminiLoader(object):
         variant = [chrom, var.start, var.end,
                    vcf_id, self.v_id, anno_id, var.REF, ','.join(var.ALT),
                    var.QUAL, var_filter, var.var_type,
-                   var.var_subtype, pack_blob(gt_bases), pack_blob(gt_types),
-                   pack_blob(gt_phases), pack_blob(gt_depths),
-                   pack_blob(gt_ref_depths), pack_blob(gt_alt_depths),
-                   pack_blob(gt_quals), pack_blob(gt_copy_numbers),
+                   var.var_subtype,
                    call_rate, in_dbsnp,
                    rs_ids,
                    ci_left[0],
@@ -560,7 +557,7 @@ class GeminiLoader(object):
                    Exac.aaf_AFR, Exac.aaf_AMR,
                    Exac.aaf_EAS, Exac.aaf_FIN,
                    Exac.aaf_NFE, Exac.aaf_OTH,
-                   Exac.aaf_SAS]
+                   Exac.aaf_SAS] + gt_columns
 
         return variant, variant_impacts, extra_fields
 
@@ -569,7 +566,6 @@ class GeminiLoader(object):
         private method to load sample information
         """
         if not self.args.no_genotypes:
-            self.samples = self.vcf_reader.samples
             self.sample_to_id = {}
             for idx, sample in enumerate(self.samples):
                 self.sample_to_id[sample] = idx + 1
@@ -688,7 +684,9 @@ class GeminiLoader(object):
                             int(gt_counts[HOM_ALT]),  # hom_alt
                             int(gt_counts[UNKNOWN])])  # missing
         self.session.execute("END")
-
+        
+def concat(self, l):
+        return reduce(lambda x, y: x + y, l, [])
 
 def load(parser, args):
     if (args.db is None or args.vcf is None):

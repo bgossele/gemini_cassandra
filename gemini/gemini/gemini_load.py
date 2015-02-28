@@ -8,7 +8,7 @@ import sqlite3
 
 import annotations
 import subprocess
-from cluster_helper.cluster import cluster_view
+#from cluster_helper.cluster import cluster_view
 import database as gemini_db
 from gemini_load_chunk import GeminiLoader
 import gemini_annotate
@@ -18,7 +18,8 @@ import datetime
 
 
 def load(parser, args):
-    if (args.db is None or args.vcf is None):
+    #if (args.db is None or args.vcf is None):
+    if args.vcf is None:
         parser.print_help()
         exit("ERROR: load needs both a VCF file and a database file\n")
 
@@ -45,9 +46,11 @@ def load(parser, args):
     annotations.load_annos( args )
 
     if args.scheduler:
-        load_ipython(args)
+        #load_ipython(args)
+        sys.stdout.write("Just testing, no fancy scheduler stuff available yet")
     elif args.cores > 1:
-        load_multicore(args)
+        sys.stdout.write("Just testing, no fancy multicore stuff available yet")
+        #load_multicore(args)
     else:
         load_singlecore(args)
 
@@ -70,19 +73,20 @@ def load_singlecore(args):
         gemini_loader.store_sample_gt_counts()
     gemini_annotate.add_extras(args.db, [args.db])
 
-def load_multicore(args):
+'''def load_multicore(args):
     grabix_file = bgzip(args.vcf)
     chunks = load_chunks_multicore(grabix_file, args)
     merge_chunks_multicore(chunks, args.db)
     gemini_annotate.add_extras(args.db, chunks)
 
-def load_ipython(args):
+    def load_ipython(args):
     grabix_file = bgzip(args.vcf)
     with cluster_view(*get_ipython_args(args)) as view:
         chunks = load_chunks_ipython(grabix_file, args, view)
         merge_chunks_ipython(chunks, args.db, view)
     gemini_annotate.add_extras(args.db, chunks)
-
+'''
+    
 def merge_chunks(chunks, db):
     cmd = get_merge_chunks_cmd(chunks, db)
     print "Merging chunks."
@@ -106,7 +110,7 @@ def merge_chunks_ipython(chunks, db, view):
         view.map(merge_chunks, sub_merges, tmp_dbs)
         merge_chunks_ipython(tmp_dbs, db, view)
 
-def merge_chunks_multicore(chunks, db):
+'''def merge_chunks_multicore(chunks, db):
     if len(chunks) <= 1:
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -136,7 +140,7 @@ def merge_chunks_multicore(chunks, db):
             procs.append(subprocess.Popen(cmd, shell=True))
         wait_until_finished(procs)
         cleanup_temp_db_files(chunks)
-        merge_chunks_multicore(tmp_dbs, db)
+        merge_chunks_multicore(tmp_dbs, db)'''
 
 def get_chunks_to_merge(chunks):
     sublist = list_to_sublists(chunks, 2)

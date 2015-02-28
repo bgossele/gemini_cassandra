@@ -84,6 +84,7 @@ def create_indices(session):
     """
     Index our master DB tables for speed
     """
+    sys.stderr.write("Trying to index db. Some stuff may explode")
     index_variation(session)
     index_variation_impacts(session)
     index_samples(session)
@@ -312,11 +313,10 @@ def create_sample_table(session, args):
     creation = "CREATE TABLE if not exists samples ({0})".format(structure)
     session.execute(creation)
 
-def _insert_variation_one_per_transaction(session, buffer):
-    for variant in buffer:
-        try:
-            session.execute("BEGIN TRANSACTION")
-            session.execute('INSERT INTO variants values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
+def _insert_variation_one_per_transaction(session, variants_buffer):
+    for variant in variants_buffer:
+        session.execute("BEGIN TRANSACTION")
+        session.execute('INSERT INTO variants values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
@@ -329,23 +329,15 @@ def _insert_variation_one_per_transaction(session, buffer):
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', variant)
-            session.execute("END TRANSACTION")
+        session.execute("END TRANSACTION")
         # skip repeated keys until we get to the failed variant
-        except psycopg2.IntegrityError, e:
-            session.execute("END TRANSACTION")
-            continue
-        except psycopg2.ProgrammingError, e:
-            print variant
-            print "Error %s:" % (e.args[0])
-            sys.exit(1)
 
-def insert_variation(session, buffer):
+def insert_variation(session, variant):
     """
-    Populate the variants table with each variant in the buffer.
+    Populate the variants table with each variant in the variant.
     """
-    try:
-        session.execute("BEGIN TRANSACTION")
-        session.executemany('INSERT INTO variants values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
+    session.execute("BEGIN TRANSACTION")
+    session.executemany('INSERT INTO variants values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
@@ -357,12 +349,9 @@ def insert_variation(session, buffer):
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
                                                          %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', buffer)
+                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', variant)
 
-        session.execute("END TRANSACTION")
-    except psycopg2.ProgrammingError:
-        session.execute("END TRANSACTION")
-        _insert_variation_one_per_transaction(session, buffer)  
+    session.execute("END TRANSACTION")
     
 def batch_insert(session, table, columns, contents):
     """
