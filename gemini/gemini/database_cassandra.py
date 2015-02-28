@@ -103,7 +103,78 @@ def create_tables(session):
     """
     Create our master DB tables
     """
-    session.execute('''CREATE TABLE if not exists variants  (    \
+    session.execute('''CREATE TABLE if not exists variant_impacts  (   \
+                    variant_id int,                               \
+                    anno_id int,                                  \
+                    gene text,                                        \
+                    transcript text,                                  \
+                    is_exonic int,                                   \
+                    is_coding int,                                   \
+                    is_lof int,                                      \
+                    exon text,                                        \
+                    codon_change text,                                \
+                    aa_change text,                                   \
+                    aa_length text,                                   \
+                    biotype text,                                     \
+                    impact text,                                      \
+                    impact_so text,                                   \
+                    impact_severity text,                             \
+                    polyphen_pred text,                               \
+                    polyphen_score float,                             \
+                    sift_pred text,                                   \
+                    sift_score float,                                 \
+                    PRIMARY KEY((variant_id, anno_id)))''')
+
+    session.execute('''CREATE TABLE if not exists resources ( \
+                     name text PRIMARY KEY,                  \
+                     resource text)''')
+
+    session.execute('''CREATE TABLE if not exists version ( \
+                     version text PRIMARY KEY)''')
+    
+    session.execute('''CREATE TABLE if not exists gene_detailed (       \
+                   uid int PRIMARY KEY,                                \
+                   chrom text,                                         \
+                   gene text,                                          \
+                   is_hgnc int,                                        \
+                   ensembl_gene_id text,                               \
+                   transcript text,                                    \
+                   biotype text,                                       \
+                   transcript_status text,                             \
+                   ccds_id text,                                       \
+                   hgnc_id text,                                       \
+                   entrez_id text,                                     \
+                   cds_length text,                                    \
+                   protein_length text,                                \
+                   transcript_start text,                              \
+                   transcript_end text,                                \
+                   strand text,                                        \
+                   synonym text,                                       \
+                   rvis_pct float,                                     \
+                   mam_phenotype_id text)''')
+    
+    session.execute('''CREATE TABLE if not exists gene_summary (     \
+                    uid int PRIMARY KEY                         \
+                    chrom text,                                     \
+                    gene text,                                      \
+                    is_hgnc int,                                   \
+                    ensembl_gene_id text,                           \
+                    hgnc_id text,                                   \
+                    transcript_min_start text,                      \
+                    transcript_max_end text,                        \
+                    strand text,                                    \
+                    synonym text,                                   \
+                    rvis_pct float,                                 \
+                    mam_phenotype_id text,                          \
+                    in_cosmic_census int)''')
+    
+    session.execute('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)''')
+
+
+def create_variants_table(session, gt_column_names):
+
+    placeholders = ",".join(list(repeat("%s",len(gt_column_names))))
+    creation =      '''CREATE TABLE if not exists variants  (   \
                     chrom text,                                 \
                     start int,                                  \
                     \"end\" int,                                \
@@ -179,40 +250,40 @@ def create_tables(session):
                     anc_allele text,                            \
                     rms_bq float,                               \
                     cigar text,                                 \
-                    depth int default NULL,                 \
+                    depth int default NULL,                     \
                     strand_bias float default NULL,             \
                     rms_map_qual float default NULL,            \
-                    in_hom_run int default NULL,            \
-                    num_mapq_zero int default NULL,         \
-                    num_alleles int default NULL,           \
+                    in_hom_run int default NULL,                \
+                    num_mapq_zero int default NULL,             \
+                    num_alleles int default NULL,               \
                     num_reads_w_dels float default NULL,        \
                     haplotype_score float default NULL,         \
                     qual_depth float default NULL,              \
-                    allele_count int default NULL,          \
+                    allele_count int default NULL,              \
                     allele_bal float default NULL,              \
-                    in_hm2 int,                                \
-                    in_hm3 int,                                \
-                    is_somatic int,                            \
+                    in_hm2 int,                                 \
+                    in_hm3 int,                                 \
+                    is_somatic int,                             \
                     somatic_score float,                        \
                     in_esp bool,                                \
-                    aaf_esp_ea numeric,                    \
-                    aaf_esp_aa numeric,                    \
-                    aaf_esp_all numeric,                   \
+                    aaf_esp_ea numeric,                         \
+                    aaf_esp_aa numeric,                         \
+                    aaf_esp_all numeric,                        \
                     exome_chip bool,                            \
                     in_1kg bool,                                \
-                    aaf_1kg_amr numeric,                   \
-                    aaf_1kg_eas numeric,                   \
-                    aaf_1kg_sas numeric,                   \
-                    aaf_1kg_afr numeric,                   \
-                    aaf_1kg_eur numeric,                   \
-                    aaf_1kg_all numeric,                   \
+                    aaf_1kg_amr numeric,                        \
+                    aaf_1kg_eas numeric,                        \
+                    aaf_1kg_sas numeric,                        \
+                    aaf_1kg_afr numeric,                        \
+                    aaf_1kg_eur numeric,                        \
+                    aaf_1kg_all numeric,                        \
                     grc text default NULL,                      \
                     gms_illumina float,                         \
                     gms_solid float,                            \
                     gms_iontorrent float,                       \
                     in_cse bool,                                \
                     encode_tfbs text,                           \
-                    encode_dnaseI_cell_count int,           \
+                    encode_dnaseI_cell_count int,               \
                     encode_dnaseI_cell_list text,               \
                     encode_consensus_gm12878 text,              \
                     encode_consensus_h1hesc text,               \
@@ -222,77 +293,12 @@ def create_tables(session):
                     encode_consensus_k562 text,                 \
                     vista_enhancers text,                       \
                     cosmic_ids text,                            \
-                    info BYTEA,                                  \
+                    info BYTEA,                                 \
                     cadd_raw float,                             \
                     cadd_scaled float,                          \
-                    fitcons float)''')
-
-    session.execute('''CREATE TABLE if not exists variant_impacts  (   \
-                    variant_id int,                               \
-                    anno_id int,                                  \
-                    gene text,                                        \
-                    transcript text,                                  \
-                    is_exonic int,                                   \
-                    is_coding int,                                   \
-                    is_lof int,                                      \
-                    exon text,                                        \
-                    codon_change text,                                \
-                    aa_change text,                                   \
-                    aa_length text,                                   \
-                    biotype text,                                     \
-                    impact text,                                      \
-                    impact_so text,                                   \
-                    impact_severity text,                             \
-                    polyphen_pred text,                               \
-                    polyphen_score float,                             \
-                    sift_pred text,                                   \
-                    sift_score float,                                 \
-                    PRIMARY KEY((variant_id, anno_id)))''')
-
-    session.execute('''CREATE TABLE if not exists resources ( \
-                     name text PRIMARY KEY,                  \
-                     resource text)''')
-
-    session.execute('''CREATE TABLE if not exists version ( \
-                     version text PRIMARY KEY)''')
-    
-    session.execute('''CREATE TABLE if not exists gene_detailed (       \
-                   uid int PRIMARY KEY,                                \
-                   chrom text,                                         \
-                   gene text,                                          \
-                   is_hgnc int,                                        \
-                   ensembl_gene_id text,                               \
-                   transcript text,                                    \
-                   biotype text,                                       \
-                   transcript_status text,                             \
-                   ccds_id text,                                       \
-                   hgnc_id text,                                       \
-                   entrez_id text,                                     \
-                   cds_length text,                                    \
-                   protein_length text,                                \
-                   transcript_start text,                              \
-                   transcript_end text,                                \
-                   strand text,                                        \
-                   synonym text,                                       \
-                   rvis_pct float,                                     \
-                   mam_phenotype_id text)''')
-    
-    session.execute('''CREATE TABLE if not exists gene_summary (     \
-                    uid int PRIMARY KEY                         \
-                    chrom text,                                     \
-                    gene text,                                      \
-                    is_hgnc int,                                   \
-                    ensembl_gene_id text,                           \
-                    hgnc_id text,                                   \
-                    transcript_min_start text,                      \
-                    transcript_max_end text,                        \
-                    strand text,                                    \
-                    synonym text,                                   \
-                    rvis_pct float,                                 \
-                    mam_phenotype_id text,                          \
-                    in_cosmic_census int)''')
-    
-    session.execute('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)''')
+                    fitcons float,''' + placeholders + ")"
+                    
+    session.execute(creation, gt_column_names)                
 
 def create_sample_table(session, args):
     NUM_BUILT_IN = 6
@@ -358,7 +364,7 @@ def insert_variation(session, buffer):
         session.execute("END TRANSACTION")
         _insert_variation_one_per_transaction(session, buffer)  
     
-def generic_batch_insert(session, table, columns, contents):
+def batch_insert(session, table, columns, contents):
     """
     Populate the given table with the given values
     """
@@ -373,7 +379,7 @@ def generic_batch_insert(session, table, columns, contents):
         
     session.execute(batch)
     
-def generic_insert(session, table, columns, contents):
+def insert(session, table, columns, contents):
     column_names = ','.join(columns)
     placeholders = ",".join(list(repeat("%s",len(columns))))
     insert_query = 'INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + placeholders + ')'

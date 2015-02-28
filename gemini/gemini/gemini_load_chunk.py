@@ -3,9 +3,7 @@
 # native Python imports
 import os.path
 import sys
-import sqlite3
 import numpy as np
-from itertools import repeat
 import json
 
 # third-party imports
@@ -26,6 +24,7 @@ from gemini_constants import *
 from compression import pack_blob
 from gemini.config import read_gemini_config
 from cassandra.cluster import Cluster
+from blist import blist
 
 
 class GeminiLoader(object):
@@ -36,10 +35,14 @@ class GeminiLoader(object):
     def __init__(self, args, buffer_size=10000):
         self.args = args
 
-        # create the gemini database
-        self._create_db()
         # create a reader for the VCF file
         self.vcf_reader = self._get_vcf_reader()
+        
+        if not self.args.no_genotypes:
+            self.samples = self.vcf_reader.samples
+            (self.gt_column_names, typed_column_names) = self._get_typed_gt_column_names()
+        # create the gemini database
+        self._create_db(typed_column_names)
         # load sample information
 
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
@@ -66,17 +69,17 @@ class GeminiLoader(object):
     def store_vcf_header(self):
         """Store the raw VCF header.
         """
-        database_cassandra.generic_insert(self.session, 'vcf_header', self._get_column_names('vcf_header'), self.vcf_reader.raw_header)
+        database_cassandra.insert(self.session, 'vcf_header', self._get_column_names('vcf_header'), self.vcf_reader.raw_header)
 
     def store_resources(self):
         """Create table of annotation resources used in this gemini database.
         """
-        database_cassandra.generic_batch_insert(self.session, 'resources', self._get_column_names('resources'), annotations.get_resources( self.args ))
+        database_cassandra.batch_insert(self.session, 'resources', self._get_column_names('resources'), annotations.get_resources( self.args ))
 
     def store_version(self):
         """Create table documenting which gemini version was used for this db.
         """
-        database_cassandra.generic_insert(self.session, 'version', self._get_column_names('version'), version.__version__)
+        database_cassandra.insert(self.session, 'version', self._get_column_names('version'), version.__version__)
 
     def _get_vid(self):
         if hasattr(self.args, 'offset'):
@@ -84,6 +87,25 @@ class GeminiLoader(object):
         else:
             v_id = 1
         return v_id
+    
+    def _get_typed_gt_column_names(self):
+        
+        def flatten(l):
+            return [num for elem in l for num in elem]
+            
+        gt_cols = [('gts', 'text'),
+                   ('gt_types', 'int'),
+                   ('gt_phases', 'int'),
+                   ('gt_depths', 'int'),
+                   ('gt_ref_depths', 'int'),
+                   ('gt_alt_depths', 'int'),
+                   ('gt_quals', 'float'),
+                   ('gt_copy_numbers', 'float')]
+        
+        column_names = flatten(map(lambda x: map(lambda y: x[0] + '.' + y, self.samples), gt_cols))
+        typed_column_names = flatten(map(lambda x: map(lambda y: x[0] + '.' + y + ' ' + x[1], self.samples), gt_cols))
+        
+        return (column_names, typed_column_names)
 
     def populate_from_vcf(self):
         """
@@ -119,7 +141,7 @@ class GeminiLoader(object):
                     sys.stderr.write("pid " + str(os.getpid()) + ": " +
                                      str(self.counter) + " variants processed.\n")
                     database_cassandra.insert_variation(self.session, self.var_buffer)
-                    database_cassandra.generic_batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'),
+                    database_cassandra.batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -136,7 +158,7 @@ class GeminiLoader(object):
         # final load to the database
         self.v_id -= 1
         database_cassandra.insert_variation(self.session, self.var_buffer)
-        database_cassandra.insert_variation_impacts(self.session, self.var_impacts_buffer)
+        database_cassandra.batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'), self.var_impacts_buffer)
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
         if self.args.passonly:
@@ -239,7 +261,7 @@ class GeminiLoader(object):
                 "\nhttp://gemini.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-vep"
         sys.exit(error)
 
-    def _create_db(self):
+    def _create_db(self, gt_column_names):
         """
         private method to open a new DB
         and create the gemini schema.
@@ -251,6 +273,7 @@ class GeminiLoader(object):
         self.session.set_keyspace('gemini_keyspace')
         # create the gemini database tables for the new DB
         database_cassandra.create_tables(self.session)
+        database_cassandra.create_variants_table(self.session, gt_column_names)
         database_cassandra.create_sample_table(self.session, self.args)
         
     def _get_column_names(self, table):
@@ -387,13 +410,13 @@ class GeminiLoader(object):
                 is_lof = severe_impacts.is_lof
                 consequence_so = severe_impacts.so
 
-        # construct the filter string
-        filter = None
+        # construct the var_filter string
+        var_filter = None
         if var.FILTER is not None and var.FILTER != ".":
             if isinstance(var.FILTER, list):
-                filter = ";".join(var.FILTER)
+                var_filter = ";".join(var.FILTER)
             else:
-                filter = var.FILTER
+                var_filter = var.FILTER
 
         vcf_id = None
         if var.ID is not None and var.ID != ".":
@@ -457,7 +480,7 @@ class GeminiLoader(object):
         chrom = var.CHROM if var.CHROM.startswith("chr") else "chr" + var.CHROM
         variant = [chrom, var.start, var.end,
                    vcf_id, self.v_id, anno_id, var.REF, ','.join(var.ALT),
-                   var.QUAL, filter, var.var_type,
+                   var.QUAL, var_filter, var.var_type,
                    var.var_subtype, pack_blob(gt_bases), pack_blob(gt_types),
                    pack_blob(gt_phases), pack_blob(gt_depths),
                    pack_blob(gt_ref_depths), pack_blob(gt_alt_depths),
@@ -594,7 +617,7 @@ class GeminiLoader(object):
                                  table.transcript_start,table.transcript_end,
                                  table.strand,table.synonym,table.rvis,table.mam_phenotype]
                 table_contents.append(detailed_list)
-        database_cassandra.generic_batch_insert(self.session, 'gene_detailed', self._get_column_names("gene_detailed"), table_contents)
+        database_cassandra.batch_insert(self.session, 'gene_detailed', self._get_column_names("gene_detailed"), table_contents)
         
     def _get_gene_summary(self):
         """
@@ -606,9 +629,9 @@ class GeminiLoader(object):
         
         config = read_gemini_config( args = self.args )
         path_dirname = config["annotation_dir"]
-        file = os.path.join(path_dirname, 'summary_gene_table_v75')
+        file_path = os.path.join(path_dirname, 'summary_gene_table_v75')
         
-        for line in open(file, 'r'):
+        for line in open(file_path, 'r'):
             col = line.strip().split("\t")
             if not col[0].startswith("Chromosome"):
                 i += 1
@@ -622,7 +645,7 @@ class GeminiLoader(object):
                                 table.synonym,table.rvis,table.mam_phenotype,
                                 cosmic_census]
                 contents.append(summary_list)
-        database_cassandra.generic_batch_insert(self.session, 'gene_summary', self._get_column_names("gene_summary"), contents)
+        database_cassandra.batch_insert(self.session, 'gene_summary', self._get_column_names("gene_summary"), contents)
 
     def update_gene_table(self):
         """
