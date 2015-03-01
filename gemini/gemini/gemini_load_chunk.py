@@ -685,7 +685,7 @@ class GeminiLoader(object):
                             int(gt_counts[UNKNOWN])])  # missing
         self.session.execute("END")
         
-def concat(self, l):
+def concat(l):
         return reduce(lambda x, y: x + y, l, [])
 
 def load(parser, args):

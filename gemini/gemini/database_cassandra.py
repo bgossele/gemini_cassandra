@@ -155,7 +155,7 @@ def create_tables(session):
                    mam_phenotype_id text)''')
     
     session.execute('''CREATE TABLE if not exists gene_summary (     \
-                    uid int PRIMARY KEY                         \
+                    uid int PRIMARY KEY,                         \
                     chrom text,                                     \
                     gene text,                                      \
                     is_hgnc int,                                   \
@@ -174,6 +174,7 @@ def create_tables(session):
 
 def create_variants_table(session, gt_column_names):
 
+    #TODO: line 230 was hwe decimal(9,7) in sqlite and info was BYTEA
     placeholders = ",".join(list(repeat("%s",len(gt_column_names))))
     creation =      '''CREATE TABLE if not exists variants  (   \
                     chrom text,                                 \
@@ -227,7 +228,7 @@ def create_variants_table(session, gt_column_names):
                     num_hom_alt int,                            \
                     num_unknown int,                            \
                     aaf real,                                   \
-                    hwe decimal(9,7),                           \
+                    hwe decimal,                           \
                     inbreeding_coeff numeric,                   \
                     pi numeric,                                 \
                     recomb_rate numeric,                        \
@@ -294,11 +295,12 @@ def create_variants_table(session, gt_column_names):
                     encode_consensus_k562 text,                 \
                     vista_enhancers text,                       \
                     cosmic_ids text,                            \
-                    info BYTEA,                                 \
+                    info blob,                                 \
                     cadd_raw float,                             \
                     cadd_scaled float,                          \
                     fitcons float,''' + placeholders + ")"
-                    
+    print creation                
+    print gt_column_names
     session.execute(creation, gt_column_names)                
 
 def create_sample_table(session, args):
