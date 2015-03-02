@@ -99,8 +99,8 @@ class GeminiLoader(object):
                    ('gt_quals', 'float'),
                    ('gt_copy_numbers', 'float')])
         
-        column_names = concat(map(lambda x: map(lambda y: x[0] + '.' + y, self.samples), gt_cols))
-        typed_column_names = concat(map(lambda x: map(lambda y: x[0] + '.' + y + ' ' + x[1], self.samples), gt_cols))
+        column_names = concat(map(lambda x: map(lambda y: x[0] + '_' + y, self.samples), gt_cols))
+        typed_column_names = concat(map(lambda x: map(lambda y: x[0] + '_' + y + ' ' + x[1], self.samples), gt_cols))
         
         return (column_names, typed_column_names)
 
@@ -276,7 +276,7 @@ class GeminiLoader(object):
         
     def _get_column_names(self, table):
         columns = self.cluster.metadata.keyspaces['gemini_keyspace'].tables[table].columns
-        return ','.join(columns.keys())
+        return columns.keys()
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.

@@ -175,6 +175,7 @@ def create_tables(session):
 def create_variants_table(session, gt_column_names):
 
     #TODO: line 230 was hwe decimal(9,7) in sqlite and info was BYTEA
+    #Also changed real -> decimal and numeric to float
     placeholders = ",".join(list(repeat("%s",len(gt_column_names))))
     creation =      '''CREATE TABLE if not exists variants  (   \
                     chrom text,                                 \
@@ -191,47 +192,47 @@ def create_variants_table(session, gt_column_names):
                     sub_type text,                              \
                     call_rate float,                            \
                     in_dbsnp int,                               \
-                    rs_ids text default NULL,                   \
+                    rs_ids text ,                   \
                     sv_cipos_start_left int,                    \
                     sv_cipos_end_left int,                      \
                     sv_cipos_start_right int,                   \
                     sv_cipos_end_right int,                     \
                     sv_length int,                              \
-                    sv_is_precise bool,                         \
+                    sv_is_precise boolean,                         \
                     sv_tool text,                               \
                     sv_evidence_type text,                      \
                     sv_event_id text,                           \
                     sv_mate_id text,                            \
                     sv_strand text,                             \
                     in_omim int,                                \
-                    clinvar_sig text default NULL,              \
-                    clinvar_disease_name text default NULL,     \
-                    clinvar_dbsource text default NULL,         \
-                    clinvar_dbsource_id text default NULL,      \
-                    clinvar_origin text default NULL,           \
-                    clinvar_dsdb text default NULL,             \
-                    clinvar_dsdbid text default NULL,           \
-                    clinvar_disease_acc text default NULL,      \
+                    clinvar_sig text,              \
+                    clinvar_disease_name text,     \
+                    clinvar_dbsource text,         \
+                    clinvar_dbsource_id text,      \
+                    clinvar_origin text,           \
+                    clinvar_dsdb text,             \
+                    clinvar_dsdbid text,           \
+                    clinvar_disease_acc text,      \
                     clinvar_in_locus_spec_db int,               \
                     clinvar_on_diag_assay int,                  \
                     clinvar_causal_allele text,                 \
                     pfam_domain text,                           \
-                    cyto_band text default NULL,                \
-                    rmsk text default NULL,                     \
-                    in_cpg_island bool,                         \
-                    in_segdup bool,                             \
-                    is_conserved bool,                          \
+                    cyto_band text,                \
+                    rmsk text,                     \
+                    in_cpg_island boolean,                         \
+                    in_segdup boolean,                             \
+                    is_conserved boolean,                          \
                     gerp_bp_score float,                        \
                     gerp_element_pval float,                    \
                     num_hom_ref int,                            \
                     num_het int,                                \
                     num_hom_alt int,                            \
                     num_unknown int,                            \
-                    aaf real,                                   \
+                    aaf decimal,                                   \
                     hwe decimal,                           \
-                    inbreeding_coeff numeric,                   \
-                    pi numeric,                                 \
-                    recomb_rate numeric,                        \
+                    inbreeding_coeff float,                   \
+                    pi float,                                 \
+                    recomb_rate float,                        \
                     gene text,                                  \
                     transcript text,                            \
                     is_exonic int,                              \
@@ -242,8 +243,8 @@ def create_variants_table(session, gt_column_names):
                     aa_change text,                             \
                     aa_length text,                             \
                     biotype text,                               \
-                    impact text default NULL,                   \
-                    impact_so text default NULL,                \
+                    impact text,                   \
+                    impact_so text,                \
                     impact_severity text,                       \
                     polyphen_pred text,                         \
                     polyphen_score float,                       \
@@ -252,38 +253,38 @@ def create_variants_table(session, gt_column_names):
                     anc_allele text,                            \
                     rms_bq float,                               \
                     cigar text,                                 \
-                    depth int default NULL,                     \
-                    strand_bias float default NULL,             \
-                    rms_map_qual float default NULL,            \
-                    in_hom_run int default NULL,                \
-                    num_mapq_zero int default NULL,             \
-                    num_alleles int default NULL,               \
-                    num_reads_w_dels float default NULL,        \
-                    haplotype_score float default NULL,         \
-                    qual_depth float default NULL,              \
-                    allele_count int default NULL,              \
-                    allele_bal float default NULL,              \
+                    depth int,                     \
+                    strand_bias float,             \
+                    rms_map_qual float,            \
+                    in_hom_run int,                \
+                    num_mapq_zero int,             \
+                    num_alleles int,               \
+                    num_reads_w_dels float,        \
+                    haplotype_score float,         \
+                    qual_depth float,              \
+                    allele_count int,              \
+                    allele_bal float,              \
                     in_hm2 int,                                 \
                     in_hm3 int,                                 \
                     is_somatic int,                             \
                     somatic_score float,                        \
-                    in_esp bool,                                \
-                    aaf_esp_ea numeric,                         \
-                    aaf_esp_aa numeric,                         \
-                    aaf_esp_all numeric,                        \
-                    exome_chip bool,                            \
-                    in_1kg bool,                                \
-                    aaf_1kg_amr numeric,                        \
-                    aaf_1kg_eas numeric,                        \
-                    aaf_1kg_sas numeric,                        \
-                    aaf_1kg_afr numeric,                        \
-                    aaf_1kg_eur numeric,                        \
-                    aaf_1kg_all numeric,                        \
-                    grc text default NULL,                      \
+                    in_esp boolean,                                \
+                    aaf_esp_ea float,                         \
+                    aaf_esp_aa float,                         \
+                    aaf_esp_all float,                        \
+                    exome_chip boolean,                            \
+                    in_1kg boolean,                                \
+                    aaf_1kg_amr float,                        \
+                    aaf_1kg_eas float,                        \
+                    aaf_1kg_sas float,                        \
+                    aaf_1kg_afr float,                        \
+                    aaf_1kg_eur float,                        \
+                    aaf_1kg_all float,                        \
+                    grc text,                      \
                     gms_illumina float,                         \
                     gms_solid float,                            \
                     gms_iontorrent float,                       \
-                    in_cse bool,                                \
+                    in_cse boolean,                                \
                     encode_tfbs text,                           \
                     encode_dnaseI_cell_count int,               \
                     encode_dnaseI_cell_list text,               \
@@ -298,10 +299,9 @@ def create_variants_table(session, gt_column_names):
                     info blob,                                 \
                     cadd_raw float,                             \
                     cadd_scaled float,                          \
-                    fitcons float,''' + placeholders + ")"
-    print creation                
-    print gt_column_names
-    session.execute(creation, gt_column_names)                
+                    fitcons float,'''
+    insert = (creation + "{0})").format(placeholders) % tuple(gt_column_names)
+    session.execute(insert)                
 
 def create_sample_table(session, args):
     NUM_BUILT_IN = 6
@@ -310,7 +310,7 @@ def create_sample_table(session, args):
     optional_fields = ["family_id", "name", "paternal_id", "maternal_id",
                        "sex", "phenotype"]
     optional_fields += fields[NUM_BUILT_IN:] + ["PRIMARY KEY(sample_id)"]
-    optional = " text default NULL,".join(optional_fields)
+    optional = " text,".join(optional_fields)
     structure = '''{0}, {1}'''.format(required, optional)
     creation = "CREATE TABLE if not exists samples ({0})".format(structure)
     session.execute(creation)
@@ -362,7 +362,6 @@ def batch_insert(session, table, columns, contents):
     column_names = ','.join(columns)
     question_marks = ",".join(list(repeat("?",len(columns))))
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
-    
     batch = BatchStatement()
 
     for entry in contents:
