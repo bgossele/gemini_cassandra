@@ -4,6 +4,7 @@ import sys
 from itertools import repeat
 import contextlib
 
+from table_schemes import get_column_names
 from ped import get_ped_fields, default_ped_fields
 from cassandra.query import BatchStatement
 from cassandra import ConsistencyLevel
@@ -175,7 +176,7 @@ def create_tables(session):
 def create_variants_table(session, gt_column_names):
 
     #TODO: line 230 was hwe decimal(9,7) in sqlite and info was BYTEA
-    #Also changed real -> decimal and numeric to float
+    #Also changed real -> float and numeric to float
     placeholders = ",".join(list(repeat("%s",len(gt_column_names))))
     creation =      '''CREATE TABLE if not exists variants  (   \
                     chrom text,                                 \
@@ -192,47 +193,47 @@ def create_variants_table(session, gt_column_names):
                     sub_type text,                              \
                     call_rate float,                            \
                     in_dbsnp int,                               \
-                    rs_ids text ,                   \
+                    rs_ids text ,                               \
                     sv_cipos_start_left int,                    \
                     sv_cipos_end_left int,                      \
                     sv_cipos_start_right int,                   \
                     sv_cipos_end_right int,                     \
                     sv_length int,                              \
-                    sv_is_precise boolean,                         \
+                    sv_is_precise boolean,                      \
                     sv_tool text,                               \
                     sv_evidence_type text,                      \
                     sv_event_id text,                           \
                     sv_mate_id text,                            \
                     sv_strand text,                             \
                     in_omim int,                                \
-                    clinvar_sig text,              \
-                    clinvar_disease_name text,     \
-                    clinvar_dbsource text,         \
-                    clinvar_dbsource_id text,      \
-                    clinvar_origin text,           \
-                    clinvar_dsdb text,             \
-                    clinvar_dsdbid text,           \
-                    clinvar_disease_acc text,      \
+                    clinvar_sig text,                           \
+                    clinvar_disease_name text,                  \
+                    clinvar_dbsource text,                      \
+                    clinvar_dbsource_id text,                   \
+                    clinvar_origin text,                        \
+                    clinvar_dsdb text,                          \
+                    clinvar_dsdbid text,                        \
+                    clinvar_disease_acc text,                   \
                     clinvar_in_locus_spec_db int,               \
                     clinvar_on_diag_assay int,                  \
                     clinvar_causal_allele text,                 \
                     pfam_domain text,                           \
-                    cyto_band text,                \
-                    rmsk text,                     \
-                    in_cpg_island boolean,                         \
-                    in_segdup boolean,                             \
-                    is_conserved boolean,                          \
+                    cyto_band text,                             \
+                    rmsk text,                                  \
+                    in_cpg_island boolean,                      \
+                    in_segdup boolean,                          \
+                    is_conserved boolean,                       \
                     gerp_bp_score float,                        \
                     gerp_element_pval float,                    \
                     num_hom_ref int,                            \
                     num_het int,                                \
                     num_hom_alt int,                            \
                     num_unknown int,                            \
-                    aaf decimal,                                   \
-                    hwe decimal,                           \
-                    inbreeding_coeff float,                   \
-                    pi float,                                 \
-                    recomb_rate float,                        \
+                    aaf float,                                \
+                    hwe float,                                \
+                    inbreeding_coeff float,                     \
+                    pi float,                                   \
+                    recomb_rate float,                          \
                     gene text,                                  \
                     transcript text,                            \
                     is_exonic int,                              \
@@ -243,8 +244,8 @@ def create_variants_table(session, gt_column_names):
                     aa_change text,                             \
                     aa_length text,                             \
                     biotype text,                               \
-                    impact text,                   \
-                    impact_so text,                \
+                    impact text,                                \
+                    impact_so text,                             \
                     impact_severity text,                       \
                     polyphen_pred text,                         \
                     polyphen_score float,                       \
@@ -253,38 +254,38 @@ def create_variants_table(session, gt_column_names):
                     anc_allele text,                            \
                     rms_bq float,                               \
                     cigar text,                                 \
-                    depth int,                     \
-                    strand_bias float,             \
-                    rms_map_qual float,            \
-                    in_hom_run int,                \
-                    num_mapq_zero int,             \
-                    num_alleles int,               \
-                    num_reads_w_dels float,        \
-                    haplotype_score float,         \
-                    qual_depth float,              \
-                    allele_count int,              \
-                    allele_bal float,              \
+                    depth int,                                  \
+                    strand_bias float,                          \
+                    rms_map_qual float,                         \
+                    in_hom_run int,                             \
+                    num_mapq_zero int,                          \
+                    num_alleles int,                            \
+                    num_reads_w_dels float,                     \
+                    haplotype_score float,                      \
+                    qual_depth float,                           \
+                    allele_count int,                           \
+                    allele_bal float,                           \
                     in_hm2 int,                                 \
                     in_hm3 int,                                 \
                     is_somatic int,                             \
                     somatic_score float,                        \
-                    in_esp boolean,                                \
-                    aaf_esp_ea float,                         \
-                    aaf_esp_aa float,                         \
-                    aaf_esp_all float,                        \
-                    exome_chip boolean,                            \
-                    in_1kg boolean,                                \
-                    aaf_1kg_amr float,                        \
-                    aaf_1kg_eas float,                        \
-                    aaf_1kg_sas float,                        \
-                    aaf_1kg_afr float,                        \
-                    aaf_1kg_eur float,                        \
-                    aaf_1kg_all float,                        \
-                    grc text,                      \
+                    in_esp boolean,                             \
+                    aaf_esp_ea float,                           \
+                    aaf_esp_aa float,                           \
+                    aaf_esp_all float,                          \
+                    exome_chip boolean,                         \
+                    in_1kg boolean,                             \
+                    aaf_1kg_amr float,                          \
+                    aaf_1kg_eas float,                          \
+                    aaf_1kg_sas float,                          \
+                    aaf_1kg_afr float,                          \
+                    aaf_1kg_eur float,                          \
+                    aaf_1kg_all float,                          \
+                    grc text,                                   \
                     gms_illumina float,                         \
                     gms_solid float,                            \
                     gms_iontorrent float,                       \
-                    in_cse boolean,                                \
+                    in_cse boolean,                             \
                     encode_tfbs text,                           \
                     encode_dnaseI_cell_count int,               \
                     encode_dnaseI_cell_list text,               \
@@ -296,11 +297,21 @@ def create_variants_table(session, gt_column_names):
                     encode_consensus_k562 text,                 \
                     vista_enhancers text,                       \
                     cosmic_ids text,                            \
-                    info blob,                                 \
+                    info blob,                                  \
                     cadd_raw float,                             \
                     cadd_scaled float,                          \
-                    fitcons float,'''
-    insert = (creation + "{0})").format(placeholders) % tuple(gt_column_names)
+                    fitcons float,                              \
+                    in_exac boolean,                            \
+                    aaf_exac_all float,                       \
+                    aaf_adj_exac_all float,                   \
+                    aaf_adj_exac_afr float,                   \
+                    aaf_adj_exac_amr float,                   \
+                    aaf_adj_exac_eas float,                   \
+                    aaf_adj_exac_fin float,                   \
+                    aaf_adj_exac_nfe float,                   \
+                    aaf_adj_exac_oth float,                   \
+                    aaf_adj_exac_sas float, {0})'''
+    insert = creation.format(placeholders) % tuple(gt_column_names)
     session.execute(insert)                
 
 def create_sample_table(session, args):
@@ -320,7 +331,8 @@ def batch_insert(session, table, columns, contents):
     Populate the given table with the given values
     """
     column_names = ','.join(columns)
-    question_marks = ",".join(list(repeat("?",len(columns))))
+    question_marks = ','.join(list(repeat("?",len(columns))))
+    print 'inserting %s rows into %s' % (len(contents), table)
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
     batch = BatchStatement()
 
@@ -331,7 +343,7 @@ def batch_insert(session, table, columns, contents):
     
 def insert(session, table, columns, contents):
     column_names = ','.join(columns)
-    placeholders = ",".join(list(repeat("%s",len(columns))))
+    placeholders = ','.join(list(repeat("%s",len(columns))))
     insert_query = 'INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + placeholders + ')'
     session.execute(insert_query, contents)
 

@@ -25,6 +25,7 @@ from compression import pack_blob
 from gemini.config import read_gemini_config
 from cassandra.cluster import Cluster
 from blist import blist
+from table_schemes import get_column_names
 
 
 class GeminiLoader(object):
@@ -39,7 +40,7 @@ class GeminiLoader(object):
         self.vcf_reader = self._get_vcf_reader()
         
         if not self.args.no_genotypes:
-            self.samples = blist(self.vcf_reader.samples)
+            self.samples = self.vcf_reader.samples
             (self.gt_column_names, typed_column_names) = self._get_typed_gt_column_names()
         # create the gemini database
         self._create_db(typed_column_names)
@@ -69,17 +70,17 @@ class GeminiLoader(object):
     def store_vcf_header(self):
         """Store the raw VCF header.
         """
-        database_cassandra.insert(self.session, 'vcf_header', self._get_column_names('vcf_header'), [self.vcf_reader.raw_header])
+        database_cassandra.insert(self.session, 'vcf_header', get_column_names('vcf_header'), [self.vcf_reader.raw_header])
 
     def store_resources(self):
         """Create table of annotation resources used in this gemini database.
         """
-        database_cassandra.batch_insert(self.session, 'resources', self._get_column_names('resources'), annotations.get_resources( self.args ))
+        database_cassandra.batch_insert(self.session, 'resources', get_column_names('resources'), annotations.get_resources( self.args ))
 
     def store_version(self):
         """Create table documenting which gemini version was used for this db.
         """
-        database_cassandra.insert(self.session, 'version', self._get_column_names('version'), [version.__version__])
+        database_cassandra.insert(self.session, 'version', get_column_names('version'), [version.__version__])
 
     def _get_vid(self):
         if hasattr(self.args, 'offset'):
@@ -138,8 +139,8 @@ class GeminiLoader(object):
                     sys.stderr.write("pid " + str(os.getpid()) + ": " +
                                      str(self.counter) + " variants processed.\n")
                     #TODO: column_names cachen?
-                    database_cassandra.batch_insert(self.session, 'variants', self.get_column_names('variants'), self.var_buffer)
-                    database_cassandra.batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'),
+                    database_cassandra.batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+                    database_cassandra.batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -155,8 +156,8 @@ class GeminiLoader(object):
             os.remove(extra_file)
         # final load to the database
         self.v_id -= 1
-        database_cassandra.batch_insert(self.session, 'variants', self.get_column_names('variants'), self.var_buffer)
-        database_cassandra.batch_insert(self.session, 'variant_impacts', self._get_column_names('variant_impacts'), self.var_impacts_buffer)
+        database_cassandra.batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+        database_cassandra.batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
         if self.args.passonly:
@@ -273,10 +274,6 @@ class GeminiLoader(object):
         database_cassandra.create_tables(self.session)
         database_cassandra.create_variants_table(self.session, gt_column_names)
         database_cassandra.create_sample_table(self.session, self.args)
-        
-    def _get_column_names(self, table):
-        columns = self.cluster.metadata.keyspaces['gemini_keyspace'].tables[table].columns
-        return columns.keys()
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -416,6 +413,7 @@ class GeminiLoader(object):
             else:
                 var_filter = var.FILTER
 
+        #TODO: sensible value
         vcf_id = None
         if var.ID is not None and var.ID != ".":
             vcf_id = var.ID
@@ -424,14 +422,14 @@ class GeminiLoader(object):
         # these arrays will be pickled-to-binary, compressed,
         # and loaded as SqlLite BLOB values (see compression.pack_blob)
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
-            gt_bases = blist(var.gt_bases)  # 'A/G', './.'
-            gt_types = blist(var.gt_types)  # -1, 0, 1, 2
-            gt_phases = blist(var.gt_phases)  # T F F
-            gt_depths = blist(var.gt_depths)  # 10 37 0
-            gt_ref_depths = blist(var.gt_ref_depths)  # 2 21 0 -1
-            gt_alt_depths = blist(var.gt_alt_depths)  # 8 16 0 -1
-            gt_quals = blist(var.gt_quals)  # 10.78 22 99 -1
-            gt_copy_numbers = blist(var.gt_copy_numbers)  # 1.0 2.0 2.1 -1
+            gt_bases = var.gt_bases  # 'A/G', './.'
+            gt_types = var.gt_types  # -1, 0, 1, 2
+            gt_phases = var.gt_phases  # T F F
+            gt_depths = var.gt_depths  # 10 37 0
+            gt_ref_depths = var.gt_ref_depths  # 2 21 0 -1
+            gt_alt_depths = var.gt_alt_depths  # 8 16 0 -1
+            gt_quals = var.gt_quals  # 10.78 22 99 -1
+            gt_copy_numbers = var.gt_copy_numbers  # 1.0 2.0 2.1 -1
             gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
 
             # tally the genotypes
@@ -503,7 +501,7 @@ class GeminiLoader(object):
                    clinvar_info.clinvar_on_diag_assay,
                    clinvar_info.clinvar_causal_allele,
                    pfam_domain, cyto_band, rmsk_hits, in_cpg,
-                   in_segdup, is_conserved, gerp_bp, gerp_el,
+                   in_segdup, is_conserved, gerp_bp, parse_float(gerp_el),
                    hom_ref, het, hom_alt, unknown,
                    aaf, hwe_p_value, inbreeding_coeff, pi_hat,
                    recomb_rate, gene, transcript, is_exonic,
@@ -529,8 +527,8 @@ class GeminiLoader(object):
                    thousandG.aaf_AMR, thousandG.aaf_EAS, thousandG.aaf_SAS,
                    thousandG.aaf_AFR, thousandG.aaf_EUR,
                    thousandG.aaf_ALL, grc,
-                   gms.illumina, gms.solid,
-                   gms.iontorrent, in_cse,
+                   parse_float(gms.illumina), parse_float(gms.solid),
+                   parse_float(gms.iontorrent), in_cse,
                    encode_tfbs,
                    encode_dnaseI.cell_count,
                    encode_dnaseI.cell_list,
@@ -553,9 +551,9 @@ class GeminiLoader(object):
                    Exac.aaf_EAS, Exac.aaf_FIN,
                    Exac.aaf_NFE, Exac.aaf_OTH,
                    Exac.aaf_SAS] + gt_columns
-
         return variant, variant_impacts, extra_fields
-
+    
+    
     def _prepare_samples(self):
         """
         private method to load sample information
@@ -608,7 +606,7 @@ class GeminiLoader(object):
                                  table.transcript_start,table.transcript_end,
                                  table.strand,table.synonym,table.rvis,table.mam_phenotype]
                 table_contents.append(detailed_list)
-        database_cassandra.batch_insert(self.session, 'gene_detailed', self._get_column_names("gene_detailed"), table_contents)
+        database_cassandra.batch_insert(self.session, 'gene_detailed', get_column_names("gene_detailed"), table_contents)
         
     def _get_gene_summary(self):
         """
@@ -636,7 +634,7 @@ class GeminiLoader(object):
                                 table.synonym,table.rvis,table.mam_phenotype,
                                 cosmic_census]
                 contents.append(summary_list)
-        database_cassandra.batch_insert(self.session, 'gene_summary', self._get_column_names("gene_summary"), contents)
+        database_cassandra.batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), contents)
 
     def update_gene_table(self):
         """
@@ -681,7 +679,16 @@ class GeminiLoader(object):
         self.session.execute("END")
         
 def concat(l):
-        return reduce(lambda x, y: x + y, l, blist([]))
+        return reduce(lambda x, y: x + y, l, [])
+
+def parse_float(s):
+    try:
+        return float(s)
+    except ValueError:
+        #TODO: sensible value?
+        return -42.0
+    except TypeError:
+        return -43.0
 
 def load(parser, args):
     if (args.db is None or args.vcf is None):
