@@ -10,7 +10,7 @@ class gene_detailed:
         self.fields = field[:]
         self.chrom = field[0]
         self.gene = field[1]
-        self.is_hgnc = field[2]
+        self.is_hgnc = int(field[2])
         self.ensembl_gene_id = field[3]
         self.ensembl_trans_id = field[4]
         self.biotype = field[5]
@@ -23,7 +23,7 @@ class gene_detailed:
         self.transcript_end = field[12]
         self.strand = field[13]
         self.synonym = field[14]
-        self.rvis = field[15]
+        self.rvis = parse_float(field[15])
         self.entrez = field[16]
         self.mam_phenotype = field[17]
         
@@ -35,22 +35,30 @@ class gene_detailed:
 class gene_summary:
     
     def __init__(self, col):
-         self.columns = col[:]
-         self.chrom = col[0]
-         self.gene = col[1]
-         self.is_hgnc = col[2]
-         self.ensembl_gene_id = col[3]
-         self.hgnc_id = col[4]
-         self.synonym = col[5]
-         self.rvis = col[6]
-         self.strand = col[7]
-         self.transcript_min_start = col[8]
-         self.transcript_max_end = col[9]
-         self.mam_phenotype = col[10]
+        self.columns = col[:]
+        self.chrom = col[0]
+        self.gene = col[1]
+        self.is_hgnc = int(col[2])
+        self.ensembl_gene_id = col[3]
+        self.hgnc_id = col[4]
+        self.synonym = col[5]
+        self.rvis = parse_float(col[6])
+        self.strand = col[7]
+        self.transcript_min_start = col[8]
+        self.transcript_max_end = col[9]
+        self.mam_phenotype = col[10]
          
     def __str__(self):
         return ",".join([self.chrom, self.gene, self.is_hgnc, self.ensembl_gene_id, self.hgnc_id, self.synonym, self.rvis, 
                          self.strand, self.transcript_min_start, self.transcript_max_end, self.mam_phenotype])
+        
+def parse_float(s):
+    try:
+        return float(s)
+    except ValueError:
+        #TODO: sensible value?
+        return -42.0
+    
          
 def update_cosmic_census_genes( cursor, args ):
     """

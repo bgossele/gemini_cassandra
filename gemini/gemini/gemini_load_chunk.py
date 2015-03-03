@@ -58,8 +58,8 @@ class GeminiLoader(object):
         self._get_anno_version()
         
         if not args.skip_gene_tables:
-            self._get_gene_detailed()
-            self._get_gene_summary()
+            '''self._get_gene_detailed()
+            self._get_gene_summary()'''
 
         if self.args.anno_type == "VEP":
             self._effect_fields = self._get_vep_csq(self.vcf_reader)
@@ -69,7 +69,7 @@ class GeminiLoader(object):
     def store_vcf_header(self):
         """Store the raw VCF header.
         """
-        database_cassandra.insert(self.session, 'vcf_header', self._get_column_names('vcf_header'), self.vcf_reader.raw_header)
+        database_cassandra.insert(self.session, 'vcf_header', self._get_column_names('vcf_header'), [self.vcf_reader.raw_header])
 
     def store_resources(self):
         """Create table of annotation resources used in this gemini database.
@@ -79,7 +79,7 @@ class GeminiLoader(object):
     def store_version(self):
         """Create table documenting which gemini version was used for this db.
         """
-        database_cassandra.insert(self.session, 'version', self._get_column_names('version'), version.__version__)
+        database_cassandra.insert(self.session, 'version', self._get_column_names('version'), [version.__version__])
 
     def _get_vid(self):
         if hasattr(self.args, 'offset'):
@@ -90,14 +90,14 @@ class GeminiLoader(object):
     
     def _get_typed_gt_column_names(self):
             
-        gt_cols = blist([('gts', 'text'),
+        gt_cols = [('gts', 'text'),
                    ('gt_types', 'int'),
                    ('gt_phases', 'int'),
                    ('gt_depths', 'int'),
                    ('gt_ref_depths', 'int'),
                    ('gt_alt_depths', 'int'),
                    ('gt_quals', 'float'),
-                   ('gt_copy_numbers', 'float')])
+                   ('gt_copy_numbers', 'float')]
         
         column_names = concat(map(lambda x: map(lambda y: x[0] + '_' + y, self.samples), gt_cols))
         typed_column_names = concat(map(lambda x: map(lambda y: x[0] + '_' + y + ' ' + x[1], self.samples), gt_cols))
@@ -432,20 +432,15 @@ class GeminiLoader(object):
             gt_alt_depths = blist(var.gt_alt_depths)  # 8 16 0 -1
             gt_quals = blist(var.gt_quals)  # 10.78 22 99 -1
             gt_copy_numbers = blist(var.gt_copy_numbers)  # 1.0 2.0 2.1 -1
+            gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
 
             # tally the genotypes
+            #TODO: perhapds uncomment? Don't understand the use just yet.
+            '''
             self._update_sample_gt_counts(gt_types)
+            '''
         else:
-            gt_bases = []
-            gt_types = []
-            gt_phases = []
-            gt_depths = []
-            gt_ref_depths = []
-            gt_alt_depths = []
-            gt_quals = []
-            gt_copy_numbers = []
-            
-        gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
+            gt_columns= []            
         
         if self.args.skip_info_string is False:
             info = var.INFO
@@ -606,7 +601,7 @@ class GeminiLoader(object):
             if not field[0].startswith("Chromosome"):
                 i += 1
                 table = gene_table.gene_detailed(field)
-                detailed_list = [str(i),table.chrom,table.gene,table.is_hgnc,
+                detailed_list = [i,table.chrom,table.gene,table.is_hgnc,
                                  table.ensembl_gene_id,table.ensembl_trans_id, 
                                  table.biotype,table.trans_status,table.ccds_id, 
                                  table.hgnc_id,table.entrez,table.cds_length,table.protein_length, 
@@ -634,7 +629,7 @@ class GeminiLoader(object):
                 table = gene_table.gene_summary(col)
                 # defaul cosmic census to False
                 cosmic_census = 0
-                summary_list = [str(i),table.chrom,table.gene,table.is_hgnc,
+                summary_list = [i,table.chrom,table.gene,table.is_hgnc,
                                 table.ensembl_gene_id,table.hgnc_id,
                                 table.transcript_min_start,
                                 table.transcript_max_end,table.strand,
@@ -651,7 +646,7 @@ class GeminiLoader(object):
     def _init_sample_gt_counts(self):
         """
         Initialize a 2D array of counts for tabulating
-        the count of each genotype type for eaxh sample.
+        the count of each genotype type for each sample.
 
         The first dimension is one bucket for each sample.
         The second dimension (size=4) is a count for each gt type.
@@ -686,7 +681,7 @@ class GeminiLoader(object):
         self.session.execute("END")
         
 def concat(l):
-        return reduce(lambda x, y: x + y, l, [])
+        return reduce(lambda x, y: x + y, l, blist([]))
 
 def load(parser, args):
     if (args.db is None or args.vcf is None):

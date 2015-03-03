@@ -314,46 +314,6 @@ def create_sample_table(session, args):
     structure = '''{0}, {1}'''.format(required, optional)
     creation = "CREATE TABLE if not exists samples ({0})".format(structure)
     session.execute(creation)
-
-def _insert_variation_one_per_transaction(session, variants_buffer):
-    for variant in variants_buffer:
-        session.execute("BEGIN TRANSACTION")
-        session.execute('INSERT INTO variants values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', variant)
-        session.execute("END TRANSACTION")
-        # skip repeated keys until we get to the failed variant
-
-def insert_variation(session, variant):
-    """
-    Populate the variants table with each variant in the variant.
-    """
-    session.execute("BEGIN TRANSACTION")
-    session.executemany('INSERT INTO variants values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s, \
-                                                         %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', variant)
-
-    session.execute("END TRANSACTION")
     
 def batch_insert(session, table, columns, contents):
     """
