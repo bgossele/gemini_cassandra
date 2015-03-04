@@ -59,8 +59,8 @@ class GeminiLoader(object):
         self._get_anno_version()
         
         if not args.skip_gene_tables:
-            '''self._get_gene_detailed()
-            self._get_gene_summary()'''
+            self._get_gene_detailed()
+            self._get_gene_summary()
 
         if self.args.anno_type == "VEP":
             self._effect_fields = self._get_vep_csq(self.vcf_reader)
@@ -588,12 +588,13 @@ class GeminiLoader(object):
         """
         #unique identifier for each entry
         i = 0
-        table_contents = detailed_list = []
+        detailed_list = []
+        gene_buffer = blist([])
+        buffer_count = 0
         
         config = read_gemini_config( args = self.args )
         path_dirname = config["annotation_dir"]
         file_handle = os.path.join(path_dirname, 'detailed_gene_table_v75')
-        
         for line in open(file_handle, 'r'):
             field = line.strip().split("\t")
             if not field[0].startswith("Chromosome"):
@@ -605,8 +606,15 @@ class GeminiLoader(object):
                                  table.hgnc_id,table.entrez,table.cds_length,table.protein_length, 
                                  table.transcript_start,table.transcript_end,
                                  table.strand,table.synonym,table.rvis,table.mam_phenotype]
-                table_contents.append(detailed_list)
-        database_cassandra.batch_insert(self.session, 'gene_detailed', get_column_names("gene_detailed"), table_contents)
+                gene_buffer.append(detailed_list)
+                buffer_count += 1
+            #TODO: buffer size same as for variants?
+            if buffer_count >= self.buffer_size / 2:
+                database_cassandra.batch_insert(self.session, 'gene_detailed', get_column_names('gene_detailed'), gene_buffer)
+                buffer_count = 0
+                gene_buffer = blist([])
+                
+        database_cassandra.batch_insert(self.session, 'gene_detailed', get_column_names('gene_detailed'), gene_buffer)
         
     def _get_gene_summary(self):
         """
@@ -614,12 +622,14 @@ class GeminiLoader(object):
         """
         #unique identifier for each entry
         i = 0
-        contents = summary_list = []
+        summary_list = []
+        gene_buffer = blist([])
+        buffer_count = 0
         
         config = read_gemini_config( args = self.args )
         path_dirname = config["annotation_dir"]
         file_path = os.path.join(path_dirname, 'summary_gene_table_v75')
-        
+        print 'gene file path = %s' % file_path
         for line in open(file_path, 'r'):
             col = line.strip().split("\t")
             if not col[0].startswith("Chromosome"):
@@ -633,8 +643,15 @@ class GeminiLoader(object):
                                 table.transcript_max_end,table.strand,
                                 table.synonym,table.rvis,table.mam_phenotype,
                                 cosmic_census]
-                contents.append(summary_list)
-        database_cassandra.batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), contents)
+                gene_buffer.append(summary_list)
+                buffer_count += 1
+                
+            if buffer_count >= self.buffer_size / 2:
+                database_cassandra.batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), gene_buffer)
+                buffer_count = 0
+                gene_buffer = blist([])
+                
+        database_cassandra.batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), gene_buffer)
 
     def update_gene_table(self):
         """
