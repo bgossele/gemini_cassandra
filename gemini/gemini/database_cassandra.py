@@ -314,17 +314,18 @@ def create_variants_table(session, gt_column_names):
     insert = creation.format(placeholders) % tuple(gt_column_names)
     session.execute(insert)                
 
-def create_sample_table(session, args):
-    NUM_BUILT_IN = 6
-    fields = get_ped_fields(args.ped_file)
-    required = "sample_id int"
-    optional_fields = ["family_id", "name", "paternal_id", "maternal_id",
-                       "sex", "phenotype"]
-    optional_fields += fields[NUM_BUILT_IN:] + ["PRIMARY KEY(sample_id)"]
-    optional = " text,".join(optional_fields)
-    structure = '''{0}, {1}'''.format(required, optional)
-    creation = "CREATE TABLE if not exists samples ({0})".format(structure)
-    session.execute(creation)
+def create_sample_table(session, extra_columns):
+    creation = '''CREATE TABLE if not exists samples (          \
+                     sample_id int,                 \
+                     family_id int,                             \
+                     name text,                                 \
+                     paternal_id int,                           \
+                     maternal_id int,                           \
+                     sex text,                                  \
+                     phenotype text {0})'''
+    optional = ', ' + " text,".join(extra_columns + ['PRIMARY KEY(sample_id)'])
+    insert = creation.format(optional)
+    session.execute(insert)
     
 def batch_insert(session, table, columns, contents):
     """
@@ -347,22 +348,16 @@ def insert(session, table, columns, contents):
     insert_query = 'INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + placeholders + ')'
     session.execute(insert_query, contents)
 
-def insert_sample(session, sample_list):
+def insert_sample(session, sample_list, column_names):
     """
     Populate the samples with sample ids, names, and
     other indicative information.
     """
-    placeholders = ",".join(list(repeat("%s", len(sample_list))))
-    session.execute("BEGIN TRANSACTION")
     
     # a hack to prevent loading the same data multiple times in PGSQL mode.
-    session.execute("SELECT count(1) FROM samples")
-    count = session.fetchone()[0]
-    if count == 0:
-        session.execute("INSERT INTO samples values "
-                       "({0})".format(placeholders), sample_list)
-    
-    session.execute("END")
+    res = session.execute("SELECT count(1) FROM samples")[0]
+    if res.count == 0:
+        insert(session, 'samples', column_names, sample_list)
 
 def close_and_commit(session, connection):
     """

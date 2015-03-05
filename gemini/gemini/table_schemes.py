@@ -24,6 +24,14 @@ tables2 = dict([
                 'polyphen_score',
                 'sift_pred',
                 'sift_score']),
+                
+('samples', ['sample_id',
+                'family_id',
+                'name',
+                'paternal_id',
+                'maternal_id',
+                'sex',
+                'phenotype']),
 
 ('gene_detailed', ['uid',
                 'chrom',

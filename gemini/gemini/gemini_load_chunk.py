@@ -26,6 +26,7 @@ from gemini.config import read_gemini_config
 from cassandra.cluster import Cluster
 from blist import blist
 from table_schemes import get_column_names
+from gemini.ped import get_ped_fields
 
 
 class GeminiLoader(object):
@@ -35,32 +36,35 @@ class GeminiLoader(object):
     """
     def __init__(self, args, buffer_size=10000):
         self.args = args
-
+        self.buffer_size = buffer_size
+        self._get_anno_version()
+        
         # create a reader for the VCF file
         self.vcf_reader = self._get_vcf_reader()
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
+            print self.samples
             (self.gt_column_names, typed_column_names) = self._get_typed_gt_column_names()
+            
+        NUM_BUILT_IN = 6
+        self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]
         # create the gemini database
-        self._create_db(typed_column_names)
+        self._create_db(typed_column_names, self.extra_sample_columns)
         # load sample information
 
-        '''if not self.args.no_genotypes and not self.args.no_load_genotypes:
+        if not self.args.no_genotypes and not self.args.no_load_genotypes:
             # load the sample info from the VCF file.
             self._prepare_samples()
             # initialize genotype counts for each sample
             self._init_sample_gt_counts()
             self.num_samples = len(self.samples)
         else:
-            self.num_samples = 0'''
-
-        self.buffer_size = buffer_size
-        self._get_anno_version()
+            self.num_samples = 0
         
         if not args.skip_gene_tables:
-            self._get_gene_detailed()
-            self._get_gene_summary()
+            '''self._get_gene_detailed()
+            self._get_gene_summary()'''
 
         if self.args.anno_type == "VEP":
             self._effect_fields = self._get_vep_csq(self.vcf_reader)
@@ -111,8 +115,8 @@ class GeminiLoader(object):
         import gemini_annotate  # avoid circular dependencies
         self.v_id = self._get_vid()
         self.counter = 0
-        self.var_buffer = []
-        self.var_impacts_buffer = []
+        self.var_buffer = blist([])
+        self.var_impacts_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
         extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
@@ -144,8 +148,8 @@ class GeminiLoader(object):
                                                       self.var_impacts_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
-                    self.var_buffer = []
-                    self.var_impacts_buffer = []
+                    self.var_buffer = blist([])
+                    self.var_impacts_buffer = blist([])
                     buffer_count = 0
                 self.v_id += 1
                 self.counter += 1
@@ -260,7 +264,7 @@ class GeminiLoader(object):
                 "\nhttp://gemini.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-vep"
         sys.exit(error)
 
-    def _create_db(self, gt_column_names):
+    def _create_db(self, gt_column_names, sample_column_names):
         """
         private method to open a new DB
         and create the gemini schema.
@@ -273,7 +277,7 @@ class GeminiLoader(object):
         # create the gemini database tables for the new DB
         database_cassandra.create_tables(self.session)
         database_cassandra.create_variants_table(self.session, gt_column_names)
-        database_cassandra.create_sample_table(self.session, self.args)
+        database_cassandra.create_sample_table(self.session, sample_column_names)
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -566,9 +570,11 @@ class GeminiLoader(object):
         self.ped_hash = {}
         if self.args.ped_file is not None:
             self.ped_hash = load_ped_file(self.args.ped_file)
-
-        sample_list = []
+       
+        samples_buffer = blist([])
+        buffer_counter = 0
         for sample in self.samples:
+            sample_list = []
             i = self.sample_to_id[sample]
             if sample in self.ped_hash:
                 fields = self.ped_hash[sample]
@@ -579,9 +585,19 @@ class GeminiLoader(object):
             else:
                 # if there is no ped file given, just fill in the name and
                 # sample_id and set the other required fields to None
-                sample_list = [i, 0, sample, 0, 0, -9, -9]
-            database_cassandra.insert_sample(self.session, sample_list)
+                sample_list = [i, 0, sample, 0, 0, '-9', '-9']
+                
+            samples_buffer.append(sample_list)
+            buffer_counter += 1
             
+            if buffer_counter >= self.buffer_size:
+                database_cassandra.batch_insert(self.session, 'samples', get_column_names('samples') + self.extra_sample_columns, samples_buffer)
+                buffer_counter = 0
+                samples_buffer = blist([])
+            
+        database_cassandra.batch_insert(self.session, 'samples', get_column_names('samples') + self.extra_sample_columns, samples_buffer)
+        
+        
     def _get_gene_detailed(self):
         """
         define a gene detailed table
@@ -727,6 +743,7 @@ def load(parser, args):
     gemini_loader.populate_from_vcf()
     gemini_loader.update_gene_table()
     # gemini_loader.build_indices_and_disconnect()
-
-    if not args.no_genotypes and not args.no_load_genotypes:
-        gemini_loader.store_sample_gt_counts()
+    
+    #TODO: nodig?
+    '''if not args.no_genotypes and not args.no_load_genotypes:
+        gemini_loader.store_sample_gt_counts()'''
