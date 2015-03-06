@@ -15,6 +15,8 @@ import gemini_annotate
 import uuid
 import time
 import datetime
+from gemini.gemini_load_chunk import SampleGenotypesLoader
+from collections import namedtuple
 
 
 def load(parser, args):
@@ -53,6 +55,24 @@ def load(parser, args):
         #load_multicore(args)
     else:
         load_singlecore(args)
+    
+    #TODO: slightly hacky for now, but it works. Just passing default values
+    LoaderArgs = namedtuple('LoaderArgs', ['first', 'last'])
+    loaderArgs = LoaderArgs(1, -1)
+    sampleGenotypesLoader = SampleGenotypesLoader(loaderArgs)
+    sampleGenotypesLoader.create_sample_genotypes_table()
+    sampleGenotypesLoader.close()
+    
+    if args.scheduler:
+        #load_ipython(args)
+        sys.stdout.write("Just testing, no fancy scheduler stuff available yet")
+    elif args.cores > 1:
+        sys.stdout.write("Just testing, no fancy multicore stuff available yet")
+        #load_multicore(args)
+    else:
+        sampleGenotypesLoader = SampleGenotypesLoader(loaderArgs)
+        sampleGenotypesLoader.load()
+        sampleGenotypesLoader.close()
 
 def load_singlecore(args):
     # create a new gemini loader and populate

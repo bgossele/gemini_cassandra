@@ -2,12 +2,8 @@
 
 import sys
 from itertools import repeat
-import contextlib
 
-from table_schemes import get_column_names
-from ped import get_ped_fields, default_ped_fields
 from cassandra.query import BatchStatement
-from cassandra import ConsistencyLevel
 
 
 def index_variation(session):
@@ -322,8 +318,8 @@ def create_sample_table(session, extra_columns):
                      paternal_id int,                           \
                      maternal_id int,                           \
                      sex text,                                  \
-                     phenotype text {0})'''
-    optional = ', ' + " text,".join(extra_columns + ['PRIMARY KEY(sample_id)'])
+                     phenotype text, {0})'''
+    optional = " text,".join(extra_columns + ['PRIMARY KEY(sample_id)'])
     insert = creation.format(optional)
     session.execute(insert)
     

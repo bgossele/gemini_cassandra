@@ -27,6 +27,8 @@ from cassandra.cluster import Cluster
 from blist import blist
 from table_schemes import get_column_names
 from gemini.ped import get_ped_fields
+from itertools import repeat
+from cassandra.query import dict_factory
 
 
 class GeminiLoader(object):
@@ -38,6 +40,8 @@ class GeminiLoader(object):
         self.args = args
         self.buffer_size = buffer_size
         self._get_anno_version()
+        
+        print "type of args: %s" % (str(type(args)))
         
         # create a reader for the VCF file
         self.vcf_reader = self._get_vcf_reader()
@@ -249,7 +253,7 @@ class GeminiLoader(object):
         proper execution of VEP for use with Gemini.
         """
         required = ["Consequence"]
-        expected = "Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE".upper()
+        expected = "Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE".upper()  # @UnusedVariable
         if 'CSQ' in reader.infos:
             parts = str(reader.infos["CSQ"].desc).split("Format: ")[-1].split("|")
             all_found = True
@@ -710,9 +714,72 @@ class GeminiLoader(object):
                             int(gt_counts[HOM_ALT]),  # hom_alt
                             int(gt_counts[UNKNOWN])])  # missing
         self.session.execute("END")
+
+class SampleGenotypesLoader(object):
+    
+    def __init__(self, args, buffer_size = 10000):
         
+        self.buffer_size = buffer_size
+        self.first_sample = args.first
+        self.last_sample = args.last
+        
+        cluster = Cluster()
+        self.session = cluster.connect('gemini_keyspace')
+           
+        
+    def _get_sample_names(self):
+        
+        query = "SELECT name FROM samples"
+        samples_range = []
+        if self.last_sample > 0:                
+            samples_range = blist(range(self.first_sample,self.last_sample))
+            placeholders = ','.join(list(repeat("%s", self.last_sample - self.first_sample)))
+            query += " WHERE sample_id IN ({0})".format(placeholders)
+        res = self.session.execute(query, samples_range)
+        names = []
+        for row in res:
+            names.append(row.name)
+        return names
+    
+    def load(self):
+        
+        self.names = self._get_sample_names()     
+        query = "SELECT variant_id, {0} FROM variants"
+        placeholders = ','.join(list(repeat("%s", len(self.names))))
+        gt_columns = map(lambda x: 'gt_types_' + x, self.names)
+        
+        self.session.row_factory = dict_factory
+        
+        rows = self.session.execute(query.format(placeholders) % tuple(gt_columns))
+        variants = blist([])
+        sample_rows = {x : blist([]) for x in self.names}
+        
+        for row in rows:
+            variants.append(row['variant_id'])
+            for sample in self.names:
+                sample_rows[sample].append(row['gt_types_' + sample])
+            
+        database_cassandra.batch_insert(self.session, 'sample_genotypes', blist(['sample_name'] + map(lambda x: 'variant_' + str(x),variants)), \
+                                         concat_key_value(sample_rows))
+        
+    def create_sample_genotypes_table(self):
+    
+        nr_variants = self.session.execute("SELECT COUNT(1) FROM variants")[0].count
+        creation_query = "CREATE TABLE if not exists sample_genotypes (sample_name text PRIMARY KEY, {0} int)"
+        placeholders = ' int, '.join(list(repeat("%s", nr_variants)))
+        columns = map(lambda x: "variant_" + str(x), range(1, nr_variants+1))
+        self.session.execute(creation_query.format(placeholders) % tuple(columns))
+        
+    def close(self):
+        
+        self.session.shutdown()
+     
+              
 def concat(l):
         return reduce(lambda x, y: x + y, l, [])
+    
+def concat_key_value(samples_dict):
+        return blist(map(lambda x: blist([x]) + samples_dict[x], samples_dict.keys()))
 
 def parse_float(s):
     try:
@@ -722,6 +789,10 @@ def parse_float(s):
         return -42.0
     except TypeError:
         return -43.0
+    
+def load_sample_gts(parser, args):
+    loader = SampleGenotypesLoader(args)
+    loader.load()
 
 def load(parser, args):
     if (args.db is None or args.vcf is None):
