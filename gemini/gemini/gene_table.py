@@ -1,6 +1,6 @@
 import sys
 import os
-import database
+import database_cassandra
 from gemini.config import read_gemini_config
 
 class gene_detailed:
@@ -60,7 +60,7 @@ def parse_float(s):
         return -42.0
     
          
-def update_cosmic_census_genes( cursor, args ):
+def update_cosmic_census_genes( session, args ):
     """
     Update the gene summary table with
     whether or not a given gene is in the
@@ -76,7 +76,6 @@ def update_cosmic_census_genes( cursor, args ):
         gene = fields[0]
         chrom = "chr" + fields[3]
         cosmic_census_genes.append((1,gene,chrom))
-
-    database.update_gene_summary_w_cancer_census(cursor, cosmic_census_genes)
+    database_cassandra.update_gene_summary_w_cancer_census(session, cosmic_census_genes)
          
         

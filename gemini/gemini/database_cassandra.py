@@ -5,77 +5,87 @@ from itertools import repeat
 
 from cassandra.query import BatchStatement
 from cassandra.cluster import Cluster
+from cassandra.query import SimpleStatement
 
 
 def index_variation(session):
-    session.execute('''create index var_chr_start_idx on\
-                      variants(chrom, start)''')
-    session.execute('''create index var_type_idx on variants(type)''')
-    session.execute('''create index var_gt_counts_idx on \
-                      variants(num_hom_ref, num_het, \
-                               num_hom_alt, num_unknown)''')
-    session.execute('''create index var_aaf_idx on variants(aaf)''')
-    session.execute('''create index var_in_dbsnp_idx on variants(in_dbsnp)''')
-    session.execute('''create index var_in_call_rate_idx on variants(call_rate)''')
-    session.execute('''create index var_exonic_idx on variants(is_exonic)''')
-    session.execute('''create index var_coding_idx on variants(is_coding)''')
-    session.execute('''create index var_lof_idx on variants(is_lof)''')
-    session.execute('''create index var_som_idx on variants(is_somatic)''')
-    session.execute('''create index var_depth_idx on variants(depth)''')
-    session.execute('''create index var_gene_idx on variants(gene)''')
-    session.execute('''create index var_trans_idx on variants(transcript)''')
-    session.execute('''create index var_impact_idx on variants(impact)''')
-    session.execute('''create index var_impact_severity_idx on variants(impact_severity)''')
-    session.execute('''create index var_esp_idx on variants(aaf_esp_all)''')
-    session.execute('''create index var_1kg_idx on variants(aaf_1kg_all)''')
-    session.execute('''create index var_qual_idx on variants(qual)''')
-    session.execute('''create index var_homref_idx on variants(num_hom_ref)''')
-    session.execute('''create index var_homalt_idx on variants(num_hom_alt)''')
-    session.execute('''create index var_het_idx on variants(num_het)''')
-    session.execute('''create index var_unk_idx on variants(num_unknown)''')
-    session.execute('''create index var_omim_idx on variants(in_omim)''')
-    session.execute('''create index var_cadd_raw_idx on variants(cadd_raw)''')
-    session.execute('''create index var_cadd_scaled_idx on variants(cadd_scaled)''')
-    session.execute('''create index var_fitcons_idx on variants(fitcons)''')
-    session.execute('''create index var_sv_event_idx on variants(sv_event_id)''')
-    # genotype array indices
-    session.execute('''create index vid_gt_idx on variants using GIN (gts)''')
-    session.execute('''create index vid_gt_types_idx on variants using GIN (gt_types)''')
-
+    session.execute('''create index if not exists var_chr_idx on variants(chrom)''')
+    
+    session.execute('''create index if not exists var_start_idx on variants(start)''')
+    session.execute('''create index if not exists var_type_idx on variants(type)''')
+    
+    session.execute('''create index if not exists var_num_het on variants(num_het)''')
+    session.execute('''create index if not exists var_num_hom_alt on variants(num_hom_alt)''')
+    session.execute('''create index if not exists var_num_unknown on variants(num_unknown)''')
+    session.execute('''create index if not exists var_num_hom_ref on variants(num_hom_ref)''')
+    session.execute('''create index if not exists var_aaf_idx on variants(aaf)''')
+    session.execute('''create index if not exists var_in_dbsnp_idx on variants(in_dbsnp)''')
+    session.execute('''create index if not exists var_in_call_rate_idx on variants(call_rate)''')
+    session.execute('''create index if not exists var_exonic_idx on variants(is_exonic)''')
+    session.execute('''create index if not exists var_coding_idx on variants(is_coding)''')
+    session.execute('''create index if not exists var_lof_idx on variants(is_lof)''')
+    session.execute('''create index if not exists var_som_idx on variants(is_somatic)''')
+    session.execute('''create index if not exists var_depth_idx on variants(depth)''')
+    session.execute('''create index if not exists var_gene_idx on variants(gene)''')
+    session.execute('''create index if not exists var_trans_idx on variants(transcript)''')
+    session.execute('''create index if not exists var_impact_idx on variants(impact)''')
+    session.execute('''create index if not exists var_impact_severity_idx on variants(impact_severity)''')
+    session.execute('''create index if not exists var_esp_idx on variants(aaf_esp_all)''')
+    session.execute('''create index if not exists var_1kg_idx on variants(aaf_1kg_all)''')
+    session.execute('''create index if not exists var_qual_idx on variants(qual)''')
+    session.execute('''create index if not exists var_omim_idx on variants(in_omim)''')
+    session.execute('''create index if not exists var_cadd_raw_idx on variants(cadd_raw)''')
+    session.execute('''create index if not exists var_cadd_scaled_idx on variants(cadd_scaled)''')
+    session.execute('''create index if not exists var_fitcons_idx on variants(fitcons)''')
+    session.execute('''create index if not exists var_sv_event_idx on variants(sv_event_id)''')
+    
+def index_genotypes(session, samples):
+    
+    query = "CREATE INDEX ON variants (gt_types_%s)"  
+    batch = BatchStatement() 
+    for sample in samples:
+        session.execute(SimpleStatement(query % sample))
+    session.execute(batch)
 
 def index_variation_impacts(session):
-    session.execute('''create index varimp_exonic_idx on \
+    session.execute('''create index if not exists varimp_exonic_idx on \
                       variant_impacts(is_exonic)''')
-    session.execute('''create index varimp_coding_idx on \
+    session.execute('''create index if not exists varimp_coding_idx on \
                       variant_impacts(is_coding)''')
-    session.execute(
-        '''create index varimp_lof_idx on variant_impacts(is_lof)''')
-    session.execute('''create index varimp_impact_idx on \
+    session.execute('''create index if not exists varimp_lof_idx on \
+                      variant_impacts(is_lof)''')
+    session.execute('''create index if not exists varimp_impact_idx on \
                       variant_impacts(impact)''')
-    session.execute('''create index varimp_trans_idx on \
+    session.execute('''create index if not exists varimp_trans_idx on \
                       variant_impacts(transcript)''')
-    session.execute('''create index varimp_gene_idx on \
+    session.execute('''create index if not exists varimp_gene_idx on \
                       variant_impacts(gene)''')
 
 
 def index_samples(session):
-    session.execute('''create unique index sample_name_idx on samples(name)''')
+    '''index on name not needed, as is partition key,
+    index on sample_id not needed, as is clustering column'''
 
 
 def index_gene_detailed(session):
-    session.execute('''create index gendet_chrom_gene_idx on \
-                       gene_detailed(chrom, gene)''')
-    session.execute('''create index gendet_rvis_idx on \
+    session.execute('''create index if not exists gendet_chrom_idx on \
+                       gene_detailed(chrom)''')
+    session.execute('''create index if not exists gendet_gene_idx on \
+                       gene_detailed(gene)''')
+    session.execute('''create index if not exists gendet_rvis_idx on \
                        gene_detailed(rvis_pct)''')
-    session.execute('''create index gendet_transcript_idx on \
+    session.execute('''create index if not exists gendet_transcript_idx on \
                        gene_detailed(transcript)''')
-    session.execute('''create index gendet_ccds_idx on \
+    session.execute('''create index if not exists gendet_ccds_idx on \
                        gene_detailed(ccds_id)''')
 
 def index_gene_summary(session):
-    session.execute('''create index gensum_chrom_gene_idx on \
-                       gene_summary(chrom, gene)''')
-    session.execute('''create index gensum_rvis_idx on \
+    session.execute('''create index if not exists gensum_chrom_idx on \
+                       gene_summary(chrom)''')
+    session.execute('''create index if not exists gensum_gene_idx on \
+                       gene_summary(gene)''')
+    
+    session.execute('''create index if not exists gensum_rvis_idx on \
                       gene_summary(rvis_pct)''')
 
 def create_indices(session):
@@ -86,7 +96,7 @@ def create_indices(session):
     index_variation(session)
     index_variation_impacts(session)
     index_samples(session)
-    index_gene_detailed(session)
+    #index_gene_detailed(session)
     index_gene_summary(session)
 
 
@@ -397,9 +407,13 @@ def empty_tables(session):
 
 
 def update_gene_summary_w_cancer_census(session, genes):
-    update_qry = "UPDATE gene_summary SET in_cosmic_census = %s "
-    update_qry += " WHERE gene = %s and chrom = %s"
-    session.executemany(update_qry, genes)
+    update_qry = "UPDATE gene_summary SET in_cosmic_census = ? "
+    update_qry += " WHERE gene = ? and chrom = ?"
+    query = session.prepare(update_qry)
+    batch = BatchStatement()
+    for gene in genes:
+        batch.add(query, gene)
+    session.execute(batch)
 
 # @contextlib.contextmanager
 # def database_transaction(db):

@@ -56,7 +56,7 @@ def load(parser, args):
     else:
         load_singlecore(args)
     
-    #TODO: slightly hacky for now, but it works. Just passing default values
+    #TODO: slightly hacky for now, but it works
     n = gemini_db.get_approx_nr_samples(1)
     LoaderArgs = namedtuple('LoaderArgs', ['first', 'last'])
     loaderArgs = LoaderArgs(1, n + 1)
@@ -86,7 +86,7 @@ def load_singlecore(args):
 
 
     if not args.skip_gene_tables and not args.test_mode:
-        gemini_loader.update_gene_table()
+        '''gemini_loader.update_gene_table()'''
     if not args.test_mode:
         gemini_loader.build_indices_and_disconnect()
         

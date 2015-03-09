@@ -64,8 +64,8 @@ class GeminiLoader(object):
         else:
             self.num_samples = 0
         
-        if not args.skip_gene_tables:
-            '''self._get_gene_detailed()
+        '''if not args.skip_gene_tables:
+            self._get_gene_detailed()
             self._get_gene_summary()'''
 
         if self.args.anno_type == "VEP":
@@ -199,7 +199,7 @@ class GeminiLoader(object):
         # index our tables for speed
         database_cassandra.create_indices(self.session)
         # commit data and close up
-        database_cassandra.close_and_commit(self.session, self.conn)
+        self.session.shutdown()
 
     def _get_vcf_reader(self):
         # the VCF is a proper file
@@ -802,13 +802,14 @@ def load(parser, args):
 
     # create a new gemini loader and populate
     # the gemini db and files from the VCF
+    print "<<< Loading >>>"
     gemini_loader = GeminiLoader(args)
     gemini_loader.store_resources()
     gemini_loader.store_version()
 
     gemini_loader.populate_from_vcf()
     gemini_loader.update_gene_table()
-    # gemini_loader.build_indices_and_disconnect()
+    gemini_loader.build_indices_and_disconnect()
     
     #TODO: nodig?
     '''if not args.no_genotypes and not args.no_load_genotypes:
