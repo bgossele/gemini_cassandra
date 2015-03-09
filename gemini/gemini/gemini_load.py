@@ -9,7 +9,7 @@ import sqlite3
 import annotations
 import subprocess
 #from cluster_helper.cluster import cluster_view
-import database as gemini_db
+import database_cassandra as gemini_db
 from gemini_load_chunk import GeminiLoader
 import gemini_annotate
 import uuid
@@ -57,8 +57,9 @@ def load(parser, args):
         load_singlecore(args)
     
     #TODO: slightly hacky for now, but it works. Just passing default values
+    n = gemini_db.get_approx_nr_samples(1)
     LoaderArgs = namedtuple('LoaderArgs', ['first', 'last'])
-    loaderArgs = LoaderArgs(1, -1)
+    loaderArgs = LoaderArgs(1, n + 1)
     sampleGenotypesLoader = SampleGenotypesLoader(loaderArgs)
     sampleGenotypesLoader.create_sample_genotypes_table()
     sampleGenotypesLoader.close()

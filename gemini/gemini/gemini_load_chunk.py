@@ -41,14 +41,12 @@ class GeminiLoader(object):
         self.buffer_size = buffer_size
         self._get_anno_version()
         
-        print "type of args: %s" % (str(type(args)))
         
         # create a reader for the VCF file
         self.vcf_reader = self._get_vcf_reader()
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
-            print self.samples
             (self.gt_column_names, typed_column_names) = self._get_typed_gt_column_names()
             
         NUM_BUILT_IN = 6
@@ -730,12 +728,9 @@ class SampleGenotypesLoader(object):
     def _get_sample_names(self):
         
         query = "SELECT name FROM samples"
-        samples_range = []
         if self.last_sample > 0:                
-            samples_range = blist(range(self.first_sample,self.last_sample))
-            placeholders = ','.join(list(repeat("%s", self.last_sample - self.first_sample)))
-            query += " WHERE sample_id IN ({0})".format(placeholders)
-        res = self.session.execute(query, samples_range)
+            query += " WHERE sample_id >= %s and sample_id < %s allow filtering"
+        res = self.session.execute(query, (self.first_sample, self.last_sample))
         names = []
         for row in res:
             names.append(row.name)

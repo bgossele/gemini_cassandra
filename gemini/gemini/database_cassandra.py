@@ -4,6 +4,7 @@ import sys
 from itertools import repeat
 
 from cassandra.query import BatchStatement
+from cassandra.cluster import Cluster
 
 
 def index_variation(session):
@@ -319,7 +320,7 @@ def create_sample_table(session, extra_columns):
                      maternal_id int,                           \
                      sex text,                                  \
                      phenotype text, {0})'''
-    optional = " text,".join(extra_columns + ['PRIMARY KEY(sample_id)'])
+    optional = " text,".join(extra_columns + ['PRIMARY KEY(name, sample_id)'])
     insert = creation.format(optional)
     session.execute(insert)
     
@@ -354,6 +355,24 @@ def insert_sample(session, sample_list, column_names):
     res = session.execute("SELECT count(1) FROM samples")[0]
     if res.count == 0:
         insert(session, 'samples', column_names, sample_list)
+       
+#TODO: pass connection parameters or session or whatever 
+def get_approx_nr_samples(step):
+    
+    session = Cluster().connect('gemini_keyspace')
+    query = session.prepare('SELECT name FROM samples WHERE sample_id > ? limit 1 allow filtering')
+    
+    ready = False
+    n = 1
+    while (not ready):
+        res = session.execute(query, (n,))
+        if len(res) > 0:
+            n += step
+        else:
+            ready = True
+            
+    session.shutdown()
+    return n
 
 def close_and_commit(session, connection):
     """
