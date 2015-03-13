@@ -305,16 +305,16 @@ def main():
                               help=('Minimum number of families for a variant passing '
                                     'a family-wise filter to be in.'))
     parser_query.add_argument('--sample-delim',
-            dest='sample_delim',
-            metavar='STRING',
-            help='The delimiter to be used with the --show-samples option.',
-            default=',')
+                              dest='sample_delim',
+                              metavar='STRING',
+                              help='The delimiter to be used with the --show-samples option.',
+                              default=',')
 
     parser_query.add_argument('--header',
-            dest='use_header',
-            action='store_true',
-            help='Add a header of column names to the output.',
-            default=False)
+                              dest='use_header',
+                              action='store_true',
+                              help='Add a header of column names to the output.',
+                              default=False)
     parser_query.add_argument('--sample-filter',
                               dest='sample_filter',
                               help='SQL filter to use to filter the sample table',

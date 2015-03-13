@@ -38,14 +38,6 @@ def index_variation(session):
     session.execute('''create index if not exists var_cadd_scaled_idx on variants(cadd_scaled)''')
     session.execute('''create index if not exists var_fitcons_idx on variants(fitcons)''')
     session.execute('''create index if not exists var_sv_event_idx on variants(sv_event_id)''')
-    
-def index_genotypes(session, samples):
-    
-    query = "CREATE INDEX ON variants (gt_types_%s)"  
-    batch = BatchStatement() 
-    for sample in samples:
-        session.execute(SimpleStatement(query % sample))
-    session.execute(batch)
 
 def index_variation_impacts(session):
     session.execute('''create index if not exists varimp_exonic_idx on \
@@ -60,11 +52,6 @@ def index_variation_impacts(session):
                       variant_impacts(transcript)''')
     session.execute('''create index if not exists varimp_gene_idx on \
                       variant_impacts(gene)''')
-
-
-def index_samples(session):
-    '''index on name not needed, as is partition key,
-    index on sample_id not needed, as is clustering column'''
 
 
 def index_gene_detailed(session):
@@ -87,18 +74,6 @@ def index_gene_summary(session):
     
     session.execute('''create index if not exists gensum_rvis_idx on \
                       gene_summary(rvis_pct)''')
-
-def create_indices(session):
-    """
-    Index our master DB tables for speed
-    """
-    sys.stderr.write("Trying to index db. Some stuff may explode")
-    index_variation(session)
-    index_variation_impacts(session)
-    index_samples(session)
-    #index_gene_detailed(session)
-    index_gene_summary(session)
-
 
 def drop_tables(session):
     session.execute("DROP TABLE IF EXISTS variants")
@@ -178,6 +153,8 @@ def create_tables(session):
                     in_cosmic_census int)''')
     
     session.execute('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)''')
+    
+    create_variants_by_samples_tables(session)
 
 
 def create_variants_table(session, gt_column_names):
@@ -319,20 +296,47 @@ def create_variants_table(session, gt_column_names):
                     aaf_adj_exac_oth float,                   \
                     aaf_adj_exac_sas float, {0})'''
     insert = creation.format(placeholders) % tuple(gt_column_names)
-    session.execute(insert)                
+    session.execute(insert)
+    
+    session.execute('''CREATE TABLE if not exists variants_by_sub_type_call_rate ( \
+                        variant_id int, \
+                        sub_type text, \
+                        call_rate float, \
+                        PRIMARY KEY (sub_type, call_rate, variant_id))''')  
+    
+    session.execute('''CREATE TABLE if not exists variants_by_chrom_depth ( \
+                        variant_id int, \
+                        chrom text, \
+                        depth int, \
+                        PRIMARY KEY (chrom, depth, variant_id))''')
 
-def create_sample_table(session, extra_columns):
-    creation = '''CREATE TABLE if not exists samples (          \
+def create_variants_by_samples_tables(session):  
+    
+    session.execute('''CREATE TABLE if not exists variants_by_sample_gt_types (\
+                        sample_name text, gt_type int, variant_id int, \
+                        primary key (sample_name, gt_type, variant_id))''')
+    
+    session.execute('''CREATE TABLE if not exists variants_by_sample_gt_depths(\
+                        sample_name text, gt_depth int, variant_id int, \
+                        primary key (sample_name, gt_depth, variant_id))''')         
+
+#TODO: uitmesten
+def create_samples_table(session, extra_columns):
+    creation = '''CREATE TABLE if not exists samples{0}(          \
                      sample_id int,                 \
                      family_id int,                             \
                      name text,                                 \
                      paternal_id int,                           \
                      maternal_id int,                           \
                      sex text,                                  \
-                     phenotype text, {0})'''
-    optional = " text,".join(extra_columns + ['PRIMARY KEY(name, sample_id)'])
-    insert = creation.format(optional)
-    session.execute(insert)
+                     phenotype text, {1})'''
+    optional = " text,".join(extra_columns + ['PRIMARY KEY{0}'])
+    creation_samples = creation.format("", optional.format('(name, sample_id)'))
+    creation_samples_by_phenotype = creation.format("_by_phenotype", optional.format('(phenotype, name)'))
+    creation_samples_by_sex = creation.format("_by_sex", optional.format('(sex, name)'))
+    session.execute(creation_samples)
+    session.execute(creation_samples_by_phenotype)
+    session.execute(creation_samples_by_sex)
     
 def batch_insert(session, table, columns, contents):
     """

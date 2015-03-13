@@ -899,21 +899,21 @@ class GeminiQuery(object):
                 if wildcard_op == "all":
                     rule = "("
                     for idx, sample in enumerate(self.sample_info[token_idx]):
-                        rule += column + '.' + str(sample) + wildcard_rule
+                        rule += column + '_' + str(sample) + wildcard_rule
                         if idx < len(self.sample_info[token_idx]) - 1:
                             rule += ' and '
                     rule += ")"
                 elif wildcard_op == "any":
                     rule = "("
                     for idx, sample in enumerate(self.sample_info[token_idx]):
-                        rule += column + '.' + str(sample) + wildcard_rule
+                        rule += column + '_' + str(sample) + wildcard_rule
                         if idx < len(self.sample_info[token_idx]) - 1:
                             rule += ' or '
                     rule += ")"
                 elif wildcard_op == "none":
                     rule = "( not "
                     for idx, sample in enumerate(self.sample_info[token_idx]):
-                        rule += column + '.' + str(sample) + wildcard_rule
+                        rule += column + '_' + str(sample) + wildcard_rule
                         if idx < len(self.sample_info[token_idx]) - 1:
                             rule += ' and not '
                     rule += ")"

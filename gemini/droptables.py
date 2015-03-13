@@ -5,12 +5,14 @@ from cassandra.query import SimpleStatement
 
 answer = raw_input('Drop all gemini tables (y | n)? ')
 
-if answer in ['yes', 'yes please', 'ja', 'ja, graag']:
+if answer.lower().startswith(('ja', 'yes', 'oui', 'si')):
 	print 'Dropping gemini tables...'
 	cluster = Cluster()
 	session = cluster.connect('gemini_keyspace')
-	tables = ["variants", "samples", "version", "resources", "sample_genotypes", "variant_impacts"]
+	tables = ["variants", "samples", "version", "resources", "sample_genotypes", "variant_impacts",
+		  "variants_by_sample_gt_types", "variants_by_sample_gt_depths", "variants_by_sub_type_call_rate", 
+		  "variants_by_chrom_depth", "samples_by_phenotype", "samples_by_sex"]
 	for table in tables:
-		session.execute(SimpleStatement('DROP TABLE if exists %s' % table ))
+		session.execute('DROP TABLE if exists %s' % table )
 
 

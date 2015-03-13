@@ -119,6 +119,8 @@ class GeminiLoader(object):
         self.counter = 0
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
+        self.var_subtypes_buffer = blist([])
+        self.var_chroms_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
         extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
@@ -135,6 +137,8 @@ class GeminiLoader(object):
                     extra_headers = self._update_extra_headers(extra_headers, extra_fields)
                 # add the core variant info to the variant buffer
                 self.var_buffer.append(variant)
+                self.var_subtypes_buffer.append([variant[4], variant[11], variant[12]])
+                self.var_chroms_buffer.append([variant[4], variant[0], variant[75]])
                 # add each of the impact for this variant (1 per gene/transcript)
                 for var_impact in variant_impacts:
                     self.var_impacts_buffer.append(var_impact)
@@ -148,9 +152,15 @@ class GeminiLoader(object):
                     database_cassandra.batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
                     database_cassandra.batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
+                    database_cassandra.batch_insert(self.session, 'variants_by_sub_type_call_rate',\
+                                                     get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+                    database_cassandra.batch_insert(self.session, 'variants_by_chrom_depth', \
+                                                    get_column_names('variants_by_chrom_depth'), self.var_chroms_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                     self.var_buffer = blist([])
+                    self.var_subtypes_buffer = blist([])
+                    self.var_chroms_buffer = blist([])
                     self.var_impacts_buffer = blist([])
                     buffer_count = 0
                 self.v_id += 1
@@ -164,6 +174,10 @@ class GeminiLoader(object):
         self.v_id -= 1
         database_cassandra.batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
         database_cassandra.batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
+        database_cassandra.batch_insert(self.session, 'variants_by_sub_type_call_rate',\
+                                            get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+        database_cassandra.batch_insert(self.session, 'variants_by_chrom_depth', \
+                                            get_column_names('variants_by_chrom_depth'), self.var_chroms_buffer)
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
         if self.args.passonly:
@@ -191,13 +205,12 @@ class GeminiLoader(object):
                     continue
         return name
 
-    def build_indices_and_disconnect(self):
+    def disconnect(self):
         """
         Create the db table indices and close up
         db connection
         """
         # index our tables for speed
-        database_cassandra.create_indices(self.session)
         # commit data and close up
         self.session.shutdown()
 
@@ -279,7 +292,7 @@ class GeminiLoader(object):
         # create the gemini database tables for the new DB
         database_cassandra.create_tables(self.session)
         database_cassandra.create_variants_table(self.session, gt_column_names)
-        database_cassandra.create_sample_table(self.session, sample_column_names)
+        database_cassandra.create_samples_table(self.session, sample_column_names)
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -580,6 +593,7 @@ class GeminiLoader(object):
             i = self.sample_to_id[sample]
             if sample in self.ped_hash:
                 fields = self.ped_hash[sample]
+                print fields
                 sample_list = [i] + fields
             elif len(self.ped_hash) > 0:
                 sys.exit("EXITING: sample %s found in the VCF but "
@@ -596,9 +610,11 @@ class GeminiLoader(object):
                 database_cassandra.batch_insert(self.session, 'samples', get_column_names('samples') + self.extra_sample_columns, samples_buffer)
                 buffer_counter = 0
                 samples_buffer = blist([])
-            
-        database_cassandra.batch_insert(self.session, 'samples', get_column_names('samples') + self.extra_sample_columns, samples_buffer)
         
+        column_names = get_column_names('samples') + self.extra_sample_columns  
+        database_cassandra.batch_insert(self.session, 'samples', column_names, samples_buffer)
+        database_cassandra.batch_insert(self.session, 'samples_by_phenotype', column_names, samples_buffer)
+        database_cassandra.batch_insert(self.session, 'samples_by_sex', column_names, samples_buffer)        
         
     def _get_gene_detailed(self):
         """
@@ -736,26 +752,34 @@ class SampleGenotypesLoader(object):
             names.append(row.name)
         return names
     
+    #TODO: buffer
     def load(self):
         
         self.names = self._get_sample_names()     
         query = "SELECT variant_id, {0} FROM variants"
         placeholders = ','.join(list(repeat("%s", len(self.names))))
-        gt_columns = map(lambda x: 'gt_types_' + x, self.names)
+        gt_columns = map(lambda x: 'gt_types_' + x + ', gt_depths_' + x, self.names)
         
         self.session.row_factory = dict_factory
         
         rows = self.session.execute(query.format(placeholders) % tuple(gt_columns))
         variants = blist([])
+        variants_by_sample_gt_types = blist([])
+        variants_by_sample_depths = blist([])
         sample_rows = {x : blist([]) for x in self.names}
         
         for row in rows:
             variants.append(row['variant_id'])
             for sample in self.names:
-                sample_rows[sample].append(row['gt_types_' + sample])
+                gt_type = row['gt_types_' + sample]
+                sample_rows[sample].append(gt_type)
+                variants_by_sample_gt_types.append([sample, gt_type, row['variant_id']])                
+                variants_by_sample_depths.append([sample, row['gt_depths_' + sample], row['variant_id']])
             
         database_cassandra.batch_insert(self.session, 'sample_genotypes', blist(['sample_name'] + map(lambda x: 'variant_' + str(x),variants)), \
                                          concat_key_value(sample_rows))
+        database_cassandra.batch_insert(self.session, 'variants_by_sample_gt_types', ['sample_name', 'gt_type', 'variant_id'], variants_by_sample_gt_types)
+        database_cassandra.batch_insert(self.session, 'variants_by_sample_gt_depths', ['sample_name', 'gt_depth', 'variant_id'], variants_by_sample_depths)
         
     def create_sample_genotypes_table(self):
     
@@ -809,7 +833,7 @@ def load(parser, args):
 
     gemini_loader.populate_from_vcf()
     gemini_loader.update_gene_table()
-    gemini_loader.build_indices_and_disconnect()
+    gemini_loader.disconnect()
     
     #TODO: nodig?
     '''if not args.no_genotypes and not args.no_load_genotypes:

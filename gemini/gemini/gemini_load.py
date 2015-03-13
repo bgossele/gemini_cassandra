@@ -4,7 +4,6 @@
 import os.path
 import shutil
 import sys
-import sqlite3
 
 import annotations
 import subprocess
@@ -88,7 +87,7 @@ def load_singlecore(args):
     if not args.skip_gene_tables and not args.test_mode:
         '''gemini_loader.update_gene_table()'''
     if not args.test_mode:
-        gemini_loader.build_indices_and_disconnect()
+        gemini_loader.disconnect()
         
     #TODO: nodig?
     '''if not args.no_genotypes and not args.no_load_genotypes:
