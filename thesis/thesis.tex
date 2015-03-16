@@ -8,7 +8,24 @@
 		translatedtitle=,
 		udc=,
 		shortabstract={Here comes a very short abstract, containing no more than 500 words. \LaTeX\ commands can be used here.}}
+		
+\usepackage{url}
+\usepackage[pdfusetitle,colorlinks,plainpages=false]{hyperref}
 \begin{document}
+
+\begin{preface}
+\end{preface}
+
+\tableofcontents
+
+\begin{abstract}
+\end{abstract}
+
+
 \mainmatter
-Oi
+
+\include{cha1}
+
+\bibliographystyle{abbrv}
+\bibliography{biblio}
 \end{document}
