@@ -303,20 +303,14 @@ def create_variants_table(session, gt_column_names):
                         sub_type text, \
                         call_rate float, \
                         PRIMARY KEY (sub_type, call_rate, variant_id))''')  
-    
-    session.execute('''CREATE TABLE if not exists variants_by_chrom_depth ( \
-                        variant_id int, \
-                        chrom text, \
-                        depth int, \
-                        PRIMARY KEY (chrom, depth, variant_id))''')
 
 def create_variants_by_samples_tables(session):  
     
-    session.execute('''CREATE TABLE if not exists variants_by_sample_gt_types (\
+    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_type (\
                         sample_name text, gt_type int, variant_id int, \
-                        primary key (sample_name, gt_type, variant_id))''')
+                        primary key ((sample_name, gt_type), variant_id))''')
     
-    session.execute('''CREATE TABLE if not exists variants_by_sample_gt_depths(\
+    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_depth(\
                         sample_name text, gt_depth int, variant_id int, \
                         primary key (sample_name, gt_depth, variant_id))''')         
 

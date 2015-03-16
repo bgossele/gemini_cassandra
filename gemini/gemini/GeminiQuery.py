@@ -792,7 +792,7 @@ class GeminiQuery(object):
         and sample names so that the wildcard
         query can be applied to the gt_* columns.
         """
-        query = 'SELECT sample_id, name FROM samples '
+        query = 'SELECT name FROM samples '
         if wildcard.strip() != "*":
             query += ' WHERE ' + wildcard
 
