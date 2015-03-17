@@ -457,12 +457,12 @@ class GeminiQuery(object):
         # list of samples ids for each clause in the --gt-filter
         self.sample_info = collections.defaultdict(list)
 
-        # map sample names to indices. e.g. self.sample_to_idx[NA20814] -> 323
+        '''# map sample names to indices. e.g. self.sample_to_idx[NA20814] -> 323
         self.sample_to_idx = util.map_samples_to_indices(self.session)
         # and vice versa. e.g., self.idx_to_sample[323] ->  NA20814
         self.idx_to_sample = util.map_indices_to_samples(self.session)
         self.idx_to_sample_object = util.map_indices_to_sample_objects(self.session)
-        self.sample_to_sample_object = util.map_samples_to_sample_objects(self.session)
+        self.sample_to_sample_object = util.map_samples_to_sample_objects(self.session)'''
         self.formatter = out_format
         self.predicates = [self.formatter.predicate]
 
@@ -484,8 +484,10 @@ class GeminiQuery(object):
         self.query = self.formatter.format_query(query)
         self.gt_filter = gt_filter
         if self._is_gt_filter_safe() is False:
-            sys.exit("ERROR: invalid --gt-filter command.")
-
+            sys.exit("ERROR: unsafe --gt-filter command.")
+        if not self.gt_filter == None:
+            self.gt_filter = self.gt_filter.replace('==','=')
+        
         self.show_variant_samples = show_variant_samples
         self.variant_samples_delim = variant_samples_delim
 
@@ -689,20 +691,17 @@ class GeminiQuery(object):
         Establish a connection to the requested Gemini database.
         """
         # open up a new database
-        if os.path.exists(self.db):
-            self.cluster = Cluster(self.db)
-            # self.cluster.isolation_level = None
-            # allow us to refer to columns by name
-            # self.cluster.row_factory = sqlite3.Row
-            self.session = self.cluster.cursor()
+        
+        self.cluster = Cluster()
+        self.session = self.cluster.connect('gemini_keyspace')
 
 
     def _collect_sample_table_columns(self):
         """
         extract the column names in the samples table into a list
         """
-        self.session.execute('select * from samples limit 1')
-        self.sample_column_names = [tup[0] for tup in self.session.description]
+        column_names = self.cluster.metadata.keyspaces['gemini_keyspace'].tables['samples'].columns.keys()
+        self.sample_column_names = column_names
 
     def _is_gt_filter_safe(self):
         """
@@ -725,10 +724,10 @@ class GeminiQuery(object):
             return False
 
         # make sure a "gt" col is in the string
-        valid_cols = ["gts.", "gt_types.", "gt_phases.", "gt_quals.",
-                      "gt_depths.", "gt_ref_depths.", "gt_alt_depths.", "gt_copy_numbers.",
-                      "(gts).", "(gt_types).", "(gt_phases).", "(gt_quals).", "(gt_copy_numbers).",
-                      "(gt_depths).", "(gt_ref_depths).", "(gt_alt_depths)."]
+        valid_cols = ["gt.", "gt_type.", "gt_phase.", "gt_qual.",
+                      "gt_depth.", "gt_ref_depth.", "gt_alt_depth.", "gt_copy_number.",
+                      "(gt).", "(gt_type).", "(gt_phase).", "(gt_qual).", "(gt_copy_number).",
+                      "(gt_depth).", "(gt_ref_depth).", "(gt_alt_depth)."]
         if any(s in self.gt_filter for s in valid_cols):
             return True
 
@@ -737,6 +736,7 @@ class GeminiQuery(object):
 
     def _execute_query(self):
         try:
+            print self.query
             self.session.execute(self.query)
         except cassandra.protocol.SyntaxException as e:
             print "Cassandra error: {0}".format(e)
@@ -763,7 +763,10 @@ class GeminiQuery(object):
             # querying the variants table
             
             # self.query = self._add_gt_cols_to_query()
-
+            potential_variants = []
+            if not self.gt_filter == None:
+                potential_variants = self.gt_filter.evaluate(self.session, '*')
+            print potential_variants
             self._execute_query()
 
             self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.session.description
@@ -799,8 +802,7 @@ class GeminiQuery(object):
             query += ' WHERE ' + wildcard
 
         sample_info = []  # list of sample_id/name tuples
-        self.session.execute(query)
-        for row in self.session:
+        for row in self.session.execute(query):
             sample_info.append(row[0])
         return sample_info
 
@@ -839,8 +841,37 @@ class GeminiQuery(object):
                 token = token.replace('HOM_REF', str(HOM_REF))
                 token = token.replace('UNKNOWN', str(UNKNOWN))
             return token
+        
+        def gt_filter_to_query_exp(gt_filter):
+            i = -1
+            operators = ['!=', '<=', '>=', '=', '<', '>']
+            for op in operators:
+                temp = gt_filter.find(op)
+                if temp > -1:
+                    i = temp
+                    break
+                
+            if i > -1:
+                left = gt_filter[0:i].strip()
+                clause = _swap_genotype_for_number(gt_filter[i:].strip())
+            else:
+                sys.exit("ERROR: invalid --gt-filter command 858.")
+            
+            not_exp = False
+            if clause.startswith('!'):
+                not_exp = True
+                clause = clause[1:]
+                    
+            column = left.split('.', 1)[0]
+            sample = left.split('.', 1)[1]
+            
+            exp = Expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
+            if not_exp:
+                return NOT_expression(exp, 'variants', 'variant_id')
+            else:
+                return exp
 
-        corrected_gt_filter = []
+        corrected_gt_filter = None
 
         # first try to identify wildcard rules.
         # (\s*gt\w+\) handles both
@@ -849,24 +880,20 @@ class GeminiQuery(object):
         #    (   gt_types).(*).(!=HOM_REF).(all)
         wildcard_tokens = re.split(r'(\(\s*gt\w+\s*\)\.\(.+?\)\.\(.+?\)\.\(.+?\))', str(self.gt_filter))
         for token_idx, token in enumerate(wildcard_tokens):
+            print token
             # NOT a WILDCARD
             # We must then split on whitespace and
             # correct the gt_* columns:
             # e.g., "gts.NA12878" or "and gt_types.M10500 == HET"
             if (token.find("gt") >= 0 or token.find("GT") >= 0) \
                 and not '.(' in token and not ')self.' in token:
-                tokens = re.split(r'[\s+]+', str(token))
-                for t in tokens:
-                    if len(t) == 0:
-                        continue
-                    if (t.find("gt") >= 0 or t.find("GT") >= 0):
-                        # TODO: niet meer nodig, denk ik?
-                        # corrected = self._correct_genotype_col(t)
-                        # corrected_gt_filter.append(corrected)
-                        corrected_gt_filter.append(t)
-                    else:
-                        t = _swap_genotype_for_number(t)
-                        corrected_gt_filter.append(t)
+                
+                filter_exp = gt_filter_to_query_exp(token)
+                if not corrected_gt_filter == None:
+                    corrected_gt_filter = AND_expression(filter_exp, corrected_gt_filter)
+                else:
+                    corrected_gt_filter = filter_exp
+                
             # IS a WILDCARD
             # e.g., "gt_types.(affected==1).(==HET)"
             elif (token.find("gt") >= 0 or token.find("GT") >= 0) \
@@ -895,50 +922,63 @@ class GeminiQuery(object):
 
                 # Replace HET, etc. with 1, et.session to avoid eval() issues.
                 wildcard_rule = _swap_genotype_for_number(wildcard_rule)
-
+                wildcard_rule = wildcard_rule.replace('==', '=')
+                rule = None
+                
+                def sample_to_expr(sample):
+                    
+                    corrected = False
+                    if wildcard_rule.startswith('!'):
+                        corrected = True
+                        corrected_rule = wildcard_rule[1:]
+                    else:
+                        corrected_rule = wildcard_rule
+                        
+                    expr = Expression('variants_by_samples_' + column, 'variant_id', \
+                                        "sample_name = '" + sample + \
+                                        "' AND " + column + corrected_rule)
+                    if corrected:
+                        return NOT_expression(expr, 'variants', 'variant_id')
+                    else:
+                        return expr
+                    
+                rules = map(sample_to_expr, self.sample_info[token_idx])
+                
                 # build the rule based on the wildcard the user has supplied.
                 if wildcard_op == "all":
-                    rule = Expression('variants_by_samples_' + column, 'variant_id', \
-				                        'sample_id = ' + self.sample_info[token_idx][0] + \
-				                        'AND ' + column + wildcard_rule)
-                    for i in range(1, len(self.sample_info[token_idx])):
-                        left = Expression('variants_by_samples_' + column, 'variant_id', \
-            				                'sample_id = ' + self.sample_info[token_idx][i] + \
-            				                'AND ' + column + wildcard_rule)
-                        rule = AND_expression(left, rule)
-
+                    
+                    if len(rules) > 0:
+                        rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
+                        
                 elif wildcard_op == "any":
-                    rule = Expression('variants_by_samples_' + column, 'variant_id', \
-				                        'sample_id = ' + self.sample_info[token_idx][0] + \
-				                        'AND ' + column + wildcard_rule)
-                    for i in range(1, len(self.sample_info[token_idx])):
-                        left = Expression('variants_by_samples_' + column, 'variant_id', \
-            				                'sample_id = ' + self.sample_info[token_idx][i] + \
-            				                'AND ' + column + wildcard_rule)
-                        rule = OR_expression(left, rule)
+                    
+                    if len(rules) > 0:
+                        rule = fold(lambda l,r: OR_expression(l,r), rules[1:], rules[0])
 
                 elif wildcard_op == "none":
-                    rule = NOT_expression(Expression('variants_by_samples_' + column, 'variant_id', \
-				                                        'sample_id = ' + self.sample_info[token_idx][0] + \
-				                                        'AND ' + column + wildcard_rule), 'variants', 'variant_id')
-                    for i in range(1, len(self.sample_info[token_idx])):
-                        left = NOT_expression(Expression('variants_by_samples_' + column, 'variant_id', \
-            				                                'sample_id = ' + self.sample_info[token_idx][i] + \
-            				                                'AND ' + column + wildcard_rule), 'variants', 'variant_id')
-                        rule = AND_expression(left, rule)
+                    
+                    rules = map(lambda exp: NOT_expression(exp, 'variants', 'variant_id'), rules)
+                    if len(rules) > 0:
+                        rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
 
                 elif "count" in wildcard_op:
                     sys.exit("Not yet implemented. Exiting." % wildcard_op)
                     
                 else:
                     sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
-
-                corrected_gt_filter.append(rule)
+                
+                if not corrected_gt_filter == []:
+                    if not rule == None:
+                        corrected_gt_filter = AND_expression(rule, corrected_gt_filter)
+                else:
+                    if not rule == None:
+                        corrected_gt_filter = rule
+                
+                #corrected_gt_filter.append(rule)
             else:
-                if len(token) > 0:
-                    corrected_gt_filter.append(token.lower())
+                sys.exit("ERROR: invalid --gt-filter command 979")
 
-        return " ".join(corrected_gt_filter)	
+        return corrected_gt_filter	
 
     def _add_gt_cols_to_query(self):
         """
@@ -1142,6 +1182,18 @@ def flatten(l):
                 yield sub
         else:
             yield el
+            
+def fold(function, iterable, initializer=None):
+    it = iter(iterable)
+    if initializer is None:
+        try:
+            initializer = next(it)
+        except StopIteration:
+            raise TypeError('reduce() of empty sequence with no initial value')
+    accum_value = initializer
+    for x in it:
+        accum_value = function(x, accum_value)
+    return accum_value
 
 if __name__ == "__main__":
 
