@@ -13,6 +13,7 @@ import compression
 from gemini_constants import HOM_ALT, HOM_REF, HET, UNKNOWN
 from gemini_subjects import get_subjects
 from gemini_utils import (OrderedSet, OrderedDict, itersubclasses, partition_by_fn)
+from query_expressions import Expression, AND_expression, OR_expression, NOT_expression
 import gemini_utils as util
 import numpy as np
 from sql_utils import ensure_columns, get_select_cols_and_rest
@@ -335,7 +336,7 @@ class GeminiRow(object):
                  variant_samples=None,
                  HET_samples=None, HOM_ALT_samples=None,
                  HOM_REF_samples=None, UNKNOWN_samples=None,
-                 info=None,formatter=DefaultRowFormat(None)):
+                 info=None, formatter=DefaultRowFormat(None)):
         self.row = row
         self.gts = gts
         self.info = info
@@ -690,9 +691,9 @@ class GeminiQuery(object):
         # open up a new database
         if os.path.exists(self.db):
             self.cluster = Cluster(self.db)
-            #self.cluster.isolation_level = None
+            # self.cluster.isolation_level = None
             # allow us to refer to columns by name
-            #self.cluster.row_factory = sqlite3.Row
+            # self.cluster.row_factory = sqlite3.Row
             self.session = self.cluster.cursor()
 
 
@@ -785,7 +786,7 @@ class GeminiQuery(object):
                                    if not description_tuple[0].startswith("gt")]
             self.report_cols = self.all_query_cols
 
-    #TODO: convert wildcard to query expression on correct samples table(s)	
+    # TODO: convert wildcard to query expression on correct samples table(s)	
     def _get_matching_sample_ids(self, wildcard):
         """
         Helper function to convert a sample wildcard
@@ -797,7 +798,7 @@ class GeminiQuery(object):
         if wildcard.strip() != "*":
             query += ' WHERE ' + wildcard
 
-        sample_info = [] # list of sample_id/name tuples
+        sample_info = []  # list of sample_id/name tuples
         self.session.execute(query)
         for row in self.session:
             sample_info.append(row[0])
@@ -859,9 +860,9 @@ class GeminiQuery(object):
                     if len(t) == 0:
                         continue
                     if (t.find("gt") >= 0 or t.find("GT") >= 0):
-                        #TODO: niet meer nodig, denk ik?
-                        #corrected = self._correct_genotype_col(t)
-                        #corrected_gt_filter.append(corrected)
+                        # TODO: niet meer nodig, denk ik?
+                        # corrected = self._correct_genotype_col(t)
+                        # corrected_gt_filter.append(corrected)
                         corrected_gt_filter.append(t)
                     else:
                         t = _swap_genotype_for_number(t)
@@ -898,33 +899,33 @@ class GeminiQuery(object):
                 # build the rule based on the wildcard the user has supplied.
                 if wildcard_op == "all":
                     rule = Expression('variants_by_samples_' + column, 'variant_id', \
-				'sample_id = ' + self.sample_info[token_idx][0] + \
-				'AND ' + column + wildcard_rule)
-		    for i in range(1, len(self.sample_info[token_idx]):
-			left = Expression('variants_by_samples_' + column, 'variant_id', \
-				'sample_id = ' + self.sample_info[token_idx][i] + \
-				'AND ' + column + wildcard_rule)
-			rule = AND_expression(left, rule)
-				
+				                        'sample_id = ' + self.sample_info[token_idx][0] + \
+				                        'AND ' + column + wildcard_rule)
+                    for i in range(1, len(self.sample_info[token_idx])):
+                        left = Expression('variants_by_samples_' + column, 'variant_id', \
+            				                'sample_id = ' + self.sample_info[token_idx][i] + \
+            				                'AND ' + column + wildcard_rule)
+                        rule = AND_expression(left, rule)
+
                 elif wildcard_op == "any":
                     rule = Expression('variants_by_samples_' + column, 'variant_id', \
-				'sample_id = ' + self.sample_info[token_idx][0] + \
-				'AND ' + column + wildcard_rule)
-		    for i in range(1, len(self.sample_info[token_idx]):
-			left = Expression('variants_by_samples_' + column, 'variant_id', \
-				'sample_id = ' + self.sample_info[token_idx][i] + \
-				'AND ' + column + wildcard_rule)
-			rule = OR_expression(left, rule)
+				                        'sample_id = ' + self.sample_info[token_idx][0] + \
+				                        'AND ' + column + wildcard_rule)
+                    for i in range(1, len(self.sample_info[token_idx])):
+                        left = Expression('variants_by_samples_' + column, 'variant_id', \
+            				                'sample_id = ' + self.sample_info[token_idx][i] + \
+            				                'AND ' + column + wildcard_rule)
+                        rule = OR_expression(left, rule)
 
                 elif wildcard_op == "none":
-                    rule = NOT_exp(Expression('variants_by_samples_' + column, 'variant_id', \
-				'sample_id = ' + self.sample_info[token_idx][0] + \
-				'AND ' + column + wildcard_rule), 'variants', 'variant_id')
-		    for i in range(1, len(self.sample_info[token_idx]):
-			left = NOT_exp(Expression('variants_by_samples_' + column, 'variant_id', \
-				'sample_id = ' + self.sample_info[token_idx][i] + \
-				'AND ' + column + wildcard_rule), 'variants', 'variant_id')
-			rule = AND_expression(left, rule)
+                    rule = NOT_expression(Expression('variants_by_samples_' + column, 'variant_id', \
+				                                        'sample_id = ' + self.sample_info[token_idx][0] + \
+				                                        'AND ' + column + wildcard_rule), 'variants', 'variant_id')
+                    for i in range(1, len(self.sample_info[token_idx])):
+                        left = NOT_expression(Expression('variants_by_samples_' + column, 'variant_id', \
+            				                                'sample_id = ' + self.sample_info[token_idx][i] + \
+            				                                'AND ' + column + wildcard_rule), 'variants', 'variant_id')
+                        rule = AND_expression(left, rule)
 
                 elif "count" in wildcard_op:
                     sys.exit("Not yet implemented. Exiting." % wildcard_op)
@@ -1026,7 +1027,7 @@ class GeminiQuery(object):
         self.query = "select " + select_clause + rest_of_query
         return self.query
 
-    #TODO: undo conversion from sample names to indices?
+    # TODO: undo conversion from sample names to indices?
     def _split_select(self):
         """
         Build a list of _all_ columns in the SELECT statement
