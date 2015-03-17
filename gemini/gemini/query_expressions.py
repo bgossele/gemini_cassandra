@@ -23,7 +23,7 @@ class Expression(object):
         return rows_as_list(rows)
     
     def to_string(self):
-        return "(" + self.where_clause +")"
+        return self.where_clause
     
 class AND_expression(object):
     
@@ -36,7 +36,7 @@ class AND_expression(object):
         return self.right.evaluate(session, temp)
     
     def to_string(self):
-        res = "(" + self.left.to_string() + " AND " + self.right.to_string() + ")"
+        res = "(" + self.left.to_string() + ")" + " AND " + "(" + self.right.to_string() + ")"
         return res
     
 class OR_expression(object):
@@ -49,7 +49,7 @@ class OR_expression(object):
         return union(self.left.evaluate(session, starting_set), self.right.evaluate(session, starting_set))
     
     def to_string(self):
-        res = "(" + self.left.to_string() + " OR " + self.right.to_string() + ")"
+        res = "(" + self.left.to_string() + ")" + " OR " + "(" + self.right.to_string() + ")"
         return res
     
 class NOT_expression(object):
@@ -68,7 +68,7 @@ class NOT_expression(object):
         return diff(correct_starting_set, self.exp.evaluate(session, correct_starting_set))
     
     def to_string(self):
-        return "NOT " + self.exp.to_string()
+        return "NOT (" + self.exp.to_string() + ")"
 
 def diff(list1, list2):
     return filter(lambda x: not x in list2, list1)
