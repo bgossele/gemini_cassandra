@@ -14,7 +14,7 @@ import version
 from ped import default_ped_fields, load_ped_file
 import gene_table
 import infotag
-import database_cassandra
+from database_cassandra import insert, batch_insert, create_tables, create_variants_table, create_samples_table
 import annotations
 import func_impact
 import severe_impact
@@ -76,17 +76,17 @@ class GeminiLoader(object):
     def store_vcf_header(self):
         """Store the raw VCF header.
         """
-        database_cassandra.insert(self.session, 'vcf_header', get_column_names('vcf_header'), [self.vcf_reader.raw_header])
+        insert(self.session, 'vcf_header', get_column_names('vcf_header'), [self.vcf_reader.raw_header])
 
     def store_resources(self):
         """Create table of annotation resources used in this gemini database.
         """
-        database_cassandra.batch_insert(self.session, 'resources', get_column_names('resources'), annotations.get_resources( self.args ))
+        batch_insert(self.session, 'resources', get_column_names('resources'), annotations.get_resources( self.args ))
 
     def store_version(self):
         """Create table documenting which gemini version was used for this db.
         """
-        database_cassandra.insert(self.session, 'version', get_column_names('version'), [version.__version__])
+        insert(self.session, 'version', get_column_names('version'), [version.__version__])
 
     def _get_vid(self):
         if hasattr(self.args, 'offset'):
@@ -147,10 +147,10 @@ class GeminiLoader(object):
                     sys.stderr.write("pid " + str(os.getpid()) + ": " +
                                      str(self.counter) + " variants processed.\n")
                     #TODO: column_names cachen?
-                    database_cassandra.batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
-                    database_cassandra.batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
+                    batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+                    batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
-                    database_cassandra.batch_insert(self.session, 'variants_by_sub_type_call_rate',\
+                    batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                                      get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -167,9 +167,9 @@ class GeminiLoader(object):
             os.remove(extra_file)
         # final load to the database
         self.v_id -= 1
-        database_cassandra.batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
-        database_cassandra.batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
-        database_cassandra.batch_insert(self.session, 'variants_by_sub_type_call_rate',\
+        batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+        batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
+        batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                             get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
@@ -283,9 +283,9 @@ class GeminiLoader(object):
                                 WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""")
         self.session.set_keyspace('gemini_keyspace')
         # create the gemini database tables for the new DB
-        database_cassandra.create_tables(self.session)
-        database_cassandra.create_variants_table(self.session, gt_column_names)
-        database_cassandra.create_samples_table(self.session, sample_column_names)
+        create_tables(self.session)
+        create_variants_table(self.session, gt_column_names)
+        create_samples_table(self.session, sample_column_names)
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -600,14 +600,14 @@ class GeminiLoader(object):
             buffer_counter += 1
             
             if buffer_counter >= self.buffer_size:
-                database_cassandra.batch_insert(self.session, 'samples', get_column_names('samples') + self.extra_sample_columns, samples_buffer)
+                batch_insert(self.session, 'samples', get_column_names('samples') + self.extra_sample_columns, samples_buffer)
                 buffer_counter = 0
                 samples_buffer = blist([])
         
         column_names = get_column_names('samples') + self.extra_sample_columns  
-        database_cassandra.batch_insert(self.session, 'samples', column_names, samples_buffer)
-        database_cassandra.batch_insert(self.session, 'samples_by_phenotype', column_names, samples_buffer)
-        database_cassandra.batch_insert(self.session, 'samples_by_sex', column_names, samples_buffer)        
+        batch_insert(self.session, 'samples', column_names, samples_buffer)
+        batch_insert(self.session, 'samples_by_phenotype', column_names, samples_buffer)
+        batch_insert(self.session, 'samples_by_sex', column_names, samples_buffer)        
         
     def _get_gene_detailed(self):
         """
@@ -637,11 +637,11 @@ class GeminiLoader(object):
                 buffer_count += 1
             #TODO: buffer size same as for variants?
             if buffer_count >= self.buffer_size / 2:
-                database_cassandra.batch_insert(self.session, 'gene_detailed', get_column_names('gene_detailed'), gene_buffer)
+                batch_insert(self.session, 'gene_detailed', get_column_names('gene_detailed'), gene_buffer)
                 buffer_count = 0
                 gene_buffer = blist([])
                 
-        database_cassandra.batch_insert(self.session, 'gene_detailed', get_column_names('gene_detailed'), gene_buffer)
+        batch_insert(self.session, 'gene_detailed', get_column_names('gene_detailed'), gene_buffer)
         
     def _get_gene_summary(self):
         """
@@ -674,11 +674,11 @@ class GeminiLoader(object):
                 buffer_count += 1
                 
             if buffer_count >= self.buffer_size / 2:
-                database_cassandra.batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), gene_buffer)
+                batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), gene_buffer)
                 buffer_count = 0
                 gene_buffer = blist([])
                 
-        database_cassandra.batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), gene_buffer)
+        batch_insert(self.session, 'gene_summary', get_column_names("gene_summary"), gene_buffer)
 
     def update_gene_table(self):
         """
@@ -756,31 +756,27 @@ class SampleGenotypesLoader(object):
         self.session.row_factory = dict_factory
         
         rows = self.session.execute(query.format(placeholders) % tuple(gt_columns))
-        variants = blist([])
         variants_by_sample_gt_types = blist([])
-        variants_by_sample_depths = blist([])
-        sample_rows = {x : blist([]) for x in self.names}
+        variants_by_sample_depths = blist([])        
+        samples_by_variant_gts = blist([])
         
         for row in rows:
-            variants.append(row['variant_id'])
             for sample in self.names:
                 gt_type = row['gt_types_' + sample]
-                sample_rows[sample].append(gt_type)
+                samples_by_variant_gts.append([sample, gt_type, row['variant_id']])
                 variants_by_sample_gt_types.append([sample, gt_type, row['variant_id']])                
                 variants_by_sample_depths.append([sample, row['gt_depths_' + sample], row['variant_id']])
             
-        database_cassandra.batch_insert(self.session, 'sample_genotypes', blist(['sample_name'] + map(lambda x: 'variant_' + str(x),variants)), \
-                                         concat_key_value(sample_rows))
-        database_cassandra.batch_insert(self.session, 'variants_by_samples_gt_type', ['sample_name', 'gt_type', 'variant_id'], variants_by_sample_gt_types)
-        database_cassandra.batch_insert(self.session, 'variants_by_samples_gt_depth', ['sample_name', 'gt_depth', 'variant_id'], variants_by_sample_depths)
+        batch_insert(self.session, 'samples_by_variant_gt_types', ['sample_name', 'gt_type', 'variant_id'], samples_by_variant_gts)
+        batch_insert(self.session, 'variants_by_samples_gt_type', ['sample_name', 'gt_type', 'variant_id'], variants_by_sample_gt_types)
+        batch_insert(self.session, 'variants_by_samples_gt_depth', ['sample_name', 'gt_depth', 'variant_id'], variants_by_sample_depths)
         
     def create_sample_genotypes_table(self):
     
-        nr_variants = self.session.execute("SELECT COUNT(1) FROM variants")[0].count
-        creation_query = "CREATE TABLE if not exists sample_genotypes (sample_name text PRIMARY KEY, {0} int)"
-        placeholders = ' int, '.join(list(repeat("%s", nr_variants)))
-        columns = map(lambda x: "variant_" + str(x), range(1, nr_variants+1))
-        self.session.execute(creation_query.format(placeholders) % tuple(columns))
+        query = '''CREATE TABLE IF NOT EXISTS samples_by_variant_gt_types ( \
+                    variant_id int, gt_type int, sample_name text, \
+                    PRIMARY KEY ((variant_id, gt_type), sample_name))'''
+        self.session.execute(query)
         
     def close(self):
         

@@ -6,15 +6,13 @@ Created on Mar 16, 2015
 
 class Expression(object):
     
-    def __init__(self, from_table, select_column, where_columns, where_exps):
+    def __init__(self, from_table, select_column, where_clause):
         self.table = from_table
         self.select_column = select_column
-        self.where_columns = where_columns
-        self.where_exps = where_exps
+        self.where_clause = where_clause
         
     def evaluate(self, session, starting_set):
-        where_clause = " AND ".join(zipwith(lambda x, y: x + y, self.where_columns, self.where_exps))
-        query = "SELECT %s FROM %s WHERE %s" % (self.select_column, self.table, where_clause)
+        query = "SELECT %s FROM %s WHERE %s" % (self.select_column, self.table, self.where_clause)
         
         if not starting_set == "*":
             in_clause = ",".join(map(lambda x: str(x), starting_set))            
@@ -57,9 +55,6 @@ class NOT_expression(object):
             correct_starting_set = starting_set
             
         return diff(correct_starting_set, self.exp.evaluate(session, correct_starting_set))
-    
-def zipwith(f, list_a, list_b):
-    return [ f(a,b) for (a,b) in zip(list_a,list_b) ]
 
 def diff(list1, list2):
     return filter(lambda x: not x in list2, list1)
