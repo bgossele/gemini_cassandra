@@ -1,6 +1,6 @@
 import sys
 from gemini.gemini_constants import HET, HOM_ALT, HOM_REF, UNKNOWN
-from query_expressions import Expression, NOT_expression, AND_expression, OR_expression
+from query_expressions import Simple_expression, NOT_expression, AND_expression, OR_expression
 
 
 '''
@@ -51,7 +51,7 @@ def gt_filter_to_query_exp(gt_filter):
     column = left.split('.', 1)[0]
     sample = left.split('.', 1)[1]
             
-    exp = Expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
+    exp = Simple_expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
     if not_exp:
         return NOT_expression(exp, 'variants', 'variant_id')
     else:
@@ -95,7 +95,7 @@ def parse_wildcard(token, session):
         else:
             corrected_rule = wildcard_rule
                         
-        expr = Expression('variants_by_samples_' + column, 'variant_id', \
+        expr = Simple_expression('variants_by_samples_' + column, 'variant_id', \
                             "sample_name = '" + sample + \
                             "' AND " + column + corrected_rule)
         if corrected:
@@ -178,3 +178,4 @@ def parse_gt_filter(gt_filter):
                 sys.exit("ERROR: invalid --gt-filter command")           
     else:
         sys.exit("ERROR in gt-filter. Brackets don't match")
+        

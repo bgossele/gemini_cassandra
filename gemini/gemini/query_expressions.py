@@ -3,8 +3,25 @@ Created on Mar 16, 2015
 
 @author: brecht
 '''
+import abc
 
 class Expression(object):
+    
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def evaluate(self, session, starting_set):
+        return
+
+    @abc.abstractmethod
+    def to_string(self):
+        return
+
+    @abc.abstractmethod
+    def can_prune(self):
+        return
+
+class Simple_expression(Expression):
     
     def __init__(self, from_table, select_column, where_clause):
         self.table = from_table
@@ -14,7 +31,7 @@ class Expression(object):
     def evaluate(self, session, starting_set):
         query = "SELECT %s FROM %s WHERE %s" % (self.select_column, self.table, self.where_clause)
         
-        if not starting_set == "*":
+        if self.can_prune() and not starting_set == "*":
             in_clause = ",".join(map(lambda x: str(x), starting_set))            
             query += " AND %s IN (%s)" % (self.select_column, in_clause)
             
@@ -23,7 +40,10 @@ class Expression(object):
     def to_string(self):
         return self.where_clause
     
-class AND_expression(object):
+    def can_prune(self):
+        return not any (op in self.where_clause for op in ["<", ">"])
+    
+class AND_expression(Expression):
     
     def __init__(self, left, right):
         self.left = left
@@ -31,13 +51,19 @@ class AND_expression(object):
         
     def evaluate(self, session, starting_set):
         temp = self.left.evaluate(session, starting_set)
-        return self.right.evaluate(session, temp)
+        if self.right.can_prune():
+            return self.right.evaluate(session, temp)
+        else:
+            return intersect(temp, self.right.evaluate(session, temp))
     
     def to_string(self):
         res = "(" + self.left.to_string() + ")" + " AND " + "(" + self.right.to_string() + ")"
         return res
     
-class OR_expression(object):
+    def can_prune(self):
+        return True
+    
+class OR_expression(Expression):
     
     def __init__(self, left, right):
         self.left = left
@@ -50,7 +76,10 @@ class OR_expression(object):
         res = "(" + self.left.to_string() + ")" + " OR " + "(" + self.right.to_string() + ")"
         return res
     
-class NOT_expression(object):
+    def can_prune(self):
+        return True
+    
+class NOT_expression(Expression):
     
     def __init__(self, exp, table, select_column):
         self.exp = exp
@@ -67,12 +96,18 @@ class NOT_expression(object):
     
     def to_string(self):
         return "NOT (" + self.exp.to_string() + ")"
+    
+    def can_prune(self):
+        return True
 
 def diff(list1, list2):
     return filter(lambda x: not x in list2, list1)
 
 def union(list1, list2):
     return set(list1 + list2)
+
+def intersect(list1, list2):
+    return filter(lambda x: x in list2, list1)
     
 def rows_as_list(rows):
     return map(lambda x: x[0], rows)

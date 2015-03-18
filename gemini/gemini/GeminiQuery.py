@@ -13,8 +13,6 @@ import compression
 from gemini_constants import HOM_ALT, HOM_REF, HET, UNKNOWN
 from gemini_subjects import get_subjects
 from gemini_utils import (OrderedSet, OrderedDict, itersubclasses, partition_by_fn)
-from query_expressions import Expression, AND_expression, OR_expression, NOT_expression
-import gemini_utils as util
 import numpy as np
 from sql_utils import ensure_columns, get_select_cols_and_rest
 from gemini.gt_filter_parsing import parse_gt_filter
