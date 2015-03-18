@@ -11,7 +11,7 @@ import cyvcf as vcf
 
 # gemini modules
 import version
-from ped import default_ped_fields, load_ped_file
+from ped import load_ped_file
 import gene_table
 import infotag
 from database_cassandra import insert, batch_insert, create_tables, create_variants_table, create_samples_table
@@ -20,7 +20,7 @@ import func_impact
 import severe_impact
 import popgen
 import structural_variants as svs
-from gemini_constants import *
+from gemini.gemini_constants import HET, HOM_ALT, HOM_REF, UNKNOWN
 from compression import pack_blob
 from gemini.config import read_gemini_config
 from cassandra.cluster import Cluster

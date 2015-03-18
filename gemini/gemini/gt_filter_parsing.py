@@ -130,44 +130,51 @@ def parse_wildcard(token, session):
                 
     return rule
             
-def parse_gt_filter(gt_filter, session):
-    gt_filter = gt_filter.strip()
+def parse_gt_filter(gt_filter):
     
-    if gt_filter.startswith("NOT"):
-        rest = gt_filter[3:].strip()
-        body = parse_gt_filter(rest[1:len(rest)-1]) #strip brackets
-        return NOT_expression(body, 'variants', 'variant_id')
-    
-    nr_brackets = 0
+    gt_filter = gt_filter.strip()    
+    depth = 0
+    min_depth = 100000 #Arbitrary bound on nr of nested clauses.
     
     for i in range(0,len(gt_filter)):
         if gt_filter[i] == '(':
-            nr_brackets += 1
+            depth += 1
         elif gt_filter[i] == ')':
-            nr_brackets -= 1
-        elif nr_brackets == 0:
-            if i < len(gt_filter) - 2:
-                if gt_filter[i:i+2] == "OR":
-                    left = parse_gt_filter(gt_filter[:i].strip(), session)
-                    right = parse_gt_filter(gt_filter[i+2:].strip(), session)
-                    return OR_expression(left, right)    
-            if i < len(gt_filter) - 3:
-                if gt_filter[i:i+3] == "AND":
-                    left = parse_gt_filter(gt_filter[:i].strip(), session)
-                    right = parse_gt_filter(gt_filter[i+3:].strip(), session)
-                    return AND_expression(left, right)
+            depth -= 1
+        elif i < len(gt_filter) - 2:
+            if gt_filter[i:i+2] == "OR":
+                    if depth == 0:
+                        left = parse_gt_filter(gt_filter[:i].strip())
+                        right = parse_gt_filter(gt_filter[i+2:].strip())
+                        return OR_expression(left, right)
+                    else:
+                        min_depth = min(min_depth, depth)
                 
-    if nr_brackets == 0:
-        if gt_filter.startswith('('):
-            return parse_gt_filter(gt_filter[1:len(gt_filter)-1], session)
+            elif i < len(gt_filter) - 3:
+                if gt_filter[i:i+3] == "AND":
+                    if depth == 0:
+                        left = parse_gt_filter(gt_filter[:i].strip())
+                        right = parse_gt_filter(gt_filter[i+3:].strip())
+                        return AND_expression(left, right)
+                    else:
+                        min_depth = min(min_depth, depth)
+                elif gt_filter[i:i+3] == "NOT":
+                    if depth == 0:
+                        body = parse_gt_filter(gt_filter[i+3:].strip())
+                        return NOT_expression(body, 'variants', 'variant_id')
+                    else:
+                        min_depth = min(min_depth, depth)
+    if depth == 0:
+        if min_depth < 100000:
+            return parse_gt_filter(gt_filter[min_depth:len(gt_filter)-min_depth])
         else:
             token = gt_filter
             if (token.find("gt") >= 0 or token.find("GT") >= 0) and not ';' in token:
                 return gt_filter_to_query_exp(token)
             elif (token.find("gt") >= 0 or token.find("GT") >= 0) and ';' in token:
-                return parse_wildcard(token, session)
+                print "wildcard found"
+                return parse_wildcard(token)
             else:
-                sys.exit("ERROR: invalid --gt-filter command")   
-                
+                sys.exit("ERROR: invalid --gt-filter command")           
     else:
         sys.exit("ERROR in gt-filter. Brackets don't match")
