@@ -18,9 +18,7 @@ class Expression(object):
             in_clause = ",".join(map(lambda x: str(x), starting_set))            
             query += " AND %s IN (%s)" % (self.select_column, in_clause)
             
-        print query
-        rows = session.execute(query)
-        return rows_as_list(rows)
+        return rows_as_list(session.execute(query))
     
     def to_string(self):
         return self.where_clause

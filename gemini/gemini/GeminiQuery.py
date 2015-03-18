@@ -17,6 +17,7 @@ from query_expressions import Expression, AND_expression, OR_expression, NOT_exp
 import gemini_utils as util
 import numpy as np
 from sql_utils import ensure_columns, get_select_cols_and_rest
+from gemini.gt_filter_parsing import parse_gt_filter
 
 
 # gemini imports
@@ -765,6 +766,7 @@ class GeminiQuery(object):
             # self.query = self._add_gt_cols_to_query()
             potential_variants = []
             if not self.gt_filter == None:
+                print self.gt_filter.to_string()
                 potential_variants = self.gt_filter.evaluate(self.session, '*')
             print potential_variants
             self._execute_query()
@@ -827,158 +829,7 @@ class GeminiQuery(object):
         to:
             "gt_types[2] == HET and gt_types[5] == HET"
         """
-
-        def _swap_genotype_for_number(token):
-            """
-            This is a bit of a hack to get around the fact that eval()
-            doesn't handle the imported constants well when also having to
-            find local variables.  This requires some eval/globals()/locals() fu
-            that has evaded me thus far. Just replacing HET, etc. with 1, etc. works.
-            """
-            if any(g in token for g in ['HET', 'HOM_ALT', 'HOM_REF', 'UNKNOWN']):
-                token = token.replace('HET', str(HET))
-                token = token.replace('HOM_ALT', str(HOM_ALT))
-                token = token.replace('HOM_REF', str(HOM_REF))
-                token = token.replace('UNKNOWN', str(UNKNOWN))
-            return token
-        
-        def gt_filter_to_query_exp(gt_filter):
-            i = -1
-            operators = ['!=', '<=', '>=', '=', '<', '>']
-            for op in operators:
-                temp = gt_filter.find(op)
-                if temp > -1:
-                    i = temp
-                    break
-                
-            if i > -1:
-                left = gt_filter[0:i].strip()
-                clause = _swap_genotype_for_number(gt_filter[i:].strip())
-            else:
-                sys.exit("ERROR: invalid --gt-filter command 858.")
-            
-            not_exp = False
-            if clause.startswith('!'):
-                not_exp = True
-                clause = clause[1:]
-                    
-            column = left.split('.', 1)[0]
-            sample = left.split('.', 1)[1]
-            
-            exp = Expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
-            if not_exp:
-                return NOT_expression(exp, 'variants', 'variant_id')
-            else:
-                return exp
-
-        corrected_gt_filter = None
-
-        # first try to identify wildcard rules.
-        # (\s*gt\w+\) handles both
-        #    (gt_types).(*).(!=HOM_REF).(all)
-        # and
-        #    (   gt_types).(*).(!=HOM_REF).(all)
-        wildcard_tokens = re.split(r'(\(\s*gt\w+\s*\)\.\(.+?\)\.\(.+?\)\.\(.+?\))', str(self.gt_filter))
-        for token_idx, token in enumerate(wildcard_tokens):
-            print token
-            # NOT a WILDCARD
-            # We must then split on whitespace and
-            # correct the gt_* columns:
-            # e.g., "gts.NA12878" or "and gt_types.M10500 == HET"
-            if (token.find("gt") >= 0 or token.find("GT") >= 0) \
-                and not '.(' in token and not ')self.' in token:
-                
-                filter_exp = gt_filter_to_query_exp(token)
-                if not corrected_gt_filter == None:
-                    corrected_gt_filter = AND_expression(filter_exp, corrected_gt_filter)
-                else:
-                    corrected_gt_filter = filter_exp
-                
-            # IS a WILDCARD
-            # e.g., "gt_types.(affected==1).(==HET)"
-            elif (token.find("gt") >= 0 or token.find("GT") >= 0) \
-                and '.(' in token and ').' in token:
-                # break the wildcard into its pieces. That is:
-                # (COLUMN).(WILDCARD).(WILDCARD_RULE).(WILDCARD_OP)
-                # e.g, (gts).(phenotype==2).(==HET).(any)
-                if token.count('.') != 3 or \
-                   token.count('(') != 4 or \
-                   token.count(')') != 4:
-                    sys.exit("Wildcard filter should consist of 4 elements. Exiting.")
-
-                (column, wildcard, wildcard_rule, wildcard_op) = token.split('.')
-
-                # remove the syntactic parentheses
-                column = column.strip('(').strip(')').strip()
-                wildcard = wildcard.strip('(').strip(')').strip()
-                wildcard_rule = wildcard_rule.strip('(').strip(')').strip()
-                wildcard_op = wildcard_op.strip('(').strip(')').strip()
-
-                # collect and save all of the samples that meet the wildcard criteria
-                # for each clause.
-                # these will be used in the list comprehension for the eval expression
-                # constructed below.
-                self.sample_info[token_idx] = self._get_matching_sample_ids(wildcard)
-
-                # Replace HET, etc. with 1, et.session to avoid eval() issues.
-                wildcard_rule = _swap_genotype_for_number(wildcard_rule)
-                wildcard_rule = wildcard_rule.replace('==', '=')
-                rule = None
-                
-                def sample_to_expr(sample):
-                    
-                    corrected = False
-                    if wildcard_rule.startswith('!'):
-                        corrected = True
-                        corrected_rule = wildcard_rule[1:]
-                    else:
-                        corrected_rule = wildcard_rule
-                        
-                    expr = Expression('variants_by_samples_' + column, 'variant_id', \
-                                        "sample_name = '" + sample + \
-                                        "' AND " + column + corrected_rule)
-                    if corrected:
-                        return NOT_expression(expr, 'variants', 'variant_id')
-                    else:
-                        return expr
-                    
-                rules = map(sample_to_expr, self.sample_info[token_idx])
-                
-                # build the rule based on the wildcard the user has supplied.
-                if wildcard_op == "all":
-                    
-                    if len(rules) > 0:
-                        rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
-                        
-                elif wildcard_op == "any":
-                    
-                    if len(rules) > 0:
-                        rule = fold(lambda l,r: OR_expression(l,r), rules[1:], rules[0])
-
-                elif wildcard_op == "none":
-                    
-                    rules = map(lambda exp: NOT_expression(exp, 'variants', 'variant_id'), rules)
-                    if len(rules) > 0:
-                        rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
-
-                elif "count" in wildcard_op:
-                    sys.exit("Not yet implemented. Exiting." % wildcard_op)
-                    
-                else:
-                    sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
-                
-                if not corrected_gt_filter == []:
-                    if not rule == None:
-                        corrected_gt_filter = AND_expression(rule, corrected_gt_filter)
-                else:
-                    if not rule == None:
-                        corrected_gt_filter = rule
-                
-                #corrected_gt_filter.append(rule)
-            else:
-                sys.exit("ERROR: invalid --gt-filter command 979")
-
-        return corrected_gt_filter	
+        return parse_gt_filter(self.gt_filter, self.session)
 
     def _add_gt_cols_to_query(self):
         """
