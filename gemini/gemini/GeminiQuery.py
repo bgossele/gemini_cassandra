@@ -20,6 +20,7 @@ from gemini.query_expressions import Simple_expression, AND_expression,\
     NOT_expression, OR_expression
 from gemini.sql_utils import get_query_parts
 from types import UnicodeType
+from cassandra.query import dict_factory, ordered_dict_factory
 
 
 # gemini imports
@@ -761,9 +762,11 @@ class GeminiQuery(object):
                     in_clause = ",".join(map(lambda x: str(x), self.matches))            
                     query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
             query += self.rest_of_query
-            print query
-            for row in self.session.execute(query):
-                print row
+            self.session.row_factory = ordered_dict_factory
+            rows = self.session.execute(query)
+            print " | ".join(rows[0].keys())
+            for row in rows:
+                print " | ".join(map(str, row.values()))
         except cassandra.protocol.SyntaxException as e:
             print "Cassandra error: {0}".format(e)
             sys.exit("The query issued (%s) has a syntax error." % self.query)
@@ -829,7 +832,6 @@ class GeminiQuery(object):
 
     def get_partition_key(self, table):
         
-        print table
         key = self.cluster.metadata.keyspaces['gemini_keyspace'].tables[table].partition_key[0].name
         return key
     
