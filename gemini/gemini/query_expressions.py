@@ -44,7 +44,7 @@ class Simple_expression(Expression):
             else:
                 in_clause = ",".join(map(lambda x: str(x), starting_set))            
                 query += " AND %s IN (%s)" % (self.select_column, in_clause)
-  
+        
         return rows_as_list(socket.execute(query))
     
     def to_string(self):
@@ -64,11 +64,15 @@ class AND_expression(Expression):
         if starting_set == []:
             return []
         
-        temp = self.left.evaluate(session, starting_set)
         if self.right.can_prune():
+            temp = self.left.evaluate(session, starting_set)
             return self.right.evaluate(session, temp)
+        elif self.left.can_prune():
+            temp = self.right.evaluate(session, starting_set)
+            return self.left.evaluate(session, temp)
         else:
-            return intersect(temp, self.right.evaluate(session, temp))
+            temp = self.left.evaluate(session, starting_set)
+            return intersect(temp, self.evaluate(session, temp))
     
     def to_string(self):
         res = "(" + self.left.to_string() + ")" + " AND " + "(" + self.right.to_string() + ")"
