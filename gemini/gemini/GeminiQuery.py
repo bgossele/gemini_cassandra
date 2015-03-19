@@ -15,7 +15,9 @@ from gemini_subjects import get_subjects
 from gemini_utils import (OrderedSet, OrderedDict, itersubclasses, partition_by_fn)
 import numpy as np
 from sql_utils import ensure_columns, get_select_cols_and_rest
-from gemini.gt_filter_parsing import parse_gt_filter
+from collections import namedtuple
+from gemini.query_expressions import Simple_expression, AND_expression,\
+    NOT_expression, OR_expression
 
 
 # gemini imports
@@ -465,7 +467,6 @@ class GeminiQuery(object):
         self.formatter = out_format
         self.predicates = [self.formatter.predicate]
 
-
     def _set_gemini_browser(self, for_browser):
         self.for_browser = for_browser
 
@@ -725,8 +726,8 @@ class GeminiQuery(object):
         # make sure a "gt" col is in the string
         valid_cols = ["gt.", "gt_type.", "gt_phase.", "gt_qual.",
                       "gt_depth.", "gt_ref_depth.", "gt_alt_depth.", "gt_copy_number.",
-                      "(gt).", "(gt_type).", "(gt_phase).", "(gt_qual).", "(gt_copy_number).",
-                      "(gt_depth).", "(gt_ref_depth).", "(gt_alt_depth)."]
+                      "[gt].", "[gt_type].", "[gt_phase].", "[gt_qual].", "[gt_copy_number].",
+                      "[gt_depth].", "[gt_ref_depth].", "[gt_alt_depth]."]
         if any(s in self.gt_filter for s in valid_cols):
             return True
 
@@ -764,9 +765,8 @@ class GeminiQuery(object):
             # self.query = self._add_gt_cols_to_query()
             potential_variants = []
             if not self.gt_filter == None:
-                print self.gt_filter.to_string()
                 potential_variants = self.gt_filter.evaluate(self.session, '*')
-            print potential_variants
+            print "--gt-filter result = %s" % str(potential_variants)
             self._execute_query()
 
             self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.session.description
@@ -789,22 +789,15 @@ class GeminiQuery(object):
                                    if not description_tuple[0].startswith("gt")]
             self.report_cols = self.all_query_cols
 
-    # TODO: convert wildcard to query expression on correct samples table(s)	
     def _get_matching_sample_ids(self, wildcard):
-        """
-        Helper function to convert a sample wildcard
-        to a list of tuples reflecting the sample indices
-        and sample names so that the wildcard
-        query can be applied to the gt_* columns.
-        """
-        query = 'SELECT name FROM samples '
-        if wildcard.strip() != "*":
-            query += ' WHERE ' + wildcard
-
-        sample_info = []  # list of sample_id/name tuples
-        for row in self.session.execute(query):
-            sample_info.append(row[0])
-        return sample_info
+        
+        query = 'SELECT name FROM '
+        if wildcard.strip() != "*":        
+            query = self.parse_samples_clause(wildcard)
+        else:
+            query = Simple_expression('samples', 'name', "")
+        
+        return query.evaluate(self.session, '*')
 
     def _correct_genotype_filter(self):
         """
@@ -827,7 +820,227 @@ class GeminiQuery(object):
         to:
             "gt_types[2] == HET and gt_types[5] == HET"
         """
-        return parse_gt_filter(self.gt_filter, self.session)
+        return self.parse_clause(self.gt_filter, self.gt_base_parser)
+    
+    def parse_samples_clause(self, where_clause):
+        return self.parse_clause(where_clause, lambda x: self.where_clause_to_exp('samples', 'name', x,))
+    
+    def parse_clause(self, clause, base_clause_parser):
+        
+        clause = clause.strip()    
+        depth = 0
+        min_depth = 100000 #Arbitrary bound on nr of nested clauses.
+        
+        in_wildcard_clause = False
+        
+        for i in range(0,len(clause)):
+            if clause[i] == '[':
+                in_wildcard_clause = True
+            elif clause[i] == ']':
+                in_wildcard_clause = False
+            elif in_wildcard_clause: #currently in wildcard thingy, so doesn't mean anything. Move on.
+                continue
+            elif clause[i] == '(':
+                depth += 1
+            elif clause[i] == ')':
+                depth -= 1
+            elif i < len(clause) - 2:
+                if clause[i:i+2] == "||":
+                    if depth == 0:
+                        left = self.parse_clause(clause[:i].strip(), base_clause_parser)
+                        right = self.parse_clause(clause[i+2:].strip(), base_clause_parser)
+                        return OR_expression(left, right)
+                    else:
+                        min_depth = min(min_depth, depth)
+                elif clause[i:i+2] == "&&":
+                    if depth == 0:
+                        left = self.parse_clause(clause[:i].strip(), base_clause_parser)
+                        right = self.parse_clause(clause[i+2:].strip(), base_clause_parser)
+                        return AND_expression(left, right)
+                    else:
+                        min_depth = min(min_depth, depth)   
+                elif i < len(clause) - 3:                
+                    if clause[i:i+3] == "NOT":
+                        if depth == 0:
+                            body = self.parse_clause(clause[i+3:].strip(), base_clause_parser)
+                            return NOT_expression(body, 'variants', 'variant_id')
+                        else:
+                            min_depth = min(min_depth, depth)
+        if depth == 0:
+            if min_depth < 100000:
+                #Strip away all brackets to expose uppermost boolean operator
+                return self.parse_clause(clause[min_depth:len(clause)-min_depth], base_clause_parser)
+            else:
+                #No more boolean operators, strip all remaining brackets
+                token = clause.strip('(').strip(')')
+                return base_clause_parser(token)       
+        else:
+            sys.exit("ERROR in %s. Brackets don't match" % clause)
+    
+    def where_clause_to_exp(self, table, cols, clause):
+        
+        target_table = self.get_table_from_where_clause(table, clause)
+        exp = Simple_expression(target_table, cols, clause)
+        return exp
+    
+    def get_table_from_where_clause(self, table, where_clause):
+        
+        where_clause = where_clause.replace('==','=')
+        clauses = where_clause.split("and")
+        
+        has_range_clause = False
+        range_clauses = filter(lambda x: '<' in x or '>' in x, clauses)    
+        if len(range_clauses) > 1:
+            sys.exit("ERROR: only one range clause within single table possible")
+        elif len(range_clauses) == 1:
+            range_clause = range_clauses[0] 
+            has_range_clause = True
+            i = 0
+            for op in ["<", ">"]:
+                temp = range_clause.find(op)
+                if temp > -1:
+                    i = temp
+                    break
+            range_col = range_clause[0:i].strip()
+            
+        eq_clauses = filter(lambda x: not ('<' in x or '>' in x), clauses)
+        eq_clauses = map(lambda x: x.split('='), eq_clauses)
+        eq_columns = map(lambda x: x[0].strip(), eq_clauses)
+        
+        relevant_tables = self.get_relevant_tables(table)
+        
+        for t in relevant_tables:
+            if all(x in eq_columns for x in t.partition_key):
+                other_cols = filter(lambda x: not x in t.partition_key, eq_columns)
+                if all (x in t.clustering_key[:len(other_cols)] for x in other_cols):
+                    if has_range_clause:
+                        if range_col == t.clustering_key[len(other_cols)]:
+                            return t.name
+                    else:
+                        return t.name
+        
+        sys.exit("ERROR: No suitable table found for query: %s" % where_clause)
+        
+    def get_relevant_tables(self, table):
+        
+        Row = namedtuple('Row', 'name partition_key clustering_key')
+        tables = self.cluster.metadata.keyspaces['gemini_keyspace'].tables
+        interesting_tables = filter(lambda x: x.startswith(table), tables.keys())
+        res = []
+        for table in interesting_tables:
+            res.append(Row(table, map(lambda y: y.name, tables[table].partition_key),\
+                            map(lambda y: y.name, tables[table].clustering_key)))
+        return res
+    
+    def gt_base_parser(self, clause):
+        if (clause.find("gt") >= 0 or clause.find("GT") >= 0) and not '[' in clause:
+            return self.gt_filter_to_query_exp(clause)
+        elif (clause.find("gt") >= 0 or clause.find("GT") >= 0) and '[' in clause:
+            return self.parse_gt_wildcard(clause)
+        else:
+            sys.exit("ERROR: invalid --gt-filter command")   
+        
+    def gt_filter_to_query_exp(self, gt_filter):
+        
+        i = -1
+        operators = ['!=', '<=', '>=', '=', '<', '>']
+        for op in operators:
+            temp = gt_filter.find(op)
+            if temp > -1:
+                i = temp
+                break
+                    
+        if i > -1:
+            left = gt_filter[0:i].strip()
+            clause = self._swap_genotype_for_number(gt_filter[i:].strip())
+        else:
+            sys.exit("ERROR: invalid --gt-filter command 858.")
+                
+        not_exp = False
+        if clause.startswith('!'):
+            not_exp = True
+            clause = clause[1:]
+                        
+        (column, sample) = left.split('.', 1)
+                
+        exp = Simple_expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
+        if not_exp:
+            return NOT_expression(exp, 'variants', 'variant_id')
+        else:
+            return exp
+    
+    def parse_gt_wildcard(self, token):
+        
+        if token.count('.') != 3 or \
+            token.count('[') != 4 or \
+            token.count(']') != 4:
+            sys.exit("Wildcard filter should consist of 4 elements. Exiting.")
+    
+        (column, wildcard, wildcard_rule, wildcard_op) = token.split('.')
+        column = column.strip('[').strip(']').strip()
+        wildcard = wildcard.strip('[').strip(']').strip()
+        wildcard_rule = wildcard_rule.strip('[').strip(']').strip()
+        wildcard_op = wildcard_op.strip('[').strip(']').strip()
+                    
+        sample_info = self._get_matching_sample_ids(wildcard)
+    
+        # Replace HET, etc. with 1, et.session to avoid eval() issues.
+        wildcard_rule = self._swap_genotype_for_number(wildcard_rule)
+        wildcard_rule = wildcard_rule.replace('==', '=')
+        rule = None
+                    
+        def sample_to_expr(sample):
+                        
+            corrected = False
+            if wildcard_rule.startswith('!'):
+                corrected = True
+                corrected_rule = wildcard_rule[1:]
+            else:
+                corrected_rule = wildcard_rule
+                            
+            expr = Simple_expression('variants_by_samples_' + column, 'variant_id', \
+                                "sample_name = '" + sample + \
+                                "' AND " + column + corrected_rule)
+            if corrected:
+                return NOT_expression(expr, 'variants', 'variant_id')
+            else:
+                return expr
+                        
+        rules = map(sample_to_expr, sample_info)
+                    
+        # build the rule based on the wildcard the user has supplied.
+        if wildcard_op == "all":
+                        
+            if len(rules) > 0:
+                rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
+                            
+        elif wildcard_op == "any":
+                        
+            if len(rules) > 0:
+                rule = fold(lambda l,r: OR_expression(l,r), rules[1:], rules[0])
+    
+        elif wildcard_op == "none":
+                        
+            rules = map(lambda exp: NOT_expression(exp, 'variants', 'variant_id'), rules)
+            if len(rules) > 0:
+                rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
+    
+        elif "count" in wildcard_op:
+            sys.exit("Not yet implemented. Exiting." % wildcard_op)
+                        
+        else:
+            sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
+                    
+        return rule   
+    
+    def _swap_genotype_for_number(self, token):
+                
+        if any(g in token for g in ['HET', 'HOM_ALT', 'HOM_REF', 'UNKNOWN']):
+            token = token.replace('HET', str(HET))
+            token = token.replace('HOM_ALT', str(HOM_ALT))
+            token = token.replace('HOM_REF', str(HOM_REF))
+            token = token.replace('UNKNOWN', str(UNKNOWN))
+        return token
 
     def _add_gt_cols_to_query(self):
         """

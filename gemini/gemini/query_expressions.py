@@ -4,6 +4,7 @@ Created on Mar 16, 2015
 @author: brecht
 '''
 import abc
+from types import UnicodeType
 
 class Expression(object):
     
@@ -28,14 +29,23 @@ class Simple_expression(Expression):
         self.select_column = select_column
         self.where_clause = where_clause
         
-    def evaluate(self, session, starting_set):
-        query = "SELECT %s FROM %s WHERE %s" % (self.select_column, self.table, self.where_clause)
+    def evaluate(self, socket, starting_set):
         
+        if starting_set == []:
+            return []
+        
+        query = "SELECT %s FROM %s" % (self.select_column, self.table)
+        if self.where_clause != "":
+            query += " WHERE %s" % self.where_clause            
         if self.can_prune() and not starting_set == "*":
-            in_clause = ",".join(map(lambda x: str(x), starting_set))            
-            query += " AND %s IN (%s)" % (self.select_column, in_clause)
-            
-        return rows_as_list(session.execute(query))
+            if type(starting_set[0]) is UnicodeType:
+                in_clause = "','".join(starting_set)            
+                query += " AND %s IN ('%s')" % (self.select_column, in_clause)
+            else:
+                in_clause = ",".join(map(lambda x: str(x), starting_set))            
+                query += " AND %s IN (%s)" % (self.select_column, in_clause)
+  
+        return rows_as_list(socket.execute(query))
     
     def to_string(self):
         return self.where_clause
@@ -50,6 +60,10 @@ class AND_expression(Expression):
         self.right = right
         
     def evaluate(self, session, starting_set):
+        
+        if starting_set == []:
+            return []
+        
         temp = self.left.evaluate(session, starting_set)
         if self.right.can_prune():
             return self.right.evaluate(session, temp)
@@ -70,6 +84,10 @@ class OR_expression(Expression):
         self.right = right
         
     def evaluate(self, session, starting_set):
+        
+        if starting_set == []:
+            return []
+        
         return union(self.left.evaluate(session, starting_set), self.right.evaluate(session, starting_set))
     
     def to_string(self):
@@ -87,7 +105,10 @@ class NOT_expression(Expression):
         self.select_column = select_column
         
     def evaluate(self, session, starting_set):
-        if starting_set == '*':
+        
+        if starting_set == []:
+            return []        
+        elif starting_set == '*':
             correct_starting_set = rows_as_list(session.execute("SELECT %s FROM %s" % (self.select_column, self.table)))
         else:
             correct_starting_set = starting_set
