@@ -72,7 +72,7 @@ class AND_expression(Expression):
             return self.left.evaluate(session, temp)
         else:
             temp = self.left.evaluate(session, starting_set)
-            return intersect(temp, self.evaluate(session, temp))
+            return intersect(temp, self.right.evaluate(session, temp))
     
     def to_string(self):
         res = "(" + self.left.to_string() + ")" + " AND " + "(" + self.right.to_string() + ")"

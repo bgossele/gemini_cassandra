@@ -3,6 +3,7 @@ these are utilities to parse and transform SQL statements
 """
 
 import re
+import sys
 
 
 def get_select_cols_and_rest(query):
@@ -29,6 +30,42 @@ def get_select_cols_and_rest(query):
 
     return selected_columns, rest_of_query
 
+def get_query_parts(query):
+    """
+    Extract the where clause of this CQL query.
+    """
+    
+    select_loc = query.lower().find('select')
+    from_loc = query.lower().find('from')
+    
+    if from_loc == -1:
+        sys.exit("ERROR: query must contain FROM <table>")
+    
+    from_end = len(query)
+    
+    where_loc = query.lower().find("where")
+    
+    if where_loc > -1:
+        from_end = where_loc
+    
+    where_end = len(query)
+    
+    for keyword in ["order_by", "limit", "allow_filtering"]:
+        stop = query.find(keyword)
+        if stop > -1:
+            from_end = min(stop, from_end)
+            where_end = min(stop, where_end)
+        
+    where_clause = ""
+    rest = ""
+    from_table = query[from_loc + 4: from_end].strip()
+    select = query[select_loc + 6:from_loc].strip()
+    if where_loc > -1:
+        where_clause = query[where_loc + 5: where_end].strip()
+    if where_end < len(query):
+        rest = query[where_end:].strip()
+    
+    return select, from_table, where_clause, rest   
 
 def ensure_columns(query, cols):
     """

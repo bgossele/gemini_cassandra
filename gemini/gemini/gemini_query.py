@@ -109,7 +109,6 @@ def needs_genotypes(args):
 def needs_gene(args):
     return (args.dgidb)
 
-
 def add_required_columns_to_query(args):
     if args.region:
         add_region_to_query(args)

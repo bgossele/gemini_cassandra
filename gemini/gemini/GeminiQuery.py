@@ -18,6 +18,8 @@ from sql_utils import ensure_columns, get_select_cols_and_rest
 from collections import namedtuple
 from gemini.query_expressions import Simple_expression, AND_expression,\
     NOT_expression, OR_expression
+from gemini.sql_utils import get_query_parts
+from types import UnicodeType
 
 
 # gemini imports
@@ -511,15 +513,27 @@ class GeminiQuery(object):
             if self.gt_filter is None:
                 self.query_type = "no-genotypes"
             else:
-                self.gt_filter = self._correct_genotype_filter()
+                self.gt_filter_exp = self._correct_genotype_filter()
                 self.query_type = "filter-genotypes"
         else:
             if self.gt_filter is None:
                 self.query_type = "select-genotypes"
             else:
-                self.gt_filter = self._correct_genotype_filter()
+                self.gt_filter_exp = self._correct_genotype_filter()
                 self.query_type = "filter-genotypes"
 
+        (self.select_clause, self.from_table, where_clause, self.rest_of_query) = get_query_parts(self.query)
+        
+        if where_clause != '':
+            self.where_exp = self.parse_where_clause(where_clause, self.from_table)
+            if not self.gt_filter is None:
+                self.where_exp = AND_expression(self.where_exp, self.gt_filter_exp)
+        else:
+            if not self.gt_filter is None:
+                self.where_exp = self.gt_filter_exp
+            else:
+                self.where_exp = None
+            
         self._apply_query()
         self.query_executed = True
 
@@ -735,9 +749,21 @@ class GeminiQuery(object):
         return False
 
     def _execute_query(self):
+        if self.matches == []:
+            sys.exit("No results!")
         try:
-            print self.query
-            self.session.execute(self.query)
+            query = "SELECT %s FROM %s" % (self.select_clause, self.from_table)
+            if self.matches != "*":
+                if type(self.matches[0]) is UnicodeType:
+                    in_clause = "','".join(self.matches)            
+                    query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
+                else:
+                    in_clause = ",".join(map(lambda x: str(x), self.matches))            
+                    query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
+            query += self.rest_of_query
+            print query
+            for row in self.session.execute(query):
+                print row
         except cassandra.protocol.SyntaxException as e:
             print "Cassandra error: {0}".format(e)
             sys.exit("The query issued (%s) has a syntax error." % self.query)
@@ -752,6 +778,11 @@ class GeminiQuery(object):
 
         if self.needs_vcf_columns:
             self.query = self._add_vcf_cols_to_query()
+        
+        self.matches = "*"
+        if not self.where_exp is None:
+            self.matches = self.where_exp.evaluate(self.session, "*")
+        print "matches of where clause = %s" % self.matches
 
         if self._query_needs_genotype_info():
             # break up the select statement into individual
@@ -763,10 +794,6 @@ class GeminiQuery(object):
             # querying the variants table
             
             # self.query = self._add_gt_cols_to_query()
-            potential_variants = []
-            if not self.gt_filter == None:
-                potential_variants = self.gt_filter.evaluate(self.session, '*')
-            print "--gt-filter result = %s" % str(potential_variants)
             self._execute_query()
 
             self.all_query_cols = [str(description_tuple[0]) for description_tuple in self.session.description
@@ -793,12 +820,19 @@ class GeminiQuery(object):
         
         query = 'SELECT name FROM '
         if wildcard.strip() != "*":        
-            query = self.parse_samples_clause(wildcard)
+            query = self.parse_where_clause(wildcard, 'samples')
         else:
             query = Simple_expression('samples', 'name', "")
         
         return query.evaluate(self.session, '*')
 
+
+    def get_partition_key(self, table):
+        
+        print table
+        key = self.cluster.metadata.keyspaces['gemini_keyspace'].tables[table].partition_key[0].name
+        return key
+    
     def _correct_genotype_filter(self):
         """
         This converts a raw genotype filter that contains
@@ -822,8 +856,8 @@ class GeminiQuery(object):
         """
         return self.parse_clause(self.gt_filter, self.gt_base_parser)
     
-    def parse_samples_clause(self, where_clause):
-        return self.parse_clause(where_clause, lambda x: self.where_clause_to_exp('samples', 'name', x,))
+    def parse_where_clause(self, where_clause, table):
+        return self.parse_clause(where_clause, lambda x: self.where_clause_to_exp(table, self.get_partition_key(table), x,))
     
     def parse_clause(self, clause, base_clause_parser):
         
