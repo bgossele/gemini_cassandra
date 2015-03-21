@@ -60,9 +60,7 @@ def load_singlecore(args):
     # the gemini db and files from the VCF
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
-    gemini_loader.store_resources()
-    gemini_loader.store_version()
-    gemini_loader.store_vcf_header()
+    gemini_loader.single_core_stuff()
     gemini_loader.populate_from_vcf()
 
 

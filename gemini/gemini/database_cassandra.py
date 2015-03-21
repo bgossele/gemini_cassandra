@@ -279,7 +279,7 @@ def batch_insert(session, table, columns, contents):
     """
     column_names = ','.join(columns)
     question_marks = ','.join(list(repeat("?",len(columns))))
-    print 'inserting %s rows into %s' % (len(contents), table)
+    #print 'inserting %s rows into %s' % (len(contents), table)
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
     batch = BatchStatement()
 

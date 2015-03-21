@@ -767,11 +767,8 @@ def load(parser, args):
 
     # create a new gemini loader and populate
     # the gemini db and files from the VCF
-    print "<<< Loading >>>"
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
-    gemini_loader.store_resources()
-    gemini_loader.store_version()
 
     gemini_loader.populate_from_vcf()
     #gemini_loader.update_gene_table()
