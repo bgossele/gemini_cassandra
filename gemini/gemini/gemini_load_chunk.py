@@ -29,7 +29,7 @@ from table_schemes import get_column_names
 from gemini.ped import get_ped_fields
 from itertools import repeat
 from cassandra.query import dict_factory
-
+from libuuid import uuid4
 
 class GeminiLoader(object):
     """
@@ -87,13 +87,6 @@ class GeminiLoader(object):
         """Create table documenting which gemini version was used for this db.
         """
         insert(self.session, 'version', get_column_names('version'), [version.__version__])
-
-    def _get_vid(self):
-        if hasattr(self.args, 'offset'):
-            v_id = int(self.args.offset)
-        else:
-            v_id = 1
-        return v_id
     
     def _get_typed_gt_column_names(self):
             
@@ -115,11 +108,12 @@ class GeminiLoader(object):
         """
         """
         import gemini_annotate  # avoid circular dependencies
-        self.v_id = self._get_vid()
         self.counter = 0
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
         self.var_subtypes_buffer = blist([])
+        self.var_sample_gt_types_buffer = blist([])
+        self.var_sample_gt_depths_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
         extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
@@ -130,13 +124,16 @@ class GeminiLoader(object):
                 if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
                     self.skipped += 1
                     continue
-                (variant, variant_impacts, extra_fields) = self._prepare_variation(var)
+                (variant_id, variant, variant_impacts, sample_info, extra_fields) = self._prepare_variation(var)
                 if extra_fields:
                     extra_handle.write("%s\n" % json.dumps(extra_fields))
                     extra_headers = self._update_extra_headers(extra_headers, extra_fields)
                 # add the core variant info to the variant buffer
                 self.var_buffer.append(variant)
                 self.var_subtypes_buffer.append([variant[4], variant[11], variant[12]])
+                for sample in sample_info:
+                    self.var_sample_gt_types_buffer.append([variant_id, sample[0], sample[1]])
+                    self.var_sample_gt_depths_buffer.append([variant_id, sample[0], sample[2]])
                 # add each of the impact for this variant (1 per gene/transcript)
                 for var_impact in variant_impacts:
                     self.var_impacts_buffer.append(var_impact)
@@ -146,19 +143,22 @@ class GeminiLoader(object):
                 if buffer_count >= self.buffer_size:
                     sys.stderr.write("pid " + str(os.getpid()) + ": " +
                                      str(self.counter) + " variants processed.\n")
-                    #TODO: column_names cachen?
                     batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
                     batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
                     batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                                      get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+                    batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
+                    batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
+                    batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], self.var_sample_gt_depths_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                     self.var_buffer = blist([])
                     self.var_subtypes_buffer = blist([])
                     self.var_impacts_buffer = blist([])
+                    self.var_sample_gt_depths_buffer = blist([])
+                    self.var_sample_gt_types_buffer = blist([])
                     buffer_count = 0
-                self.v_id += 1
                 self.counter += 1
         if extra_headers:
             with open(extraheader_file, "w") as out_handle:
@@ -166,11 +166,14 @@ class GeminiLoader(object):
         else:
             os.remove(extra_file)
         # final load to the database
-        self.v_id -= 1
         batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
         batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                             get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+        batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
+        batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
+        batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], self.var_sample_gt_depths_buffer)
+                    
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed.\n")
         if self.args.passonly:
@@ -299,6 +302,7 @@ class GeminiLoader(object):
         pi_hat = None
         inbreeding_coeff = None
         hom_ref = het = hom_alt = unknown = None
+        variant_id = uuid4()
 
         # only compute certain metrics if genoypes are available
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
@@ -462,7 +466,7 @@ class GeminiLoader(object):
         variant_impacts = []
         if impacts is not None:
             for idx, impact in enumerate(impacts):
-                var_impact = [self.v_id, (idx + 1), impact.gene,
+                var_impact = [variant_id, (idx + 1), impact.gene,
                               impact.transcript, impact.is_exonic,
                               impact.is_coding, impact.is_lof,
                               impact.exon, impact.codon_change,
@@ -484,7 +488,7 @@ class GeminiLoader(object):
             extra_fields.update({"chrom": var.CHROM, "start": var.start, "end": var.end})
         chrom = var.CHROM if var.CHROM.startswith("chr") else "chr" + var.CHROM
         variant = [chrom, var.start, var.end,
-                   vcf_id, self.v_id, anno_id, var.REF, ','.join(var.ALT),
+                   vcf_id, variant_id, anno_id, var.REF, ','.join(var.ALT),
                    var.QUAL, var_filter, var.var_type,
                    var.var_subtype,
                    call_rate, in_dbsnp,
@@ -563,7 +567,12 @@ class GeminiLoader(object):
                    Exac.aaf_EAS, Exac.aaf_FIN,
                    Exac.aaf_NFE, Exac.aaf_OTH,
                    Exac.aaf_SAS] + gt_columns
-        return variant, variant_impacts, extra_fields
+                   
+        sample_info = blist([])
+        for entry in var.samples:
+            sample_info.append((entry.sample, entry.gt_type, entry.gt_depth))
+            
+        return variant_id, variant, variant_impacts, sample_info, extra_fields
     
     
     def _prepare_samples(self):
@@ -732,55 +741,6 @@ class SampleGenotypesLoader(object):
         
         cluster = Cluster()
         self.session = cluster.connect('gemini_keyspace')
-           
-        
-    def _get_sample_names(self):
-        
-        query = "SELECT name FROM samples"
-        if self.last_sample > 0:                
-            query += " WHERE sample_id >= %s and sample_id < %s allow filtering"
-        res = self.session.execute(query, (self.first_sample, self.last_sample))
-        names = []
-        for row in res:
-            names.append(row.name)
-        return names
-    
-    #TODO: buffer
-    def load(self):
-        
-        self.names = self._get_sample_names()     
-        query = "SELECT variant_id, {0} FROM variants"
-        placeholders = ','.join(list(repeat("%s", len(self.names))))
-        gt_columns = map(lambda x: 'gt_types_' + x + ', gt_depths_' + x, self.names)
-        
-        self.session.row_factory = dict_factory
-        
-        rows = self.session.execute(query.format(placeholders) % tuple(gt_columns))
-        variants_by_sample_gt_types = blist([])
-        variants_by_sample_depths = blist([])        
-        samples_by_variant_gts = blist([])
-        
-        for row in rows:
-            for sample in self.names:
-                gt_type = row['gt_types_' + sample]
-                samples_by_variant_gts.append([sample, gt_type, row['variant_id']])
-                variants_by_sample_gt_types.append([sample, gt_type, row['variant_id']])                
-                variants_by_sample_depths.append([sample, row['gt_depths_' + sample], row['variant_id']])
-            
-        batch_insert(self.session, 'samples_by_variant_gt_types', ['sample_name', 'gt_type', 'variant_id'], samples_by_variant_gts)
-        batch_insert(self.session, 'variants_by_samples_gt_type', ['sample_name', 'gt_type', 'variant_id'], variants_by_sample_gt_types)
-        batch_insert(self.session, 'variants_by_samples_gt_depth', ['sample_name', 'gt_depth', 'variant_id'], variants_by_sample_depths)
-        
-    def create_sample_genotypes_table(self):
-    
-        query = '''CREATE TABLE IF NOT EXISTS samples_by_variant_gt_types ( \
-                    variant_id int, gt_type int, sample_name text, \
-                    PRIMARY KEY ((variant_id, gt_type), sample_name))'''
-        self.session.execute(query)
-        
-    def close(self):
-        
-        self.session.shutdown()
      
               
 def concat(l):

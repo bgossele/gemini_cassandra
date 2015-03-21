@@ -226,27 +226,6 @@ def main():
     parser_loadchunk.set_defaults(func=loadchunk_fn)
     
     #########################################
-    # $ gemini load_sample_gts
-    #########################################
-    
-    parser_sample_gts = subparsers.add_parser('load_sample_gts',
-                                              help='populate the sample_genotypes table')
-    parser_sample_gts.add_argument('-f',
-                                   dest='first',
-                                   default = 1,
-                                   help = "Index of the first sample to be loaded (inclusive).\n"
-                                   "Default value = 1")
-    parser_sample_gts.add_argument('-l',
-                                   dest='last',
-                                   default = -1,
-                                   help = "Index of the last sample to be loaded (exclusive).\n"
-                                   "Default value = -1 (loads all samples)")
-    def load_sample_gts_fn(parser, args):
-        import gemini_load_chunk
-        gemini_load_chunk.load_sample_gts(parser, args)
-    parser_sample_gts.set_defaults(func=load_sample_gts_fn)
-
-    #########################################
     # $ gemini merge_chunks
     #########################################
     parser_mergechunks = subparsers.add_parser('merge_chunks',

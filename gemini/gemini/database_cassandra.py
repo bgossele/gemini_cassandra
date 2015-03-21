@@ -7,38 +7,6 @@ from cassandra.query import BatchStatement
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
 
-
-def index_variation(session):
-    session.execute('''create index if not exists var_chr_idx on variants(chrom)''')
-    
-    session.execute('''create index if not exists var_start_idx on variants(start)''')
-    session.execute('''create index if not exists var_type_idx on variants(type)''')
-    
-    session.execute('''create index if not exists var_num_het on variants(num_het)''')
-    session.execute('''create index if not exists var_num_hom_alt on variants(num_hom_alt)''')
-    session.execute('''create index if not exists var_num_unknown on variants(num_unknown)''')
-    session.execute('''create index if not exists var_num_hom_ref on variants(num_hom_ref)''')
-    session.execute('''create index if not exists var_aaf_idx on variants(aaf)''')
-    session.execute('''create index if not exists var_in_dbsnp_idx on variants(in_dbsnp)''')
-    session.execute('''create index if not exists var_in_call_rate_idx on variants(call_rate)''')
-    session.execute('''create index if not exists var_exonic_idx on variants(is_exonic)''')
-    session.execute('''create index if not exists var_coding_idx on variants(is_coding)''')
-    session.execute('''create index if not exists var_lof_idx on variants(is_lof)''')
-    session.execute('''create index if not exists var_som_idx on variants(is_somatic)''')
-    session.execute('''create index if not exists var_depth_idx on variants(depth)''')
-    session.execute('''create index if not exists var_gene_idx on variants(gene)''')
-    session.execute('''create index if not exists var_trans_idx on variants(transcript)''')
-    session.execute('''create index if not exists var_impact_idx on variants(impact)''')
-    session.execute('''create index if not exists var_impact_severity_idx on variants(impact_severity)''')
-    session.execute('''create index if not exists var_esp_idx on variants(aaf_esp_all)''')
-    session.execute('''create index if not exists var_1kg_idx on variants(aaf_1kg_all)''')
-    session.execute('''create index if not exists var_qual_idx on variants(qual)''')
-    session.execute('''create index if not exists var_omim_idx on variants(in_omim)''')
-    session.execute('''create index if not exists var_cadd_raw_idx on variants(cadd_raw)''')
-    session.execute('''create index if not exists var_cadd_scaled_idx on variants(cadd_scaled)''')
-    session.execute('''create index if not exists var_fitcons_idx on variants(fitcons)''')
-    session.execute('''create index if not exists var_sv_event_idx on variants(sv_event_id)''')
-
 def index_variation_impacts(session):
     session.execute('''create index if not exists varimp_exonic_idx on \
                       variant_impacts(is_exonic)''')
@@ -88,7 +56,7 @@ def create_tables(session):
     Create our master DB tables
     """
     session.execute('''CREATE TABLE if not exists variant_impacts  (   \
-                    variant_id int,                               \
+                    variant_id uuid,                               \
                     anno_id int,                                  \
                     gene text,                                        \
                     transcript text,                                  \
@@ -167,7 +135,7 @@ def create_variants_table(session, gt_column_names):
                     start int,                                  \
                     \"end\" int,                                \
                     vcf_id text,                                \
-                    variant_id int PRIMARY KEY,                 \
+                    variant_id uuid PRIMARY KEY,            \
                     anno_id int,                                \
                     ref text,                                   \
                     alt text,                                   \
@@ -299,20 +267,30 @@ def create_variants_table(session, gt_column_names):
     session.execute(insert)
     
     session.execute('''CREATE TABLE if not exists variants_by_sub_type_call_rate ( \
-                        variant_id int, \
+                        variant_id uuid, \
                         sub_type text, \
                         call_rate float, \
                         PRIMARY KEY (sub_type, call_rate, variant_id))''')  
 
 def create_variants_by_samples_tables(session):  
     
-    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_type (\
-                        sample_name text, gt_type int, variant_id int, \
+    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_type ( \
+                        sample_name text, \
+                        gt_type int, \
+                        variant_id uuid, \
                         primary key ((sample_name, gt_type), variant_id))''')
     
-    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_depth(\
-                        sample_name text, gt_depth int, variant_id int, \
-                        primary key (sample_name, gt_depth, variant_id))''')         
+    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_depth( \
+                        sample_name text, \
+                        gt_depth int, \
+                        variant_id uuid, \
+                        primary key (sample_name, gt_depth, variant_id))''')      
+    
+    session.execute('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
+                    variant_id uuid, \
+                    gt_type int, \
+                    sample_name text, \
+                    PRIMARY KEY ((variant_id, gt_type), sample_name))''')
 
 #TODO: uitmesten
 def create_samples_table(session, extra_columns):

@@ -8,14 +8,11 @@ import sys
 import annotations
 import subprocess
 #from cluster_helper.cluster import cluster_view
-import database_cassandra as gemini_db
 from gemini_load_chunk import GeminiLoader
 import gemini_annotate
 import uuid
 import time
 import datetime
-from gemini.gemini_load_chunk import SampleGenotypesLoader
-from collections import namedtuple
 
 
 def load(parser, args):
@@ -54,25 +51,6 @@ def load(parser, args):
         #load_multicore(args)
     else:
         load_singlecore(args)
-    
-    #TODO: slightly hacky for now, but it works
-    n = gemini_db.get_approx_nr_samples(1)
-    LoaderArgs = namedtuple('LoaderArgs', ['first', 'last'])
-    loaderArgs = LoaderArgs(1, n + 1)
-    sampleGenotypesLoader = SampleGenotypesLoader(loaderArgs)
-    sampleGenotypesLoader.create_sample_genotypes_table()
-    sampleGenotypesLoader.close()
-    
-    if args.scheduler:
-        #load_ipython(args)
-        sys.stdout.write("Just testing, no fancy scheduler stuff available yet")
-    elif args.cores > 1:
-        sys.stdout.write("Just testing, no fancy multicore stuff available yet")
-        #load_multicore(args)
-    else:
-        sampleGenotypesLoader = SampleGenotypesLoader(loaderArgs)
-        sampleGenotypesLoader.load()
-        sampleGenotypesLoader.close()
 
 def load_singlecore(args):
     # create a new gemini loader and populate
