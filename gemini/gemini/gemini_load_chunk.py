@@ -14,7 +14,7 @@ import version
 from ped import load_ped_file
 import gene_table
 import infotag
-from database_cassandra import insert, batch_insert, create_tables, create_variants_table, create_samples_table
+from database_cassandra import insert, batch_insert, create_tables, create_variants_table, create_samples_tables
 import annotations
 import func_impact
 import severe_impact
@@ -290,7 +290,7 @@ class GeminiLoader(object):
         # create the gemini database tables for the new DB
         create_tables(self.session)
         create_variants_table(self.session, self.typed_gt_column_names)
-        create_samples_table(self.session, self.extra_sample_columns)
+        create_samples_tables(self.session, self.extra_sample_columns)
         
     def connect_to_db(self):
         

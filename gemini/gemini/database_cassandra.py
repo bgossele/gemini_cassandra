@@ -3,7 +3,6 @@
 from itertools import repeat
 
 from cassandra.query import BatchStatement
-from cassandra.cluster import Cluster
 
 def drop_tables(session):
     session.execute("DROP TABLE IF EXISTS variants")
@@ -254,8 +253,8 @@ def create_variants_by_samples_tables(session):
                     sample_name text, \
                     PRIMARY KEY ((variant_id, gt_type), sample_name))''')
 
-#TODO: uitmesten
-def create_samples_table(session, extra_columns):
+
+def create_samples_tables(session, extra_columns):
     creation = '''CREATE TABLE if not exists samples{0}(          \
                      sample_id int,                 \
                      family_id int,                             \
@@ -265,9 +264,11 @@ def create_samples_table(session, extra_columns):
                      sex text,                                  \
                      phenotype text, {1})'''
     optional = " text,".join(extra_columns + ['PRIMARY KEY{0}'])
+    
     creation_samples = creation.format("", optional.format('(name, sample_id)'))
     creation_samples_by_phenotype = creation.format("_by_phenotype", optional.format('(phenotype, name)'))
     creation_samples_by_sex = creation.format("_by_sex", optional.format('(sex, name)'))
+    
     session.execute(creation_samples)
     session.execute(creation_samples_by_phenotype)
     session.execute(creation_samples_by_sex)
@@ -292,39 +293,6 @@ def insert(session, table, columns, contents):
     placeholders = ','.join(list(repeat("%s",len(columns))))
     insert_query = 'INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + placeholders + ')'
     session.execute(insert_query, contents)
-
-def insert_sample(session, sample_list, column_names):
-    """
-    Populate the samples with sample ids, names, and
-    other indicative information.
-    """
-    
-    # a hack to prevent loading the same data multiple times in PGSQL mode.
-    res = session.execute("SELECT count(1) FROM samples")[0]
-    if res.count == 0:
-        insert(session, 'samples', column_names, sample_list)
-
-def close_and_commit(session, connection):
-    """
-    Commit changes to the DB and close out DB session.
-    """
-    print "committing"
-    connection.commit()
-
-    #session.execute("""SELECT * FROM variants 
-    #                        WHERE gt_types[7] =1 
-    #                        AND   gt_types[9] =0 
-    #                        AND   gt_types[17] =2""")
-    #for row in session:
-    #    print row
-
-    #print "closing"
-    connection.close()
-
-def empty_tables(session):
-    session.execute('''delete * from variation''')
-    session.execute('''delete * from samples''')
-
 
 def update_gene_summary_w_cancer_census(session, genes):
     update_qry = "UPDATE gene_summary SET in_cosmic_census = ? "
