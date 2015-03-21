@@ -27,9 +27,7 @@ from cassandra.cluster import Cluster
 from blist import blist
 from table_schemes import get_column_names
 from gemini.ped import get_ped_fields
-from itertools import repeat
-from cassandra.query import dict_factory
-from libuuid import uuid4
+from uuid import uuid4
 
 class GeminiLoader(object):
     """
@@ -47,22 +45,12 @@ class GeminiLoader(object):
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
-            (self.gt_column_names, typed_column_names) = self._get_typed_gt_column_names()
+            (self.gt_column_names, self.typed_gt_column_names) = self._get_typed_gt_column_names()
             
         NUM_BUILT_IN = 6
         self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]
-        # create the gemini database
-        self._create_db(typed_column_names, self.extra_sample_columns)
         # load sample information
-
-        if not self.args.no_genotypes and not self.args.no_load_genotypes:
-            # load the sample info from the VCF file.
-            self._prepare_samples()
-            # initialize genotype counts for each sample
-            self._init_sample_gt_counts()
-            self.num_samples = len(self.samples)
-        else:
-            self.num_samples = 0
+        
         
         '''if not args.skip_gene_tables:
             self._get_gene_detailed()
@@ -72,6 +60,20 @@ class GeminiLoader(object):
             self._effect_fields = self._get_vep_csq(self.vcf_reader)
         else:
             self._effect_fields = []
+            
+    def single_core_stuff(self):
+        
+        self.store_vcf_header()
+        self.store_resources()
+        self.store_version()
+        if not self.args.no_genotypes and not self.args.no_load_genotypes:
+                # load the sample info from the VCF file.
+            self._prepare_samples()
+                # initialize genotype counts for each sample
+            self._init_sample_gt_counts()
+            self.num_samples = len(self.samples)
+        else:
+            self.num_samples = 0
 
     def store_vcf_header(self):
         """Store the raw VCF header.
@@ -275,7 +277,7 @@ class GeminiLoader(object):
                 "\nhttp://gemini.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-vep"
         sys.exit(error)
 
-    def _create_db(self, gt_column_names, sample_column_names):
+    def create_db(self):
         """
         private method to open a new DB
         and create the gemini schema.
@@ -287,8 +289,13 @@ class GeminiLoader(object):
         self.session.set_keyspace('gemini_keyspace')
         # create the gemini database tables for the new DB
         create_tables(self.session)
-        create_variants_table(self.session, gt_column_names)
-        create_samples_table(self.session, sample_column_names)
+        create_variants_table(self.session, self.typed_gt_column_names)
+        create_samples_table(self.session, self.extra_sample_columns)
+        
+    def connect_to_db(self):
+        
+        self.cluster = Cluster()
+        self.session = self.cluster.connect('gemini_keyspace')        
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -730,18 +737,7 @@ class GeminiLoader(object):
                             int(gt_counts[HOM_ALT]),  # hom_alt
                             int(gt_counts[UNKNOWN])])  # missing
         self.session.execute("END")
-
-class SampleGenotypesLoader(object):
-    
-    def __init__(self, args, buffer_size = 10000):
-        
-        self.buffer_size = buffer_size
-        self.first_sample = args.first
-        self.last_sample = args.last
-        
-        cluster = Cluster()
-        self.session = cluster.connect('gemini_keyspace')
-     
+   
               
 def concat(l):
         return reduce(lambda x, y: x + y, l, [])
@@ -757,10 +753,6 @@ def parse_float(s):
         return -42.0
     except TypeError:
         return -43.0
-    
-def load_sample_gts(parser, args):
-    loader = SampleGenotypesLoader(args)
-    loader.load()
 
 def load(parser, args):
     if (args.db is None or args.vcf is None):
@@ -777,11 +769,12 @@ def load(parser, args):
     # the gemini db and files from the VCF
     print "<<< Loading >>>"
     gemini_loader = GeminiLoader(args)
+    gemini_loader.connect_to_db()
     gemini_loader.store_resources()
     gemini_loader.store_version()
 
     gemini_loader.populate_from_vcf()
-    gemini_loader.update_gene_table()
+    #gemini_loader.update_gene_table()
     gemini_loader.disconnect()
     
     #TODO: nodig?

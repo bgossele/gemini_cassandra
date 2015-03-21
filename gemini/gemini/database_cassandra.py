@@ -1,47 +1,9 @@
 #!/usr/bin/env python
 
-import sys
 from itertools import repeat
 
 from cassandra.query import BatchStatement
 from cassandra.cluster import Cluster
-from cassandra.query import SimpleStatement
-
-def index_variation_impacts(session):
-    session.execute('''create index if not exists varimp_exonic_idx on \
-                      variant_impacts(is_exonic)''')
-    session.execute('''create index if not exists varimp_coding_idx on \
-                      variant_impacts(is_coding)''')
-    session.execute('''create index if not exists varimp_lof_idx on \
-                      variant_impacts(is_lof)''')
-    session.execute('''create index if not exists varimp_impact_idx on \
-                      variant_impacts(impact)''')
-    session.execute('''create index if not exists varimp_trans_idx on \
-                      variant_impacts(transcript)''')
-    session.execute('''create index if not exists varimp_gene_idx on \
-                      variant_impacts(gene)''')
-
-
-def index_gene_detailed(session):
-    session.execute('''create index if not exists gendet_chrom_idx on \
-                       gene_detailed(chrom)''')
-    session.execute('''create index if not exists gendet_gene_idx on \
-                       gene_detailed(gene)''')
-    session.execute('''create index if not exists gendet_rvis_idx on \
-                       gene_detailed(rvis_pct)''')
-    session.execute('''create index if not exists gendet_transcript_idx on \
-                       gene_detailed(transcript)''')
-    session.execute('''create index if not exists gendet_ccds_idx on \
-                       gene_detailed(ccds_id)''')
-
-def index_gene_summary(session):
-    session.execute('''create index if not exists gensum_chrom_idx on \
-                       gene_summary(chrom)''')
-    session.execute('''create index if not exists gensum_gene_idx on \
-                       gene_summary(gene)''')
-    
-    session.execute('''create index if not exists gensum_rvis_idx on \
-                      gene_summary(rvis_pct)''')
 
 def drop_tables(session):
     session.execute("DROP TABLE IF EXISTS variants")
@@ -341,24 +303,6 @@ def insert_sample(session, sample_list, column_names):
     res = session.execute("SELECT count(1) FROM samples")[0]
     if res.count == 0:
         insert(session, 'samples', column_names, sample_list)
-       
-#TODO: pass connection parameters or session or whatever 
-def get_approx_nr_samples(step):
-    
-    session = Cluster().connect('gemini_keyspace')
-    query = session.prepare('SELECT name FROM samples WHERE sample_id > ? limit 1 allow filtering')
-    
-    ready = False
-    n = 1
-    while (not ready):
-        res = session.execute(query, (n,))
-        if len(res) > 0:
-            n += step
-        else:
-            ready = True
-            
-    session.shutdown()
-    return n
 
 def close_and_commit(session, connection):
     """

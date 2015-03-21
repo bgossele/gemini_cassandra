@@ -8,6 +8,10 @@ elprep
 ##vim swp
 *.swp
 
+## Gemini vcf zip stuff
+*.vcf.gz
+*.vcf.gz.gbi
+
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
