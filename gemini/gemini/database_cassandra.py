@@ -257,10 +257,10 @@ def create_variants_by_samples_tables(session):
 def create_samples_tables(session, extra_columns):
     creation = '''CREATE TABLE if not exists samples{0}(          \
                      sample_id int,                 \
-                     family_id int,                             \
+                     family_id text,                             \
                      name text,                                 \
-                     paternal_id int,                           \
-                     maternal_id int,                           \
+                     paternal_id text,                           \
+                     maternal_id text,                           \
                      sex text,                                  \
                      phenotype text, {1})'''
     optional = " text,".join(extra_columns + ['PRIMARY KEY{0}'])
