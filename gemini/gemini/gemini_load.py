@@ -13,6 +13,7 @@ import gemini_annotate
 import uuid
 import time
 import datetime
+from cluster_helper.cluster import cluster_view
 
 
 def load(parser, args):
@@ -44,7 +45,7 @@ def load(parser, args):
     annotations.load_annos( args )
     
     gemini_loader = GeminiLoader(args)
-    gemini_loader.create_db()
+    gemini_loader.setup_db()
     gemini_loader.single_core_stuff()
 
     if args.scheduler:
@@ -60,7 +61,6 @@ def load_singlecore(args):
     # the gemini db and files from the VCF
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
-    gemini_loader.single_core_stuff()
     gemini_loader.populate_from_vcf()
 
 
@@ -79,14 +79,13 @@ def load_multicore(args):
     load_chunks_multicore(grabix_file, args)
     # gemini_annotate.add_extras(args.db, chunks)
 
-'''
-    def load_ipython(args):
+
+def load_ipython(args):
     grabix_file = bgzip(args.vcf)
     with cluster_view(*get_ipython_args(args)) as view:
         chunks = load_chunks_ipython(grabix_file, args, view)
-        merge_chunks_ipython(chunks, args.db, view)
-    gemini_annotate.add_extras(args.db, chunks)
-'''
+    # gemini_annotate.add_extras(args.db, chunks)
+
 
 def get_chunk_name(chunk):
     return "--chunkdb " + chunk

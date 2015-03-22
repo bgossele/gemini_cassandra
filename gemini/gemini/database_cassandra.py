@@ -2,7 +2,8 @@
 
 from itertools import repeat
 
-from cassandra.query import BatchStatement
+from cassandra.query import BatchStatement, SimpleStatement
+import Queue
 
 def drop_tables(session):
     session.execute("DROP TABLE IF EXISTS variants")
@@ -12,11 +13,12 @@ def drop_tables(session):
     session.execute("DROP TABLE IF EXISTS gene_detailed")
     session.execute("DROP TABLE IF EXISTS gene_summary")
 
-def create_tables(session):
+def create_tables(session, gt_column_names, extra_sample_columns):
     """
     Create our master DB tables
     """
-    session.execute('''CREATE TABLE if not exists variant_impacts  (   \
+        
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variant_impacts  (   \
                     variant_id uuid,                               \
                     anno_id int,                                  \
                     gene text,                                        \
@@ -36,16 +38,16 @@ def create_tables(session):
                     polyphen_score float,                             \
                     sift_pred text,                                   \
                     sift_score float,                                 \
-                    PRIMARY KEY((variant_id, anno_id)))''')
+                    PRIMARY KEY((variant_id, anno_id)))'''))
 
-    session.execute('''CREATE TABLE if not exists resources ( \
+    session.execute(SimpleStatement('''CREATE TABLE if not exists resources ( \
                      name text PRIMARY KEY,                  \
-                     resource text)''')
+                     resource text)'''))
 
-    session.execute('''CREATE TABLE if not exists version ( \
-                     version text PRIMARY KEY)''')
+    session.execute(SimpleStatement('''CREATE TABLE if not exists version ( \
+                     version text PRIMARY KEY)'''))
     
-    session.execute('''CREATE TABLE if not exists gene_detailed (       \
+    session.execute(SimpleStatement('''CREATE TABLE if not exists gene_detailed (       \
                    uid int PRIMARY KEY,                                \
                    chrom text,                                         \
                    gene text,                                          \
@@ -64,9 +66,9 @@ def create_tables(session):
                    strand text,                                        \
                    synonym text,                                       \
                    rvis_pct float,                                     \
-                   mam_phenotype_id text)''')
+                   mam_phenotype_id text)'''))
     
-    session.execute('''CREATE TABLE if not exists gene_summary (     \
+    session.execute(SimpleStatement('''CREATE TABLE if not exists gene_summary (     \
                     uid int PRIMARY KEY,                         \
                     chrom text,                                     \
                     gene text,                                      \
@@ -79,14 +81,41 @@ def create_tables(session):
                     synonym text,                                   \
                     rvis_pct float,                                 \
                     mam_phenotype_id text,                          \
-                    in_cosmic_census int)''')
+                    in_cosmic_census int)'''))
     
-    session.execute('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)''')
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_type ( \
+                        sample_name text, \
+                        gt_type int, \
+                        variant_id uuid, \
+                        primary key (sample_name, gt_type, variant_id))'''))
     
-    create_variants_by_samples_tables(session)
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_depth( \
+                        sample_name text, \
+                        gt_depth int, \
+                        variant_id uuid, \
+                        primary key (sample_name, gt_depth, variant_id))'''))    
+    
+    session.execute(SimpleStatement('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
+                    variant_id uuid, \
+                    gt_type int, \
+                    sample_name text, \
+                    PRIMARY KEY (variant_id, gt_type, sample_name))'''))
+    
+    session.execute(SimpleStatement('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)'''))
+    
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_sub_type_call_rate ( \
+                        variant_id uuid, \
+                        sub_type text, \
+                        call_rate float, \
+                        PRIMARY KEY (sub_type, call_rate, variant_id))'''))
+    
+    session.execute(create_variants_table(gt_column_names))
+    
+    for stmt in create_samples_tables(extra_sample_columns):
+        session.execute(stmt)
 
 
-def create_variants_table(session, gt_column_names):
+def create_variants_table(gt_column_names):
 
     #TODO: line 230 was hwe decimal(9,7) in sqlite and info was BYTEA
     #Also changed real -> float and numeric to float
@@ -224,37 +253,10 @@ def create_variants_table(session, gt_column_names):
                     aaf_adj_exac_nfe float,                   \
                     aaf_adj_exac_oth float,                   \
                     aaf_adj_exac_sas float, {0})'''
-    insert = creation.format(placeholders) % tuple(gt_column_names)
-    session.execute(insert)
-    
-    session.execute('''CREATE TABLE if not exists variants_by_sub_type_call_rate ( \
-                        variant_id uuid, \
-                        sub_type text, \
-                        call_rate float, \
-                        PRIMARY KEY (sub_type, call_rate, variant_id))''')  
+    stmt = creation.format(placeholders) % tuple(gt_column_names)
+    return SimpleStatement(stmt)
 
-def create_variants_by_samples_tables(session):  
-    
-    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_type ( \
-                        sample_name text, \
-                        gt_type int, \
-                        variant_id uuid, \
-                        primary key ((sample_name, gt_type), variant_id))''')
-    
-    session.execute('''CREATE TABLE if not exists variants_by_samples_gt_depth( \
-                        sample_name text, \
-                        gt_depth int, \
-                        variant_id uuid, \
-                        primary key (sample_name, gt_depth, variant_id))''')      
-    
-    session.execute('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
-                    variant_id uuid, \
-                    gt_type int, \
-                    sample_name text, \
-                    PRIMARY KEY ((variant_id, gt_type), sample_name))''')
-
-
-def create_samples_tables(session, extra_columns):
+def create_samples_tables(extra_columns):
     creation = '''CREATE TABLE if not exists samples{0}(          \
                      sample_id int,                 \
                      family_id text,                             \
@@ -269,9 +271,7 @@ def create_samples_tables(session, extra_columns):
     creation_samples_by_phenotype = creation.format("_by_phenotype", optional.format('(phenotype, name)'))
     creation_samples_by_sex = creation.format("_by_sex", optional.format('(sex, name)'))
     
-    session.execute(creation_samples)
-    session.execute(creation_samples_by_phenotype)
-    session.execute(creation_samples_by_sex)
+    return [SimpleStatement(creation_samples), SimpleStatement(creation_samples_by_phenotype), SimpleStatement(creation_samples_by_sex)]
     
 def batch_insert(session, table, columns, contents):
     """
@@ -279,14 +279,16 @@ def batch_insert(session, table, columns, contents):
     """
     column_names = ','.join(columns)
     question_marks = ','.join(list(repeat("?",len(columns))))
-    #print 'inserting %s rows into %s' % (len(contents), table)
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
-    batch = BatchStatement()
-
-    for entry in contents:
-        batch.add(insert_query, entry)
-        
-    session.execute(batch)
+    
+    futures = Queue.Queue(maxsize=121)
+    for i in range(len(contents)):
+        if i >= 120:
+            old_future = futures.get_nowait()
+            old_future.result()
+    
+        future = session.execute_async(insert_query, contents[i])
+        futures.put_nowait(future)
     
 def insert(session, table, columns, contents):
     column_names = ','.join(columns)

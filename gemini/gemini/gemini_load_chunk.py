@@ -14,7 +14,7 @@ import version
 from ped import load_ped_file
 import gene_table
 import infotag
-from database_cassandra import insert, batch_insert, create_tables, create_variants_table, create_samples_tables
+from database_cassandra import insert, batch_insert, create_tables
 import annotations
 import func_impact
 import severe_impact
@@ -28,20 +28,21 @@ from blist import blist
 from table_schemes import get_column_names
 from gemini.ped import get_ped_fields
 from uuid import uuid4
+import time
 
 class GeminiLoader(object):
     """
     Object for creating and populating a gemini
     database and auxillary data files.
     """
-    def __init__(self, args, buffer_size=10000):
+    def __init__(self, args, buffer_size=1000):
         self.args = args
-        self.buffer_size = buffer_size
-        self._get_anno_version()
-        
         
         # create a reader for the VCF file
         self.vcf_reader = self._get_vcf_reader()
+        
+        self.buffer_size = buffer_size
+        self._get_anno_version()        
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
@@ -110,16 +111,15 @@ class GeminiLoader(object):
         """
         """
         import gemini_annotate  # avoid circular dependencies
-        self.counter = 0
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
         self.var_subtypes_buffer = blist([])
-        self.var_sample_gt_types_buffer = blist([])
-        self.var_sample_gt_depths_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
         extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
         extra_headers = {}
+        self.counter = 0
+        start_time = time.clock()
         with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
             for var in self.vcf_reader:
@@ -133,33 +133,34 @@ class GeminiLoader(object):
                 # add the core variant info to the variant buffer
                 self.var_buffer.append(variant)
                 self.var_subtypes_buffer.append([variant[4], variant[11], variant[12]])
+                
+                var_sample_gt_types_buffer = blist([])
+                var_sample_gt_depths_buffer = blist([])
+                
                 for sample in sample_info:
-                    self.var_sample_gt_types_buffer.append([variant_id, sample[0], sample[1]])
-                    self.var_sample_gt_depths_buffer.append([variant_id, sample[0], sample[2]])
+                    var_sample_gt_depths_buffer.append([variant_id, sample[0], sample[2]])
+                    var_sample_gt_types_buffer.append([variant_id, sample[0], sample[1]])
+                                    
+                batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
+                batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
+                batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], var_sample_gt_depths_buffer)
                 # add each of the impact for this variant (1 per gene/transcript)
                 for var_impact in variant_impacts:
                     self.var_impacts_buffer.append(var_impact)
 
                 buffer_count += 1
-                # buffer full - time to insert into DB
+                # buffer full - start to insert into DB
                 if buffer_count >= self.buffer_size:
-                    sys.stderr.write("pid " + str(os.getpid()) + ": " +
-                                     str(self.counter) + " variants processed.\n")
                     batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
                     batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                       self.var_impacts_buffer)
                     batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                                      get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
-                    batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
-                    batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
-                    batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], self.var_sample_gt_depths_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                     self.var_buffer = blist([])
                     self.var_subtypes_buffer = blist([])
                     self.var_impacts_buffer = blist([])
-                    self.var_sample_gt_depths_buffer = blist([])
-                    self.var_sample_gt_types_buffer = blist([])
                     buffer_count = 0
                 self.counter += 1
         if extra_headers:
@@ -172,12 +173,11 @@ class GeminiLoader(object):
         batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                             get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
-        batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
-        batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], self.var_sample_gt_types_buffer)
-        batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], self.var_sample_gt_depths_buffer)
-                    
+        
+        end_time = time.clock()
+        elapsed_time = end_time - start_time            
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
-                         str(self.counter) + " variants processed.\n")
+                         str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
         if self.args.passonly:
             sys.stderr.write("pid " + str(os.getpid()) + ": " +
                              str(self.skipped) + " skipped due to having the "
@@ -277,10 +277,9 @@ class GeminiLoader(object):
                 "\nhttp://gemini.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-vep"
         sys.exit(error)
 
-    def create_db(self):
+    def setup_db(self):
         """
-        private method to open a new DB
-        and create the gemini schema.
+        Create keyspace named 'gemini_keyspace' and all tables. (IF NOT EXISTS)
         """
         self.cluster = Cluster()
         self.session = self.cluster.connect()
@@ -288,9 +287,7 @@ class GeminiLoader(object):
                                 WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""")
         self.session.set_keyspace('gemini_keyspace')
         # create the gemini database tables for the new DB
-        create_tables(self.session)
-        create_variants_table(self.session, self.typed_gt_column_names)
-        create_samples_tables(self.session, self.extra_sample_columns)
+        create_tables(self.session, self.typed_gt_column_names, self.extra_sample_columns)
         
     def connect_to_db(self):
         
@@ -547,13 +544,13 @@ class GeminiLoader(object):
                    esp.found, esp.aaf_EA,
                    esp.aaf_AA, esp.aaf_ALL,
                    esp.exome_chip, thousandG.found,
-                   thousandG.aaf_AMR, thousandG.aaf_EAS, thousandG.aaf_SAS,
-                   thousandG.aaf_AFR, thousandG.aaf_EUR,
-                   thousandG.aaf_ALL, grc,
+                   parse_float(thousandG.aaf_AMR), parse_float(thousandG.aaf_EAS), 
+                   parse_float(thousandG.aaf_SAS), parse_float(thousandG.aaf_AFR), 
+                   parse_float(thousandG.aaf_EUR), parse_float(thousandG.aaf_ALL), grc,
                    parse_float(gms.illumina), parse_float(gms.solid),
                    parse_float(gms.iontorrent), in_cse,
                    encode_tfbs,
-                   encode_dnaseI.cell_count,
+                   parse_int(encode_dnaseI.cell_count),
                    encode_dnaseI.cell_list,
                    encode_cons_seg.gm12878,
                    encode_cons_seg.h1hesc,
@@ -568,7 +565,7 @@ class GeminiLoader(object):
                    cadd_scaled,
                    fitcons,
                    Exac.found,
-                   Exac.aaf_ALL,
+                   parse_float(Exac.aaf_ALL),
                    Exac.adj_aaf_ALL,
                    Exac.aaf_AFR, Exac.aaf_AMR,
                    Exac.aaf_EAS, Exac.aaf_FIN,
@@ -602,7 +599,6 @@ class GeminiLoader(object):
             i = self.sample_to_id[sample]
             if sample in self.ped_hash:
                 fields = self.ped_hash[sample]
-                print fields
                 sample_list = [i] + fields
             elif len(self.ped_hash) > 0:
                 sys.exit("EXITING: sample %s found in the VCF but "
@@ -610,7 +606,7 @@ class GeminiLoader(object):
             else:
                 # if there is no ped file given, just fill in the name and
                 # sample_id and set the other required fields to None
-                sample_list = [i, 0, sample, 0, 0, '-9', '-9']
+                sample_list = [i, '0', sample, '0', '0', '-9', '-9']
                 
             samples_buffer.append(sample_list)
             buffer_counter += 1
@@ -753,6 +749,15 @@ def parse_float(s):
         return -42.0
     except TypeError:
         return -43.0
+    
+def parse_int(s):
+    try:
+        return int(s)
+    except ValueError:
+        #TODO: sensible value?
+        return -42
+    except TypeError:
+        return -43
 
 def load(parser, args):
     if (args.db is None or args.vcf is None):

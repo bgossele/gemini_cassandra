@@ -5,7 +5,7 @@ from cassandra.query import SimpleStatement
 
 answer = raw_input('Drop all gemini tables (y | n)? ')
 
-if answer.lower().startswith(('ja', 'yes', 'oui', 'si')):
+if answer.lower().startswith(('j', 'y', 'oui', 'si')):
 	print 'Dropping gemini tables...'
 	cluster = Cluster()
 	session = cluster.connect('gemini_keyspace')

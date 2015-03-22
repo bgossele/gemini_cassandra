@@ -20,7 +20,7 @@ from gemini.query_expressions import Simple_expression, AND_expression,\
     NOT_expression, OR_expression
 from gemini.sql_utils import get_query_parts
 from types import UnicodeType
-from cassandra.query import dict_factory, ordered_dict_factory
+from cassandra.query import ordered_dict_factory
 
 
 # gemini imports
