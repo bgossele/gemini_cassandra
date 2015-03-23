@@ -15,4 +15,4 @@ if answer.lower().startswith(('j', 'y', 'oui', 'si')):
 	for table in tables:
 		session.execute('DROP TABLE IF EXISTS %s' % table )
 
-
+print "Dropping tables finished."

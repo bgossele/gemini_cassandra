@@ -119,7 +119,7 @@ class GeminiLoader(object):
         extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
         extra_headers = {}
         self.counter = 0
-        start_time = time.clock()
+        start_time = time.time()
         with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
             for var in self.vcf_reader:
@@ -138,6 +138,7 @@ class GeminiLoader(object):
                 var_sample_gt_depths_buffer = blist([])
                 
                 for sample in sample_info:
+                    #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
                     var_sample_gt_depths_buffer.append([variant_id, sample[0], sample[2]])
                     var_sample_gt_types_buffer.append([variant_id, sample[0], sample[1]])
                                     
@@ -174,7 +175,7 @@ class GeminiLoader(object):
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                             get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
         
-        end_time = time.clock()
+        end_time = time.time()
         elapsed_time = end_time - start_time            
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed in %s s.\n" % elapsed_time)

@@ -45,9 +45,12 @@ def load(parser, args):
     annotations.load_annos( args )
     
     gemini_loader = GeminiLoader(args)
+    start_time = time.time()
     gemini_loader.setup_db()
+    time_2 = time.time()
     gemini_loader.single_core_stuff()
-
+    time_3 = time.time()
+    
     if args.scheduler:
         #load_ipython(args)
         sys.stdout.write("Just testing, no fancy scheduler stuff available yet")
@@ -55,6 +58,11 @@ def load(parser, args):
         load_multicore(args)
     else:
         load_singlecore(args)
+    end_time = time.time()
+    print "Finished loading in %s s" % (end_time - start_time)
+    print "Creating db tables took %s s" % (time_2 - start_time)
+    print "Populating samples tables (single-core) took %s s" % (time_3 - time_2)
+    print "Populating variants tables (parallelised) took %s s" % (end_time - time_3)
 
 def load_singlecore(args):
     # create a new gemini loader and populate
