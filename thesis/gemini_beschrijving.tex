@@ -23,6 +23,25 @@ Een belangrijke troef van GEMINI en z'n datamodel is de flexibiliteit die het la
 
 \section{Inladen}
 %TODO ref nr IPython dink
-Het inladen van de data uit VCF-bestanden is een computationeel intensieve operatie, enerzijds omwille van de enorme grootte van deze bestanden, en anderzijds omdat in deze fase ook alle variants geannoteerd moeten worden. Om het proces te versnellen, biedt GEMINI de mogelijkheid het werk te paralleliseren door het VCF-bestand de comprimeren, op het bestaande bestand een index te defini\"eren en zo het werk te verdelen. Dit kan simpelweg over meerdere processoren binnen 1 computer zijn, maar via de IPython-interface ook over volledige clusters van computers.\\
+Het inladen van de data uit VCF-bestanden is een computationeel intensieve operatie, enerzijds omwille van de enorme grootte van deze bestanden, en anderzijds omdat in deze fase ook alle variants geannoteerd moeten worden. Om het proces te versnellen, biedt GEMINI de mogelijkheid het werk te paralleliseren door het VCF-bestand de comprimeren, op het bestaande bestand een index te defini\"eren en zo het werk te verdelen. Dit kan over meerdere processoren binnen 1 computer zijn, maar via de IPython-interface ook over volledige clusters van computers.\\
+
+\section{Querying}
+
+GEMINI laat de gebruiker toe de opgeslagen genoomdata te doorzoeken. Enerzijds via gewone SQL-queries, maar omdat het onderzoeken van individuele genotypes van cruciaal belang is in het onderzoek naar ziektes en SQL standaard niet de individuele genotypes in array-kolommen kan opvragen, biedt GEMINI bovendien een verrijkte SQL-syntax.\\
+Zo laat het de gebruiker toe via filters en wildcards de gewenste genotype-eigenschappen en samples te defini\"eren.
+
+\subsection{Sample filters/wildcards} 
+In SQL \texttt{SELECT}-statements kan de gebruiker met een filter van de vorm column.sample of een wilcard van de vorm (column).(wildcard) uitdrukken welke genotype-kolommen van welke samples hij/zij wilt zien. Wanneer de gebruiker ge\"interesseerd is in bijvoorbeeld het genotype van sample Jan, wordt dit:\\
+\texttt{SELECT gt\_types.Jan FROM variants}\\\\
+Als de gebruiker de diepte van de genotypes alle vrouwelijke samples wil zien, wordt dit:\\\\
+\texttt{SELECT (gt\_depths).(sex = 'female')}.\\
+GEMINI vertaalt de wildcard automatisch naar een query op de \texttt{samples}-tabel, en kan vervolgens voor alle samples die aan de voorwaarden voldoen, de waarde uit de gevraagde kolom tonen.
+
+\subsection{Genotype filters}
+Om beperkingen op te leggen aan de variants waarin hij ge\"interesseerd is, kan de gebruiker SQL WHERE-clauses uitbreiden met zogenaamde genotype filters. Is hij bij voorbeeld enkel ge\"interesseerd in variants waarvoor sample Jan heterozygoot is en Mieke allesbehalve heterozygoot is, kan dit met:\\\\
+
+%TODO aanhalingstekens fixen
+\texttt{gemini query -q "SELECT * FROM variants" --gt-filter "gt\_types.Jan == HET and gt\_types.Mieke != HET"}
+
 
 
