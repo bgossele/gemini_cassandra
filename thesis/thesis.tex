@@ -10,7 +10,10 @@
 		shortabstract={Here comes a very short abstract, containing no more than 500 words. \LaTeX\ commands can be used here.}}
 		
 \usepackage{url}
+\usepackage{graphicx}
+\graphicspath{ {afbeeldingen/} }
 \usepackage[pdfusetitle,colorlinks,plainpages=false]{hyperref}
+
 \begin{document}
 
 \begin{preface}
@@ -24,7 +27,9 @@
 
 \mainmatter
 
-\include{cha1}
+\include{Inleiding}
+\include{NoSQL_overzicht}
+\include{gemini_beschrijving}
 
 \bibliographystyle{abbrv}
 \bibliography{biblio}
