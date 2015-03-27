@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 import os
-import sys
-from itertools import tee, ifilterfalse
 from collections import defaultdict
 
 # gemini imports
 import GeminiQuery
 from GeminiQuery import select_formatter
-from gemini_constants import *
 from gemini_region import add_region_to_query
-from gemini_subjects import (Subject, get_subjects, get_subjects_in_family,
+from gemini_subjects import (get_subjects, get_subjects_in_family,
                              get_family_dict)
-from gemini_utils import itersubclasses
 from dgidb import query_dgidb
 
 def all_samples_predicate(args):

@@ -19,7 +19,7 @@ def create_tables(session, gt_column_names, extra_sample_columns):
     """
         
     session.execute(SimpleStatement('''CREATE TABLE if not exists variant_impacts  (   \
-                    variant_id uuid,                               \
+                    variant_id int,                               \
                     anno_id int,                                  \
                     gene text,                                        \
                     transcript text,                                  \
@@ -86,17 +86,17 @@ def create_tables(session, gt_column_names, extra_sample_columns):
     session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_type ( \
                         sample_name text, \
                         gt_type int, \
-                        variant_id uuid, \
+                        variant_id int, \
                         primary key (sample_name, gt_type, variant_id))'''))
     
     session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_depth( \
                         sample_name text, \
                         gt_depth int, \
-                        variant_id uuid, \
+                        variant_id int, \
                         primary key (sample_name, gt_depth, variant_id))'''))    
     
     session.execute(SimpleStatement('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
-                    variant_id uuid, \
+                    variant_id int, \
                     gt_type int, \
                     sample_name text, \
                     PRIMARY KEY (variant_id, gt_type, sample_name))'''))
@@ -104,7 +104,7 @@ def create_tables(session, gt_column_names, extra_sample_columns):
     session.execute(SimpleStatement('''CREATE TABLE if not exists vcf_header (vcf_header text PRIMARY KEY)'''))
     
     session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_sub_type_call_rate ( \
-                        variant_id uuid, \
+                        variant_id int, \
                         sub_type text, \
                         call_rate float, \
                         PRIMARY KEY (sub_type, call_rate, variant_id))'''))
@@ -125,7 +125,7 @@ def create_variants_table(gt_column_names):
                     start int,                                  \
                     \"end\" int,                                \
                     vcf_id text,                                \
-                    variant_id uuid PRIMARY KEY,            \
+                    variant_id int PRIMARY KEY,            \
                     anno_id int,                                \
                     ref text,                                   \
                     alt text,                                   \

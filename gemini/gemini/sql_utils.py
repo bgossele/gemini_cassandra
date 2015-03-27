@@ -59,13 +59,22 @@ def get_query_parts(query):
     where_clause = ""
     rest = ""
     from_table = query[from_loc + 4: from_end].strip()
-    select = query[select_loc + 6:from_loc].strip()
+    select_clause = query[select_loc:from_loc]
+    
+    # remove the SELECT keyword from the query
+    select_pattern = re.compile("select", re.IGNORECASE)
+    select_clause = select_pattern.sub('', select_clause)
+
+    # now create and iterate through a list of of the SELECT'ed columns
+    selected_columns = select_clause.split(',')
+    selected_columns = [c.strip() for c in selected_columns]
+    
     if where_loc > -1:
         where_clause = query[where_loc + 5: where_end].strip()
     if where_end < len(query):
         rest = query[where_end:].strip()
     
-    return select, from_table, where_clause, rest   
+    return selected_columns, from_table, where_clause, rest   
 
 def ensure_columns(query, cols):
     """

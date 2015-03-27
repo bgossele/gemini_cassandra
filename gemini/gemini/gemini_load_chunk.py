@@ -27,7 +27,6 @@ from cassandra.cluster import Cluster
 from blist import blist
 from table_schemes import get_column_names
 from gemini.ped import get_ped_fields
-from uuid import uuid4
 import time
 
 class GeminiLoader(object):
@@ -106,11 +105,19 @@ class GeminiLoader(object):
         typed_column_names = concat(map(lambda x: map(lambda y: x[0] + '_' + y + ' ' + x[1], self.samples), gt_cols))
         
         return (column_names, typed_column_names)
+    
+    def _get_vid(self):
+        if hasattr(self.args, 'offset'):
+            v_id = int(self.args.offset)
+        else:
+            v_id = 1
+        return v_id
 
     def populate_from_vcf(self):
         """
         """
         import gemini_annotate  # avoid circular dependencies
+        self.v_id = self._get_vid()
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
         self.var_subtypes_buffer = blist([])
@@ -126,7 +133,7 @@ class GeminiLoader(object):
                 if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
                     self.skipped += 1
                     continue
-                (variant_id, variant, variant_impacts, sample_info, extra_fields) = self._prepare_variation(var)
+                (variant, variant_impacts, sample_info, extra_fields) = self._prepare_variation(var)
                 if extra_fields:
                     extra_handle.write("%s\n" % json.dumps(extra_fields))
                     extra_headers = self._update_extra_headers(extra_headers, extra_fields)
@@ -139,8 +146,8 @@ class GeminiLoader(object):
                 
                 for sample in sample_info:
                     #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
-                    var_sample_gt_depths_buffer.append([variant_id, sample[0], sample[2]])
-                    var_sample_gt_types_buffer.append([variant_id, sample[0], sample[1]])
+                    var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
+                    var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
                                     
                 batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
                 batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
@@ -163,6 +170,7 @@ class GeminiLoader(object):
                     self.var_subtypes_buffer = blist([])
                     self.var_impacts_buffer = blist([])
                     buffer_count = 0
+                self.v_id += 1
                 self.counter += 1
         if extra_headers:
             with open(extraheader_file, "w") as out_handle:
@@ -170,6 +178,7 @@ class GeminiLoader(object):
         else:
             os.remove(extra_file)
         # final load to the database
+        self.v_id -= 1
         batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
         batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
@@ -307,7 +316,6 @@ class GeminiLoader(object):
         pi_hat = None
         inbreeding_coeff = None
         hom_ref = het = hom_alt = unknown = None
-        variant_id = uuid4()
 
         # only compute certain metrics if genoypes are available
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
@@ -471,7 +479,7 @@ class GeminiLoader(object):
         variant_impacts = []
         if impacts is not None:
             for idx, impact in enumerate(impacts):
-                var_impact = [variant_id, (idx + 1), impact.gene,
+                var_impact = [self.v_id, (idx + 1), impact.gene,
                               impact.transcript, impact.is_exonic,
                               impact.is_coding, impact.is_lof,
                               impact.exon, impact.codon_change,
@@ -493,7 +501,7 @@ class GeminiLoader(object):
             extra_fields.update({"chrom": var.CHROM, "start": var.start, "end": var.end})
         chrom = var.CHROM if var.CHROM.startswith("chr") else "chr" + var.CHROM
         variant = [chrom, var.start, var.end,
-                   vcf_id, variant_id, anno_id, var.REF, ','.join(var.ALT),
+                   vcf_id, self.v_id, anno_id, var.REF, ','.join(var.ALT),
                    var.QUAL, var_filter, var.var_type,
                    var.var_subtype,
                    call_rate, in_dbsnp,
@@ -577,7 +585,7 @@ class GeminiLoader(object):
         for entry in var.samples:
             sample_info.append((entry.sample, entry.gt_type, entry.gt_depth))
             
-        return variant_id, variant, variant_impacts, sample_info, extra_fields
+        return variant, variant_impacts, sample_info, extra_fields
     
     
     def _prepare_samples(self):
