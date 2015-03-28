@@ -506,7 +506,8 @@ class GeminiQuery(object):
                 self.gt_filter_exp = self._correct_genotype_filter()
                 self.query_type = "filter-genotypes"
 
-        (self.all_selected_columns, self.from_table, where_clause, self.rest_of_query) = get_query_parts(self.query)
+        (self.requested_columns, self.from_table, where_clause, self.rest_of_query) = get_query_parts(self.query)
+        self.extra_columns = []
         
         if where_clause != '':
             self.where_exp = self.parse_where_clause(where_clause, self.from_table)
@@ -531,7 +532,7 @@ class GeminiQuery(object):
         Return a header describing the columns that
         were selected in the query issued to a GeminiQuery object.
         """
-        h = [col for col in self.all_selected_columns]
+        h = [col for col in self.report_cols]
         if self.show_variant_samples:
             h += ["variant_samples", "HET_samples", "HOM_ALT_samples"]
         if self.show_families:
@@ -666,7 +667,7 @@ class GeminiQuery(object):
         if self.matches == []:
             sys.exit("No results!")
         try:
-            query = "SELECT %s FROM %s" % (','.join(self.all_selected_columns), self.from_table)
+            query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
             if self.matches != "*":
                 if type(self.matches[0]) is UnicodeType:
                     in_clause = "','".join(self.matches)            
@@ -676,7 +677,11 @@ class GeminiQuery(object):
                     query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
             query += " " + self.rest_of_query
             self.session.row_factory = ordered_dict_factory
-            self.result = iter(self.session.execute(query))
+            
+            res = self.session.execute(query)            
+            self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
+            self.result = iter(res)
+            
         except cassandra.protocol.SyntaxException as e:
             print "Cassandra error: {0}".format(e)
             sys.exit("The query issued (%s) has a syntax error." % query)
@@ -687,7 +692,7 @@ class GeminiQuery(object):
         replace sample names with indices where necessary.
         """
         if self.needs_genes:
-            self.all_selected_columns.append("gene")
+            self.requested_columns.append("gene")
 
         '''if self.needs_vcf_columns:
             self.query = self._add_vcf_cols_to_query()'''
@@ -702,29 +707,13 @@ class GeminiQuery(object):
             # pieces and replace genotype columns using sample
             # names with sample indices
             self._split_select()
+                
+        if self.show_families or self.show_variant_samples:
+            if (not 'variant_id' in self.requested_columns) and (not "*" in self.requested_columns):
+                self.extra_columns.append('variant_id')
 
-            # we only need genotype information if the user is
-            # querying the variants table
-            
-            # self.query = self._add_gt_cols_to_query()
-            self._execute_query()
-
-            self.all_query_cols = [s for s in self.all_selected_columns
-                                   if not s.startswith("gt") and ".gt" not in s]
-
-            if "*" in self.select_columns:
-                self.select_columns.remove("*")
-                self.all_columns_orig.remove("*")
-                self.all_columns_new.remove("*")
-                self.select_columns += self.all_selected_columns
-
-            self.report_cols = self.all_selected_columns
-        # the query does not involve the variants table
-        # and as such, we don't need to do anything fancy.
-        else:
-            self._execute_query()
-            self.all_query_cols = self.all_selected_columns
-            self.report_cols = self.all_query_cols
+        self._execute_query()
+        
 
     def _get_matching_sample_ids(self, wildcard):
         
@@ -985,74 +974,6 @@ class GeminiQuery(object):
             token = token.replace('UNKNOWN', str(UNKNOWN))
         return token
 
-    def _add_gt_cols_to_query(self):
-        """
-        We have to modify the raw query to select the genotype
-        columns in order to support the genotype filters.  That is,
-        if the user wants to limit the rows returned based upon, for example,
-        "gts.joe == 1", then we need to select the full gts BLOB column in
-        order to enforce that limit.  The user wouldn't have selected gts as a
-        columns, so therefore, we have to modify the select statement to add
-        it.
-
-        In essence, when a genotype filter has been requested, we always add
-        the gts, gt_types and gt_phases columns.
-        """
-
-        if "from" not in self.query.lower():
-            sys.exit("Malformed query: expected a FROM keyword.")
-
-        (select_tokens, rest_of_query) = get_select_cols_and_rest(self.query)
-
-        # remove any GT columns
-        select_clause_list = []
-        for token in select_tokens:
-            if not token.startswith("gt") and \
-               not token.startswith("GT") and \
-               not ".gt" in token and \
-               not ".GT" in token and \
-               not token.startswith("(gt") and \
-               not token.startswith("(GT"):
-                select_clause_list.append(token)
-
-        # reconstruct the query with the GT* columns added
-        if len(select_clause_list) > 0:
-            select_clause = ",".join(select_clause_list) + \
-                    ", gts, gt_types, gt_phases, gt_depths, \
-                       gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers "
-
-        else:
-            select_clause = ",".join(select_clause_list) + \
-                    " gts, gt_types, gt_phases, gt_depths, \
-                      gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers "
-
-        self.query = "select " + select_clause + rest_of_query
-
-        # extract the original select columns
-        return self.query
-
-    '''def _add_vcf_cols_to_query(self):
-        """
-        Add the VCF columns to the list of SELECT'ed columns
-        in a query.
-
-        NOTE: Should only be called if using VCFRowFormat()
-        """
-        if "from" not in self.query.lower():
-            sys.exit("Malformed query: expected a FROM keyword.")
-
-        (select_tokens, rest_of_query) = get_select_cols_and_rest(self.query)
-
-        cols_to_add = []
-        for col in ['chrom', 'start', 'vcf_id', 'ref', 'alt', 'qual', 'filter', 'info', \
-            'gts', 'gt_types', 'gt_phases']:
-            if not any(col in s for s in select_tokens):
-                cols_to_add.append(col)
-
-        all_selected_columns = ",".join(select_tokens + cols_to_add)
-        self.query = "select " + all_selected_columns + rest_of_query
-        return self.query'''
-
     def _split_select(self):
         """
         Build a list of _all_ columns in the SELECT statement
@@ -1079,7 +1000,7 @@ class GeminiQuery(object):
             sys.exit("Malformed query: expected a FROM keyword.")
 
 
-        for token in self.all_selected_columns:
+        for token in self.requested_columns:
 
             # it is a WILDCARD
             if (token.find("gt") >= 0 or token.find("GT") >= 0) \
@@ -1101,17 +1022,9 @@ class GeminiQuery(object):
                 # be displayed as a result of the SELECT'ed wildcard
                 for sample in sample_info:
                     wildcard_col = column + '_' + sample
-                    self.all_selected_columns.append(wildcard_col)
-                    self.all_columns_new.append(wildcard_col)
-                    self.all_columns_orig.append(wildcard_col)
+                    self.requested_columns.append(wildcard_col)
                 
-                self.all_selected_columns.remove(token)
-
-            # it isn't
-            else:
-                self.select_columns.append(token)
-                self.all_columns_new.append(token)
-                self.all_columns_orig.append(token)
+                self.requested_columns.remove(token)
 
     def _info_dict_to_string(self, info):
         """

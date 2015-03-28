@@ -224,24 +224,6 @@ def main():
         import gemini_load_chunk
         gemini_load_chunk.load(parser, args)
     parser_loadchunk.set_defaults(func=loadchunk_fn)
-    
-    #########################################
-    # $ gemini merge_chunks
-    #########################################
-    parser_mergechunks = subparsers.add_parser('merge_chunks',
-            help='combine intermediate db files into the final gemini ')
-    parser_mergechunks.add_argument('--db',
-            dest='db',
-            help='The name of the final database to be loaded.')
-    parser_mergechunks.add_argument('--chunkdb',
-            nargs='*',
-            dest='chunkdbs',
-            action='append')
-
-    def mergechunk_fn(parser, args):
-        import gemini_merge_chunks
-        gemini_merge_chunks.merge_chunks(parser, args)
-    parser_mergechunks.set_defaults(func=mergechunk_fn)
 
     #########################################
     # $ gemini query
