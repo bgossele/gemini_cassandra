@@ -70,8 +70,9 @@ def main():
     #########################################
     parser_load = subparsers.add_parser('load',
                                         help='load a VCF file in gemini database')
-    parser_load.add_argument('db', metavar='db',
-                             help='The name of the database to be created.')
+    parser_load.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_load.add_argument('-v', dest='vcf',
                              help='The VCF file to be loaded.')
     parser_load.add_argument('-t', dest='anno_type',
@@ -158,9 +159,9 @@ def main():
     #########################################
     parser_loadchunk = subparsers.add_parser('load_chunk',
                                              help='load a VCF file in gemini database')
-    parser_loadchunk.add_argument('db',
-                                  metavar='db',
-                                  help='The name of the database to be created.')
+    parser_loadchunk.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_loadchunk.add_argument('-v',
                                   dest='vcf',
                                   help='The VCF file to be loaded.')
@@ -230,9 +231,9 @@ def main():
     #########################################
     parser_query = subparsers.add_parser('query',
             help='issue ad hoc SQL queries to the DB')
-    parser_query.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_query.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_query.add_argument('-q',
             dest='query',
             metavar='QUERY_STR',

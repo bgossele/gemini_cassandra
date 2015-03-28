@@ -28,6 +28,7 @@ from blist import blist
 from table_schemes import get_column_names
 from gemini.ped import get_ped_fields
 import time
+from string import strip
 
 class GeminiLoader(object):
     """
@@ -41,7 +42,8 @@ class GeminiLoader(object):
         self.vcf_reader = self._get_vcf_reader()
         
         self.buffer_size = buffer_size
-        self._get_anno_version()        
+        self._get_anno_version()
+        self.contact_points = map(strip, args.contact_points.split(','))   
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
@@ -123,60 +125,61 @@ class GeminiLoader(object):
         self.var_subtypes_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
-        extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
+        #extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
         extra_headers = {}
         self.counter = 0
         start_time = time.time()
-        with open(extra_file, "w") as extra_handle:
+        #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
-            for var in self.vcf_reader:
-                if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
-                    self.skipped += 1
-                    continue
-                (variant, variant_impacts, sample_info, extra_fields) = self._prepare_variation(var)
-                if extra_fields:
-                    extra_handle.write("%s\n" % json.dumps(extra_fields))
-                    extra_headers = self._update_extra_headers(extra_headers, extra_fields)
-                # add the core variant info to the variant buffer
-                self.var_buffer.append(variant)
-                self.var_subtypes_buffer.append([variant[4], variant[11], variant[12]])
+        for var in self.vcf_reader:
+            if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
+                self.skipped += 1
+                continue
+            (variant, variant_impacts, sample_info, extra_fields) = self._prepare_variation(var)
+            #TODO: bekijken
+            '''if extra_fields:
+                extra_handle.write("%s\n" % json.dumps(extra_fields))
+                extra_headers = self._update_extra_headers(extra_headers, extra_fields)'''
+            # add the core variant info to the variant buffer
+            self.var_buffer.append(variant)
+            self.var_subtypes_buffer.append([variant[4], variant[11], variant[12]])
                 
-                var_sample_gt_types_buffer = blist([])
-                var_sample_gt_depths_buffer = blist([])
+            var_sample_gt_types_buffer = blist([])
+            var_sample_gt_depths_buffer = blist([])
                 
-                for sample in sample_info:
+            for sample in sample_info:
                     #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
-                    var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
-                    var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
+                var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
+                var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
                                     
-                batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
-                batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
-                batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], var_sample_gt_depths_buffer)
+            batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
+            batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
+            batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], var_sample_gt_depths_buffer)
                 # add each of the impact for this variant (1 per gene/transcript)
-                for var_impact in variant_impacts:
-                    self.var_impacts_buffer.append(var_impact)
+            for var_impact in variant_impacts:
+                self.var_impacts_buffer.append(var_impact)
 
-                buffer_count += 1
+            buffer_count += 1
                 # buffer full - start to insert into DB
-                if buffer_count >= self.buffer_size:
-                    batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
-                    batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
-                                                      self.var_impacts_buffer)
-                    batch_insert(self.session, 'variants_by_sub_type_call_rate',\
-                                                     get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+            if buffer_count >= self.buffer_size:
+                batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+                batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
+                                                  self.var_impacts_buffer)
+                batch_insert(self.session, 'variants_by_sub_type_call_rate',\
+                                                 get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
-                    self.var_buffer = blist([])
-                    self.var_subtypes_buffer = blist([])
-                    self.var_impacts_buffer = blist([])
-                    buffer_count = 0
-                self.v_id += 1
-                self.counter += 1
-        if extra_headers:
+                self.var_buffer = blist([])
+                self.var_subtypes_buffer = blist([])
+                self.var_impacts_buffer = blist([])
+                buffer_count = 0
+            self.v_id += 1
+            self.counter += 1
+        '''if extra_headers:
             with open(extraheader_file, "w") as out_handle:
                 out_handle.write(json.dumps(extra_headers))
         else:
-            os.remove(extra_file)
+            os.remove(extra_file)'''
         # final load to the database
         self.v_id -= 1
         batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
@@ -291,7 +294,7 @@ class GeminiLoader(object):
         """
         Create keyspace named 'gemini_keyspace' and all tables. (IF NOT EXISTS)
         """
-        self.cluster = Cluster()
+        self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
         self.session.execute("""CREATE KEYSPACE IF NOT EXISTS gemini_keyspace
                                 WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""")
@@ -301,7 +304,7 @@ class GeminiLoader(object):
         
     def connect_to_db(self):
         
-        self.cluster = Cluster()
+        self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect('gemini_keyspace')        
 
     def _prepare_variation(self, var):

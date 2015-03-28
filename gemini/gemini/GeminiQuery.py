@@ -18,8 +18,8 @@ from collections import namedtuple
 from gemini.query_expressions import Simple_expression, AND_expression,\
     NOT_expression, OR_expression, rows_as_list, GT_wildcard_expression
 from gemini.sql_utils import get_query_parts
-from types import UnicodeType
 from cassandra.query import ordered_dict_factory, tuple_factory
+from string import strip
 
 
 # gemini imports
@@ -425,11 +425,10 @@ class GeminiQuery(object):
             print row, gts[idx]
     """
 
-    def __init__(self, db, include_gt_cols=False,
+    def __init__(self, db_contact_points, include_gt_cols=False,
                  out_format=DefaultRowFormat(None)):
-        assert os.path.exists(db), "%s does not exist." % db
 
-        self.db = db
+        self.db_contact_points = map(strip, db_contact_points.split(','))
         self.query_executed = False
         self.for_browser = False
         self.include_gt_cols = include_gt_cols
@@ -564,7 +563,7 @@ class GeminiQuery(object):
 
             fields = OrderedDict()
 
-            for idx, col in enumerate(self.report_cols):
+            for col in self.report_cols:
                 if col == "*":
                     continue
                 if not col == "info":
@@ -623,7 +622,7 @@ class GeminiQuery(object):
         """
         # open up a new database
         
-        self.cluster = Cluster()
+        self.cluster = Cluster(self.db_contact_points)
         self.session = self.cluster.connect('gemini_keyspace')
 
 
@@ -921,7 +920,7 @@ class GeminiQuery(object):
         wildcard_rule = self._swap_genotype_for_number(wildcard_rule)
         wildcard_rule = wildcard_rule.replace('==', '=')
         
-        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.nr_cores) 
+        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.db_contact_points, self.nr_cores) 
     
     def _swap_genotype_for_number(self, token):
                 

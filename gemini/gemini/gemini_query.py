@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 from collections import defaultdict
 
 # gemini imports
@@ -116,7 +115,7 @@ def run_query(args):
     formatter = select_formatter(args)
     genotypes_needed = needs_genotypes(args)
     gene_needed = needs_gene(args)
-    gq = GeminiQuery.GeminiQuery(args.db, out_format=formatter)
+    gq = GeminiQuery.GeminiQuery(args.contact_points, out_format=formatter)
     gq.run(args.query, args.gt_filter, args.show_variant_samples,
            args.sample_delim, predicates, genotypes_needed,
            gene_needed, args.show_families, args.cores)
@@ -138,7 +137,7 @@ def run_query(args):
         dgidb_info = query_dgidb(genes)
 
         # rerun the query (the cursor is now consumed)
-        gq = GeminiQuery.GeminiQuery(args.db, out_format=formatter)
+        gq = GeminiQuery.GeminiQuery(args.contact_points, out_format=formatter)
         gq.run(args.query, args.gt_filter, args.show_variant_samples,
            args.sample_delim, predicates, genotypes_needed,
            gene_needed, args.show_families, args.cores)
@@ -149,12 +148,7 @@ def run_query(args):
 
 
 def query(parser, args):
-
-    if (args.db is None):
-        parser.print_help()
-
-    if os.path.exists(args.db):
-        run_query(args)
+    run_query(args)
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,6 @@
 
 # native Python imports
 import os.path
-import shutil
 import sys
 
 import annotations
@@ -10,9 +9,7 @@ import subprocess
 #from cluster_helper.cluster import cluster_view
 from gemini_load_chunk import GeminiLoader
 import gemini_annotate
-import uuid
 import time
-import datetime
 from cluster_helper.cluster import cluster_view
 
 
@@ -20,7 +17,7 @@ def load(parser, args):
     #if (args.db is None or args.vcf is None):
     if args.vcf is None:
         parser.print_help()
-        exit("ERROR: load needs both a VCF file and a database file\n")
+        exit("ERROR: load needs both a VCF file\n")
 
     annos = annotations.get_anno_files( args )
     # force skipping CADD and GERP if the data files have not been installed
@@ -79,8 +76,8 @@ def load_singlecore(args):
         
     #TODO: nodig?
     '''if not args.no_genotypes and not args.no_load_genotypes:
-        gemini_loader.store_sample_gt_counts()'''
-    gemini_annotate.add_extras(args.db, [args.db])
+        gemini_loader.store_sample_gt_counts()
+    gemini_annotate.add_extras(args.db, [args.db])'''
 
 def load_multicore(args):
     grabix_file = bgzip(args.vcf)
@@ -142,6 +139,8 @@ def load_chunks_multicore(grabix_file, args):
     skip_info_string = ""
     if args.skip_info_string is True:
         skip_info_string = "--skip-info-string"
+        
+    contact_points = "-db" + args.contact_points
 
     submit_command = "{cmd}"
     vcf, _ = os.path.splitext(grabix_file)
@@ -200,6 +199,8 @@ def load_chunks_ipython(grabix_file, args, view):
     passonly = ""
     if args.passonly is True:
         passonly = "--passonly"
+        
+    contact_points = "-db" + args.contact_points
 
     skip_info_string = ""
     if args.skip_info_string is True:

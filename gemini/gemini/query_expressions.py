@@ -131,12 +131,13 @@ class NOT_expression(Expression):
     
 class GT_wildcard_expression(Expression):
     
-    def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, cores_for_eval = 1):
+    def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, db_contact_points, cores_for_eval = 1):
         self.column = column
         self.wildcard_rule = wildcard_rule
         self.rule_enforcement = rule_enforcement
         self.names = sample_names
         self.nr_cores = cores_for_eval
+        self.db_contact_points = db_contact_points
         
     def to_string(self):
         return "[%s].[%s].[%s].[%s]" % (self.column, "?", self.wildcard_rule, self.rule_enforcement)
@@ -177,7 +178,8 @@ class GT_wildcard_expression(Expression):
         for i in range(self.nr_cores):
             parent_conn, child_conn = Pipe()
             conns.append(parent_conn)
-            p = Process(target=eval(target_rule +'_query'), args=(child_conn, self.column, corrected_rule, correct_starting_set))
+            p = Process(target=eval(target_rule +'_query'), args=(child_conn, self.column, corrected_rule,\
+                                                                   correct_starting_set, self.db_contact_points))
             procs.append(p)
             p.start()
             
@@ -223,9 +225,9 @@ def intersect(list1, list2):
 def rows_as_list(rows):
     return map(lambda x: x[0], rows)
  
-def all_query(conn, field, clause, initial_set):
+def all_query(conn, field, clause, initial_set, contact_points):
         
-    cluster = Cluster()
+    cluster = Cluster(contact_points)
     session = cluster.connect('gemini_keyspace')
     
     names = conn.recv()
@@ -256,9 +258,9 @@ def all_query(conn, field, clause, initial_set):
     conn.send(results)
     conn.close()
 
-def any_query(conn, field, clause, initial_set):
-    
-    cluster = Cluster()
+def any_query(conn, field, clause, initial_set, contact_points):
+        
+    cluster = Cluster(contact_points)
     session = cluster.connect('gemini_keyspace')
     
     names = conn.recv()
@@ -281,9 +283,9 @@ def any_query(conn, field, clause, initial_set):
     conn.send(results)
     conn.close()
 
-def none_query(conn, field, clause, initial_set):
-    
-    cluster = Cluster()
+def none_query(conn, field, clause, initial_set, contact_points):
+        
+    cluster = Cluster(contact_points)
     session = cluster.connect('gemini_keyspace')
     
     names = conn.recv()
