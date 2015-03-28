@@ -9,4 +9,12 @@ gemini query -q "select variant_id, chrom, sub_type from variants" \
 gemini query -q "select variant_id, (gt_types).(sex='1') from variants" \
 		--header test/my.db
 
-gemini query -q "select * from samples" --header test/my.db
+gemini query -q "select * from samples where sex = '1'" --header test/my.db
+
+gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<240].[any]" --header test/my.db
+
+gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<240].[none]" --cores 2 test/my.db
+
+gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<100].[all]" --cores 2 test/my.db
+
+gemini query -q "select variant_id from variants" --gt-filter "[gt_type].[*].[!=HET].[any]" --cores 2 test/my.db

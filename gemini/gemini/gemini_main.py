@@ -270,6 +270,12 @@ def main():
                               metavar='STRING',
                               help='The delimiter to be used with the --show-samples option.',
                               default=',')
+    
+    parser_query.add_argument('--cores',
+                             dest='cores',
+                             default=1,
+                             type=int,
+                             help="Number of cores to use to interpret gt-filter wildcards in parallel.")
 
     parser_query.add_argument('--header',
                               dest='use_header',

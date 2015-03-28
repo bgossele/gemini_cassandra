@@ -12,11 +12,11 @@ import sys
 import compression
 from gemini_constants import HOM_ALT, HOM_REF, HET, UNKNOWN
 from gemini_subjects import get_subjects
-from gemini_utils import (OrderedSet, OrderedDict, itersubclasses, partition_by_fn)
-from sql_utils import ensure_columns, get_select_cols_and_rest
+from gemini_utils import (OrderedDict, itersubclasses, partition_by_fn)
+from sql_utils import ensure_columns
 from collections import namedtuple
 from gemini.query_expressions import Simple_expression, AND_expression,\
-    NOT_expression, OR_expression, rows_as_list
+    NOT_expression, OR_expression, rows_as_list, GT_wildcard_expression
 from gemini.sql_utils import get_query_parts
 from types import UnicodeType
 from cassandra.query import ordered_dict_factory, tuple_factory
@@ -459,7 +459,7 @@ class GeminiQuery(object):
     def run(self, query, gt_filter=None, show_variant_samples=False,
             variant_samples_delim=',', predicates=None,
             needs_genotypes=False, needs_genes=False,
-            show_families=False):
+            show_families=False, nr_cores = 1):
         """
         Execute a query against a Gemini database. The user may
         specify:
@@ -469,6 +469,8 @@ class GeminiQuery(object):
         """
         self.query = self.formatter.format_query(query)
         self.gt_filter = gt_filter
+        print self.query + '; gt-filter = %s' % gt_filter
+        self.nr_cores = nr_cores
         if self._is_gt_filter_safe() is False:
             sys.exit("ERROR: unsafe --gt-filter command.")
         if not self.gt_filter == None:
@@ -560,14 +562,6 @@ class GeminiQuery(object):
             if 'info' in self.report_cols:
                 info = compression.unpack_ordereddict_blob(row['info'])
 
-            if self._query_needs_genotype_info():
-                
-                het_names = self._get_variant_samples(row['variant_id'], HET)
-                hom_alt_names = self._get_variant_samples(row['variant_id'], HOM_ALT)
-                hom_ref_names = self._get_variant_samples(row['variant_id'], HOM_REF)
-                unknown_names = self._get_variant_samples(row['variant_id'], UNKNOWN)
-                variant_names = het_names + hom_alt_names
-
             fields = OrderedDict()
 
             for idx, col in enumerate(self.report_cols):
@@ -579,12 +573,20 @@ class GeminiQuery(object):
                     fields[col] = self._info_dict_to_string(info)
 
             if self.show_variant_samples:
+                
+                het_names = self._get_variant_samples(row['variant_id'], HET)
+                hom_alt_names = self._get_variant_samples(row['variant_id'], HOM_ALT)
+                hom_ref_names = self._get_variant_samples(row['variant_id'], HOM_REF)
+                unknown_names = self._get_variant_samples(row['variant_id'], UNKNOWN)
+                variant_names = het_names + hom_alt_names
+                
                 fields["variant_samples"] = \
                     self.variant_samples_delim.join(variant_names)
                 fields["HET_samples"] = \
                     self.variant_samples_delim.join(het_names)
                 fields["HOM_ALT_samples"] = \
                     self.variant_samples_delim.join(hom_alt_names)
+                    
             if self.show_families:
                 families = map(str, list(set([self.sample_to_sample_object[x].family_id
                                               for x in variant_names])))
@@ -664,17 +666,17 @@ class GeminiQuery(object):
         return False
 
     def _execute_query(self):
-        if self.matches == []:
+        if len(self.matches) == 0:
             sys.exit("No results!")
         try:
             query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
             if self.matches != "*":
-                if type(self.matches[0]) is UnicodeType:
-                    in_clause = "','".join(self.matches)            
-                    query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
-                else:
+                if self.from_table != 'samples':
                     in_clause = ",".join(map(lambda x: str(x), self.matches))            
                     query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
+                else:
+                    in_clause = "','".join(self.matches)            
+                    query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
             query += " " + self.rest_of_query
             self.session.row_factory = ordered_dict_factory
             
@@ -700,7 +702,6 @@ class GeminiQuery(object):
         self.matches = "*"
         if not self.where_exp is None:
             self.matches = self.where_exp.evaluate(self.session, "*")
-        print "matches of where clause = %s" % self.matches
 
         if self._query_needs_genotype_info():
             # break up the select statement into individual
@@ -914,56 +915,13 @@ class GeminiQuery(object):
         wildcard_rule = wildcard_rule.strip('[').strip(']').strip()
         wildcard_op = wildcard_op.strip('[').strip(']').strip()
                     
-        sample_info = self._get_matching_sample_ids(wildcard)
+        sample_names = self._get_matching_sample_ids(wildcard)
     
         # Replace HET, etc. with 1, et.session to avoid eval() issues.
         wildcard_rule = self._swap_genotype_for_number(wildcard_rule)
         wildcard_rule = wildcard_rule.replace('==', '=')
-        rule = None
-                    
-        def sample_to_expr(sample):
-                        
-            corrected = False
-            if wildcard_rule.startswith('!'):
-                corrected = True
-                corrected_rule = wildcard_rule[1:]
-            else:
-                corrected_rule = wildcard_rule
-                            
-            expr = Simple_expression('variants_by_samples_' + column, 'variant_id', \
-                                "sample_name = '" + sample + \
-                                "' AND " + column + corrected_rule)
-            if corrected:
-                return NOT_expression(expr, 'variants', 'variant_id')
-            else:
-                return expr
-                        
-        rules = map(sample_to_expr, sample_info)
-                    
-        # build the rule based on the wildcard the user has supplied.
-        if wildcard_op == "all":
-                        
-            if len(rules) > 0:
-                rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
-                            
-        elif wildcard_op == "any":
-                        
-            if len(rules) > 0:
-                rule = fold(lambda l,r: OR_expression(l,r), rules[1:], rules[0])
-    
-        elif wildcard_op == "none":
-                        
-            rules = map(lambda exp: NOT_expression(exp, 'variants', 'variant_id'), rules)
-            if len(rules) > 0:
-                rule = fold(lambda l,r: AND_expression(l,r), rules[1:], rules[0])
-    
-        elif "count" in wildcard_op:
-            sys.exit("Not yet implemented. Exiting." % wildcard_op)
-                        
-        else:
-            sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
-                    
-        return rule   
+        
+        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.nr_cores) 
     
     def _swap_genotype_for_number(self, token):
                 
