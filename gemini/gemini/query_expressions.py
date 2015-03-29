@@ -132,7 +132,11 @@ class GT_wildcard_expression(Expression):
     def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, db_contact_points, cores_for_eval = 1):
         self.column = column
         self.wildcard_rule = wildcard_rule
-        self.rule_enforcement = rule_enforcement
+        if rule_enforcement.startswith('count'):
+            self.rule_enforcement = 'count'
+            self.count_comp = rule_enforcement[5:].strip()
+        else:
+            self.rule_enforcement = rule_enforcement        
         self.names = sample_names
         self.nr_cores = cores_for_eval
         self.db_contact_points = db_contact_points
@@ -152,6 +156,7 @@ class GT_wildcard_expression(Expression):
         results = []
         
         invert = False
+        invert_count = False
         if self.wildcard_rule.startswith('!'):
             corrected_rule = self.wildcard_rule[1:]
             if self.rule_enforcement == 'all':
@@ -162,6 +167,9 @@ class GT_wildcard_expression(Expression):
                 invert = True
             elif self.rule_enforcement == 'none':
                 target_rule = 'all'
+            elif self.rule_enforcement.startswith('count'):
+                target_rule = 'count'
+                invert_count = True
         else:
             target_rule = self.rule_enforcement
             corrected_rule = self.wildcard_rule
@@ -201,14 +209,27 @@ class GT_wildcard_expression(Expression):
         if target_rule == 'any':
             for r in results:
                 res = union(res, r)
-        else:
+        elif target_rule in ['all', 'none']:
             res = results[0]
             for r in results[1:]:
                 res = intersect(res, r)
-        
+                                
         if invert:
             res = diff(set(correct_starting_set), res)
-    
+        
+        if target_rule == 'count':
+            res_dict = dict()
+            for d in results:
+                print "results = %s" % d
+                res_dict = add_sub_res_to_count_dict(res_dict, d)            
+            if invert_count:
+                #TODO: if starting_set == "*", retrieve nr of variants somewhere
+                total = len(starting_set)
+                for variant, count in res_dict.iteritems():
+                    res_dict[variant] = total - count
+            print "res_dict = %s" % res_dict
+            res = set([v for v, c in res_dict.iteritems() if eval(str(c) + self.count_comp)])
+        
         return res
 
 def diff(list1, list2):
@@ -314,3 +335,49 @@ def none_query(conn, field, clause, initial_set, contact_points):
     
     conn.send(results)
     conn.close()   
+    
+def count_query(conn, field, clause, initial_set, contact_points):
+    
+    cluster = Cluster(contact_points)
+    session = cluster.connect('gemini_keyspace')
+    
+    names = conn.recv()
+    
+    results = dict()
+    
+    for name in names:
+        
+        query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
+        
+        if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
+            in_clause = ",".join(map(lambda x: str(x), initial_set))
+            query += " AND variant_id IN (%s)" % in_clause      
+        
+        row = rows_as_set(session.execute(query))
+        results = add_row_to_count_dict(results, row)
+        
+    session.shutdown()   
+    
+    conn.send(results)
+    conn.close()
+    
+def add_row_to_count_dict(res_dict, variants):
+    
+    for var in variants:
+        if not var in res_dict:
+            res_dict[var] = 1
+        else:
+            res_dict[var] += 1
+    
+    return res_dict   
+
+def add_sub_res_to_count_dict(res_dict, variants):
+    
+    for var, count in variants.iteritems():
+        if not var in res_dict:
+            res_dict[var] = count
+        else:
+            res_dict[var] += count
+    
+    return res_dict 
+    

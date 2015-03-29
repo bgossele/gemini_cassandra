@@ -15,6 +15,8 @@ gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<
 
 gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<240].[none]" --cores 2
 
-gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<100].[all]" --cores 2
+gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<100].[count < 3]" --cores 1
+
+gemini query -q "select variant_id from variants" --gt-filter "[gt_type].[*].[=HET].[count <= 2]"
 
 gemini query -q "select variant_id from variants" --gt-filter "[gt_type].[*].[!=HET].[any]" --cores 2
