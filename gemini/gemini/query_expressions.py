@@ -209,7 +209,7 @@ class GT_wildcard_expression(Expression):
                 res = intersect(res, r)
         
         if invert:
-            res = diff(starting_set, res)            
+            res = diff(correct_starting_set, res)            
     
         return res
 
