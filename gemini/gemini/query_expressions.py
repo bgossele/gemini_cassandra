@@ -4,7 +4,6 @@ Created on Mar 16, 2015
 @author: brecht
 '''
 import abc
-from types import UnicodeType
 from multiprocessing import Pipe
 from multiprocessing.process import Process
 from cassandra.cluster import Cluster

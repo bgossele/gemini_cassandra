@@ -109,6 +109,11 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                         call_rate float, \
                         PRIMARY KEY (sub_type, call_rate, variant_id))'''))
     
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_gene ( \
+                        variant_id int, \
+                        gene text,
+                        PRIMARY KEY (gene, variant_id))'''))
+    
     session.execute(create_variants_table(gt_column_names))
     
     for stmt in create_samples_tables(extra_sample_columns):

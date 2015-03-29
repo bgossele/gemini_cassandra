@@ -123,6 +123,7 @@ class GeminiLoader(object):
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
         self.var_subtypes_buffer = blist([])
+        self.var_gene_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
         #extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
@@ -142,7 +143,8 @@ class GeminiLoader(object):
                 extra_headers = self._update_extra_headers(extra_headers, extra_fields)'''
             # add the core variant info to the variant buffer
             self.var_buffer.append(variant)
-            self.var_subtypes_buffer.append([variant[4], variant[11], variant[12]])
+            self.var_subtypes_buffer.append([self.v_id, variant[11], variant[12]])
+            self.var_gene_buffer.append([self.v_id, variant[55]])
                 
             var_sample_gt_types_buffer = blist([])
             var_sample_gt_depths_buffer = blist([])
@@ -167,11 +169,13 @@ class GeminiLoader(object):
                                                   self.var_impacts_buffer)
                 batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                                  get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+                batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                 self.var_buffer = blist([])
                 self.var_subtypes_buffer = blist([])
                 self.var_impacts_buffer = blist([])
+                self.var_gene_buffer = blist([])
                 buffer_count = 0
             self.v_id += 1
             self.counter += 1
@@ -186,6 +190,7 @@ class GeminiLoader(object):
         batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                             get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
+        batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer)
         
         end_time = time.time()
         elapsed_time = end_time - start_time            
