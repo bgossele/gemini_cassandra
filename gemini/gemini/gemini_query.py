@@ -8,6 +8,7 @@ from gemini_region import add_region_to_query
 from gemini_subjects import (get_subjects, get_subjects_in_family,
                              get_family_dict)
 from dgidb import query_dgidb
+import time
 
 def all_samples_predicate(args):
     """ returns a predicate that returns True if, for a variant,
@@ -148,7 +149,10 @@ def run_query(args):
 
 
 def query(parser, args):
+    start_time = time.time()
     run_query(args)
+    end_time = time.time()
+    print "query completed in %s s. \n" % (end_time - start_time)
 
 if __name__ == "__main__":
     main()

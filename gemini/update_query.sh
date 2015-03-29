@@ -2,6 +2,8 @@
 
 sudo python setup.py install
 
+clear
+
 gemini query -q "select variant_id, chrom, sub_type from variants" \
 		--gt-filter "[gt_depth].[sex='1'].[>100].[all] && gt_type.child_1 = HET" \
 		--header --show-samples
@@ -15,7 +17,7 @@ gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<
 
 gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<240].[none]" --cores 2
 
-gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<100].[count < 3]" --cores 1
+gemini query -q "select variant_id from variants" --gt-filter "[gt_depth].[*].[<100].[count < 3]" --header --cores 1
 
 gemini query -q "select variant_id from variants" --gt-filter "[gt_type].[*].[=HET].[count <= 2]"
 

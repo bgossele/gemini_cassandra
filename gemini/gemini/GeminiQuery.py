@@ -436,10 +436,6 @@ class GeminiQuery(object):
         # try to connect to the provided database
         self._connect_to_database()
 
-        # extract the column names from the sample table.
-        # needed for gt-filter wildcard support.
-        self._collect_sample_table_columns()
-
         # list of samples ids for each clause in the --gt-filter
         self.sample_info = collections.defaultdict(list)
 
@@ -625,14 +621,6 @@ class GeminiQuery(object):
         self.cluster = Cluster(self.db_contact_points)
         self.session = self.cluster.connect('gemini_keyspace')
 
-
-    def _collect_sample_table_columns(self):
-        """
-        extract the column names in the samples table into a list
-        """
-        column_names = self.cluster.metadata.keyspaces['gemini_keyspace'].tables['samples'].columns.keys()
-        self.sample_column_names = column_names
-
     def _is_gt_filter_safe(self):
         """
         Test to see if the gt_filter string is potentially malicious.
@@ -666,26 +654,29 @@ class GeminiQuery(object):
 
     def _execute_query(self):
         if len(self.matches) == 0:
-            sys.exit("No results!")
-        try:
-            query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
-            if self.matches != "*":
-                if self.from_table != 'samples':
-                    in_clause = ",".join(map(lambda x: str(x), self.matches))            
-                    query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
-                else:
-                    in_clause = "','".join(self.matches)            
-                    query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
-            query += " " + self.rest_of_query
-            self.session.row_factory = ordered_dict_factory
-            
-            res = self.session.execute(query)            
-            self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
-            self.result = iter(res)
-            
-        except cassandra.protocol.SyntaxException as e:
-            print "Cassandra error: {0}".format(e)
-            sys.exit("The query issued (%s) has a syntax error." % query)
+            print "No results!"
+            self.report_cols = []
+            self.result = iter([])
+        else:
+            try:
+                query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
+                if self.matches != "*":
+                    if self.from_table != 'samples':
+                        in_clause = ",".join(map(lambda x: str(x), self.matches))            
+                        query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
+                    else:
+                        in_clause = "','".join(self.matches)            
+                        query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
+                query += " " + self.rest_of_query
+                self.session.row_factory = ordered_dict_factory
+                
+                res = self.session.execute(query)            
+                self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
+                self.result = iter(res)
+                
+            except cassandra.protocol.SyntaxException as e:
+                print "Cassandra error: {0}".format(e)
+                sys.exit("The query issued (%s) has a syntax error." % query)
 
     def _apply_query(self):
         """

@@ -220,14 +220,12 @@ class GT_wildcard_expression(Expression):
         if target_rule == 'count':
             res_dict = dict()
             for d in results:
-                print "results = %s" % d
                 res_dict = add_sub_res_to_count_dict(res_dict, d)            
             if invert_count:
                 #TODO: if starting_set == "*", retrieve nr of variants somewhere
                 total = len(starting_set)
                 for variant, count in res_dict.iteritems():
                     res_dict[variant] = total - count
-            print "res_dict = %s" % res_dict
             res = set([v for v, c in res_dict.iteritems() if eval(str(c) + self.count_comp)])
         
         return res
