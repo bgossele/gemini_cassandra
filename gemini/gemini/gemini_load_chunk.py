@@ -772,7 +772,7 @@ def parse_int(s):
         return -43
 
 def load(parser, args):
-    if (args.db is None or args.vcf is None):
+    if args.vcf is None:
         parser.print_help()
         exit("ERROR: load needs both a VCF file and a database file\n")
     if args.anno_type not in ['snpEff', 'VEP', None]:

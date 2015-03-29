@@ -325,9 +325,9 @@ def main():
     #########################################
     parser_dump = subparsers.add_parser('dump',
             help='shortcuts for extracting data from the DB')
-    parser_dump.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_dump.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_dump.add_argument('--variants',
             dest='variants',
             action='store_true',
@@ -368,9 +368,9 @@ def main():
     #########################################
     parser_region = subparsers.add_parser('region',
             help='extract variants from specific genomic loci')
-    parser_region.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_region.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_region.add_argument('--reg',
             dest='region',
             metavar='STRING',
@@ -413,9 +413,9 @@ def main():
     #########################################
     parser_stats = subparsers.add_parser('stats',
             help='compute useful variant stastics')
-    parser_stats.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_stats.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_stats.add_argument('--tstv',
             dest='tstv',
             action='store_true',
@@ -740,9 +740,9 @@ def main():
     parser_auto_rec = subparsers.add_parser('autosomal_recessive',
             help='Identify variants meeting an autosomal \
                   recessive inheritance model')
-    parser_auto_rec.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_auto_rec.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_auto_rec.add_argument('--columns',
             dest='columns',
             metavar='STRING',
@@ -779,9 +779,9 @@ def main():
     parser_auto_dom = subparsers.add_parser('autosomal_dominant',
             help='Identify variants meeting an autosomal \
                   dominant inheritance model')
-    parser_auto_dom.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_auto_dom.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_auto_dom.add_argument('--columns',
             dest='columns',
             metavar='STRING',
@@ -817,9 +817,9 @@ def main():
     #########################################
     parser_de_novo = subparsers.add_parser('de_novo',
             help='Identify candidate de novo mutations')
-    parser_de_novo.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_de_novo.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_de_novo.add_argument('--columns',
             dest='columns',
             metavar='STRING',
@@ -864,9 +864,9 @@ def main():
     #########################################
     parser_mendel = subparsers.add_parser('mendel_errors',
             help='Identify candidate violations of Mendelian inheritance')
-    parser_mendel.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_mendel.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_mendel.add_argument('--columns',
             dest='columns',
             metavar='STRING',
@@ -1019,9 +1019,9 @@ def main():
     #########################################
     parser_hom_run = subparsers.add_parser('roh',
             help='Identify runs of homozygosity')
-    parser_hom_run.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried.')
+    parser_hom_run.add_argument('-db', dest='contact_points',
+                             default = "127.0.0.1",
+                             help='The IP adresses at which the Cassandra cluster is reachable.')
     parser_hom_run.add_argument('--min-snps',
             dest='min_snps',
             metavar="INTEGER",

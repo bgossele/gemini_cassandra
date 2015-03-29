@@ -35,21 +35,21 @@ class Simple_expression(Expression):
   
     def evaluate(self, socket, starting_set):
         
-        if starting_set == []:
-            return []
+        if len(starting_set) == 0:
+            return set()
         
         query = "SELECT %s FROM %s" % (self.select_column, self.table)
         if self.where_clause != "":
             query += " WHERE %s" % self.where_clause            
         if self.can_prune() and not starting_set == "*":
-            if type(starting_set[0]) is UnicodeType:
+            if self.table == 'samples':
                 in_clause = "','".join(starting_set)            
                 query += " AND %s IN ('%s')" % (self.select_column, in_clause)
             else:
                 in_clause = ",".join(map(lambda x: str(x), starting_set))            
                 query += " AND %s IN (%s)" % (self.select_column, in_clause)
         
-        return rows_as_list(socket.execute(query))
+        return rows_as_set(socket.execute(query))
 
     def to_string(self):
         return self.where_clause
@@ -65,8 +65,8 @@ class AND_expression(Expression):
 
     def evaluate(self, session, starting_set):
         
-        if starting_set == []:
-            return []
+        if len(starting_set) == 0:
+            return set()
         
         if self.right.can_prune():
             temp = self.left.evaluate(session, starting_set)
@@ -93,9 +93,8 @@ class OR_expression(Expression):
  
     def evaluate(self, session, starting_set):
         
-        if starting_set == []:
-            return []
-        
+        if len(starting_set) == 0:
+            return set()        
         return union(self.left.evaluate(session, starting_set), self.right.evaluate(session, starting_set))
 
     def to_string(self):
@@ -114,10 +113,10 @@ class NOT_expression(Expression):
  
     def evaluate(self, session, starting_set):
         
-        if starting_set == []:
-            return []        
+        if len(starting_set) == 0:
+            return set()        
         elif starting_set == '*':
-            correct_starting_set = rows_as_list(session.execute("SELECT %s FROM %s" % (self.select_column, self.table)))
+            correct_starting_set = rows_as_set(session.execute("SELECT %s FROM %s" % (self.select_column, self.table)))
         else:
             correct_starting_set = starting_set
             
@@ -169,7 +168,7 @@ class GT_wildcard_expression(Expression):
             corrected_rule = self.wildcard_rule
             
         if starting_set == "*" and (invert or target_rule == 'none'):
-            correct_starting_set = array.array('i', rows_as_list(session.execute("SELECT variant_id FROM variants")))
+            correct_starting_set = array.array('i', rows_as_set(session.execute("SELECT variant_id FROM variants")))
         elif starting_set != "*":
             correct_starting_set = array.array('i', starting_set)
         else:
@@ -198,7 +197,7 @@ class GT_wildcard_expression(Expression):
         for i in range(self.nr_cores):
             procs[i].join()
         
-        res = []    
+        res = set()    
         
         if target_rule == 'any':
             for r in results:
@@ -209,19 +208,28 @@ class GT_wildcard_expression(Expression):
                 res = intersect(res, r)
         
         if invert:
-            res = diff(correct_starting_set, res)            
+            res = diff(set(correct_starting_set), res)
     
         return res
 
 def diff(list1, list2):
-    return filter(lambda x: not x in list2, list1)
+    return list1 - list2
+    #return filter(lambda x: not x in list2, list1)
 
 def union(list1, list2):
-    return set(list1).union(list2)
+    return list1 | list2
+    #return set(list1).union(list2)
 
 def intersect(list1, list2):
-    return filter(lambda x: x in list2, list1)
+    return list1 & list2
+    #return filter(lambda x: x in list2, list1)
     
+def rows_as_set(rows):
+    s = set()
+    for r in rows:
+        s.add(r[0])
+    return s
+
 def rows_as_list(rows):
     return map(lambda x: x[0], rows)
  
@@ -232,11 +240,11 @@ def all_query(conn, field, clause, initial_set, contact_points):
     
     names = conn.recv()
     
-    results = initial_set
+    results = set(initial_set)
     
     for name in names:
         
-        if results == []:
+        if len(results) == 0:
             break
         
         query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
@@ -245,9 +253,9 @@ def all_query(conn, field, clause, initial_set, contact_points):
             if initial_set != "*":     
                 in_clause = ",".join(map(lambda x: str(x), results))
                 query += " AND variant_id IN (%s)" % in_clause
-            results = rows_as_list(session.execute(query))            
+            results = rows_as_set(session.execute(query))            
         else:
-            row = rows_as_list(session.execute(query))
+            row = rows_as_set(session.execute(query))
             if initial_set != "*":
                 results = intersect(row, results)
             else:
@@ -265,7 +273,7 @@ def any_query(conn, field, clause, initial_set, contact_points):
     
     names = conn.recv()
     
-    results = []
+    results = set()
     
     for name in names:
         
@@ -275,7 +283,7 @@ def any_query(conn, field, clause, initial_set, contact_points):
             in_clause = ",".join(map(lambda x: str(x), initial_set))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        row = rows_as_list(session.execute(query))
+        row = rows_as_set(session.execute(query))
         results = union(row, results)
         
     session.shutdown()   
@@ -290,7 +298,7 @@ def none_query(conn, field, clause, initial_set, contact_points):
     
     names = conn.recv()
     
-    results = initial_set
+    results = set(initial_set)
     
     for name in names:
         
@@ -300,7 +308,7 @@ def none_query(conn, field, clause, initial_set, contact_points):
             in_clause = ",".join(map(lambda x: str(x), results))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        row = rows_as_list(session.execute(query))
+        row = rows_as_set(session.execute(query))
         results = diff(results, row)
         
     session.shutdown()   

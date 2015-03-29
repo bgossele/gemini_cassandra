@@ -16,7 +16,7 @@ from gemini_utils import (OrderedDict, itersubclasses, partition_by_fn)
 from sql_utils import ensure_columns
 from collections import namedtuple
 from gemini.query_expressions import Simple_expression, AND_expression,\
-    NOT_expression, OR_expression, rows_as_list, GT_wildcard_expression
+    NOT_expression, OR_expression, rows_as_set, GT_wildcard_expression
 from gemini.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
@@ -577,7 +577,7 @@ class GeminiQuery(object):
                 hom_alt_names = self._get_variant_samples(row['variant_id'], HOM_ALT)
                 hom_ref_names = self._get_variant_samples(row['variant_id'], HOM_REF)
                 unknown_names = self._get_variant_samples(row['variant_id'], UNKNOWN)
-                variant_names = het_names + hom_alt_names
+                variant_names = het_names | hom_alt_names
                 
                 fields["variant_samples"] = \
                     self.variant_samples_delim.join(variant_names)
@@ -606,7 +606,7 @@ class GeminiQuery(object):
     def _get_variant_samples(self, variant_id, gt_type):
         query = "SELECT sample_name from samples_by_variants_gt_type WHERE variant_id = %s AND gt_type = %s"
         self.session.row_factory = tuple_factory
-        return rows_as_list(self.session.execute(query, (variant_id, gt_type)))    
+        return rows_as_set(self.session.execute(query, (variant_id, gt_type)))    
 
     def _group_samples_by_genotype(self, gt_types):
         """
@@ -722,8 +722,7 @@ class GeminiQuery(object):
             query = self.parse_where_clause(wildcard, 'samples')
         else:
             query = Simple_expression('samples', 'name', "")
-        
-        return query.evaluate(self.session, '*')
+        return list(query.evaluate(self.session, '*'))
 
 
     def get_partition_key(self, table):
