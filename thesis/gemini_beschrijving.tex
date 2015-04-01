@@ -22,13 +22,12 @@ Een belangrijke troef van GEMINI en z'n datamodel is de flexibiliteit die het la
 \end{figure}
 
 \section{Inladen}
-%TODO ref nr IPython dink
-Het inladen van de data uit VCF-bestanden is een computationeel intensieve operatie, enerzijds omwille van de enorme grootte van deze bestanden, en anderzijds omdat in deze fase ook alle variants geannoteerd moeten worden. Om het proces te versnellen, biedt GEMINI de mogelijkheid het werk te paralleliseren door het VCF-bestand de comprimeren, op het bestaande bestand een index te defini\"eren en zo het werk te verdelen. Dit kan over meerdere processoren binnen 1 computer zijn, maar via de IPython-interface ook over volledige clusters van computers.\\
+Het inladen van de data uit VCF-bestanden is een computationeel intensieve operatie, enerzijds omwille van de enorme grootte van deze bestanden, en anderzijds omdat in deze fase ook alle variants geannoteerd moeten worden. Om het proces te versnellen, biedt GEMINI de mogelijkheid het werk te paralleliseren door het VCF-bestand de comprimeren, op het bestaande bestand een index te defini\"eren en zo het werk te verdelen. Dit kan over meerdere processoren binnen 1 computer zijn, maar via de IPython-interface ook over volledige clusters van computers \cite{PER-GRA:2007}.\\
 
 \section{Querying}
 
 GEMINI laat de gebruiker toe de opgeslagen genoomdata te doorzoeken. Enerzijds via gewone SQL-queries, maar omdat het onderzoeken van individuele genotypes van cruciaal belang is in het onderzoek naar ziektes en SQL standaard niet de individuele genotypes in array-kolommen kan opvragen, biedt GEMINI bovendien een verrijkte SQL-syntax.\\
-Zo laat het de gebruiker toe via filters en wildcards de gewenste genotype-eigenschappen en samples te defini\"eren.
+Zo laat het de gebruiker toe via filters en wildcards de gewenste genotype-eigenschappen en samples te specifi\"eren.
 
 \subsection{Sample filters/wildcards} 
 In SQL \texttt{SELECT}-statements kan de gebruiker met een filter van de vorm column.sample of een wilcard van de vorm (column).(wildcard) uitdrukken welke genotype-kolommen van welke samples hij/zij wilt zien. Wanneer de gebruiker ge\"interesseerd is in bijvoorbeeld het genotype van Jan, wordt dit:\\
@@ -38,7 +37,7 @@ Als de gebruiker de diepte van de genotypes alle vrouwelijke samples wil zien, w
 GEMINI vertaalt de wildcard automatisch naar een query op de \texttt{samples}-tabel, en kan vervolgens voor alle samples die aan de voorwaarden voldoen, de waarde uit de gevraagde kolom tonen.
 
 \subsection{Genotype filters/wildcards}
-Om beperkingen op te leggen aan de variants waarin hij ge\"interesseerd is, kan de gebruiker SQL WHERE-clauses uitbreiden met zogenaamde genotype filters. Is hij bij voorbeeld enkel ge\"interesseerd in variants waarvoor Jan heterozygoot is en Mieke alles behalve heterozygoot is, kan dit met:\\
+Om beperkingen op te leggen aan de variants waarin hij ge\"interesseerd is, kan de gebruiker SQL WHERE-clausules uitbreiden met zogenaamde genotype filters. Is hij bij voorbeeld enkel ge\"interesseerd in variants waarvoor Jan heterozygoot is en Mieke alles behalve heterozygoot is, kan dit met:\\
 
 \noindent\texttt{\$ gemini query -q} "\texttt{SELECT * FROM variants}"\textbackslash \\\texttt{--gt-filter }"\texttt{gt\_types.Jan == HET and gt\_types.Mieke != HET}"\\
 
@@ -66,7 +65,11 @@ Om beperkingen op te leggen aan de variants waarin hij ge\"interesseerd is, kan 
 \noindent\texttt{\$ gemini query -q "}\texttt{SELECT * FROM variants"}\textbackslash \\
 \texttt{--gt-filter" }\texttt{(gt\_depths).(*).(=HET).(count < 10)"}\\
 
-Al de bovenstaande filters kunnen met elkaar gecombineerd worden, evenals met gewone WHERE-clauses op de andere kolommen van de variants-tabel.
+\noindent Al de bovenstaande filters kunnen met elkaar gecombineerd worden, evenals met gewone WHERE-clausules op de andere kolommen van de variants-tabel.
+
+\subsection{\texttt{--show-samples}}
+
+GEMINI biedt ook de mogelijkheid, bij een query op de \texttt{variants}-tabel, voor elke variant die aan de gestelde eisen voldoet, de namen van alle samples weer te geven die voor gegeven variant homozygoot of heterozygoot zijn. Dit gebeurt door de \texttt{--show-samples} flag mee te geven aan het \texttt{query} commando.
 
 
 
