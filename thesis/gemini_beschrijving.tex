@@ -1,5 +1,5 @@
 \chapter{GEMINI overzicht}
-\label{cha3}
+\label{gemini_beschrijving}
 
 Zoals eerder vermeld is GEMINI een applicatie voor de flexibele analyse van genoomdata van populaties van menselijke individu\"en. Deze sectie gaat dieper in op de belangrijkste features en het onderliggende datamodel van GEMINI in zijn oorspronkelijke vorm.\cite{10.1371/journal.pcbi.1003153}\cite{gemini_docs}
 
@@ -31,15 +31,15 @@ Zo laat het de gebruiker toe via filters en wildcards de gewenste genotype-eigen
 
 \subsection{Sample filters/wildcards} 
 In SQL \texttt{SELECT}-statements kan de gebruiker met een filter van de vorm column.sample of een wilcard van de vorm (column).(wildcard) uitdrukken welke genotype-kolommen van welke samples hij/zij wilt zien. Wanneer de gebruiker ge\"interesseerd is in bijvoorbeeld het genotype van Jan, wordt dit:\\
-\texttt{SELECT gt\_types.Jan FROM variants}\\\\
+\texttt{SELECT gt\_types.Bob FROM variants}\\\\
 Als de gebruiker de diepte van de genotypes alle vrouwelijke samples wil zien, wordt dit:\\\\
 \texttt{SELECT (gt\_depths).(sex = 'female')}.\\
 GEMINI vertaalt de wildcard automatisch naar een query op de \texttt{samples}-tabel, en kan vervolgens voor alle samples die aan de voorwaarden voldoen, de waarde uit de gevraagde kolom tonen.
 
 \subsection{Genotype filters/wildcards}
-Om beperkingen op te leggen aan de variants waarin hij ge\"interesseerd is, kan de gebruiker SQL WHERE-clausules uitbreiden met zogenaamde genotype filters. Is hij bij voorbeeld enkel ge\"interesseerd in variants waarvoor Jan heterozygoot is en Mieke alles behalve heterozygoot is, kan dit met:\\
+Om beperkingen op te leggen aan de variants waarin hij ge\"interesseerd is, kan de gebruiker SQL WHERE-clausules uitbreiden met zogenaamde genotype filters. Is hij bij voorbeeld enkel ge\"interesseerd in variants waarvoor Bob heterozygoot is en Bruce alles behalve heterozygoot is, kan dit met:\\
 
-\noindent\texttt{\$ gemini query -q} "\texttt{SELECT * FROM variants}"\textbackslash \\\texttt{--gt-filter }"\texttt{gt\_types.Jan == HET and gt\_types.Mieke != HET}"\\
+\noindent\texttt{\$ gemini query -q} "\texttt{SELECT * FROM variants}"\textbackslash \\\texttt{--gt-filter }"\texttt{gt\_types.Bob == HET and gt\_types.Bruce != HET}"\\
 
 \noindent Vaak is het de bedoeling om eenzelfde beperking op te leggen aan meerdere samples. Op bovenstaande manier wordt dit al monikenwerk. Om dit te verhinderen, zijn er genotype wildcards van volgend formaat:\\ 
 \texttt{(column).(sample\_wildcard).(gt\_wildcard\_rule).(rule\_enforcement)}.

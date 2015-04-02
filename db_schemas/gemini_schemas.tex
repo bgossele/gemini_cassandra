@@ -10,7 +10,7 @@
 
 1 \texttt{variants} tabel met arrays (binary blob in SQLite, array columns in PostgreSQL).\\
 
-\texttt{SELECT * \\FROM variants \\WHERE (gts.brecht == hom\_ref \&\& gts.aaron == hom\_alt)}
+\texttt{SELECT * \\FROM variants \\WHERE (gts.bruce == hom\_ref \&\& gts.bob == hom\_alt)}
 \begin{table}[h]
 \begin{tabular}{@{}|l|l|l|l|l|l|l|@{}}
 \toprule
@@ -22,15 +22,15 @@ variant\_id & ref & alt & \ldots & gts & gt\_types & \ldots \\ \bottomrule
 
 \subsection{Super-\texttt{variants}-tabel}
 
-1 \texttt{variants} tabel zonder array columns, met kolom voor elke \texttt{individual}.\\
+1 \texttt{variants} tabel zonder array columns, met kolom voor elke \texttt{sample}.\\
 
 \texttt{SELECT * \\
 FROM variants \\
-WHERE brecht == hom\_ref \&\& aaron == hom\_alt}
+WHERE bruce == hom\_ref \&\& bob == hom\_alt}
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|l|l|l|l|l|@{}}
 \toprule
-variant\_id & ref & alt & \ldots & aaron & brecht & \ldots \\ \bottomrule
+variant\_id & ref & alt & \ldots & bob & bruce & \ldots \\ \bottomrule
 \end{tabular}
 \end{table}
 
@@ -48,22 +48,22 @@ variant\_id & ref & alt & \ldots \\ \bottomrule
 1 \texttt{individual} tabel per individu met rij voor elke \texttt{variant}
 
 \begin{table}[!htbp]
-\begin{tabular}{@{}|l|l|l|l|@{}}
+\begin{tabular}{@{}|l|l|l|l|l|@{}}
 \toprule
-variant\_id & sample & genotype & \ldots \\ \bottomrule
+variant\_id & sample\_name & genotype & gt\_depth & \ldots \\ \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{tabbing}
 \texttt{SELECT *}
-\\\texttt{FROM aaron JOIN (}\=\texttt{SELECT variant\_id}
-\\ \> \texttt{FROM (brecht JOIN variants)}
-\\ \> \texttt{WHERE hom\_ref) }
-\\ \texttt{WHERE hom\_alt }
+\\\texttt{FROM bob JOIN (}\=\texttt{SELECT variant\_id}
+\\ \> \texttt{FROM (bruce JOIN variants)}
+\\ \> \texttt{WHERE genotype = hom\_ref) }
+\\ \texttt{WHERE genotype = hom\_alt }
 \end{tabbing}
 
 \newpage
-\subsection{\texttt{genotypes} tabel}
+\subsection{\texttt{genotype}-eigenschap tabellen}
 
 1 \texttt{variants} tabel zonder array columns
 
@@ -74,27 +74,33 @@ variant\_id & ref & alt & \ldots \\ \bottomrule
 \end{tabular}
 \end{table}
 
-1 \texttt{genotypes} tabel met rij voor elke \texttt{(variant, sample, genotype)}
+1 \texttt{variants\_by\_samples\_gt\_type} tabel met rij voor elke \texttt{(variant, sample, genotype)}\\ Met als primary key \texttt{((sample\_name, gt\_type), (variant\_id))}\\
+
+1 \texttt{variants\_by\_samples\_gt\_depth} tabel met rij voor elke \texttt{(variant, sample, gt\_depth)}\\ Met als primary key \texttt{((sample\_name), (depth, variant\_id))}\\
+
 
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|l|l|l|@{}}
 \toprule
-variant\_id & sample & genotype & \color{red} individual\_id & \ldots \\ \bottomrule
+variant\_id & sample\_name & genotype & \ldots \\ \bottomrule
+\end{tabular}\\
+\begin{tabular}{@{}|l|l|l|l|l|@{}}
+\toprule
+variant\_id & sample\_name & gt\_depth & \ldots \\ \bottomrule
 \end{tabular}
 \end{table}
-
-Query onmogelijk zonder \texttt{individual\_id}. Anders:\\
+En vergelijkbare tabellen voor de andere genotype eigenschappen van de samples.
 
 \begin{tabbing}
 \texttt{SELECT *} 
 \\\texttt{FROM ((}\=\texttt{SELECT variant\_id }
 \\ \> \texttt{FROM (variants JOIN (}\=\texttt{SELECT * }
 \\ \>\>\texttt{FROM genotypes }
-\\ \>\>\texttt{WHERE individual\_id == brecht)) }
+\\ \>\>\texttt{WHERE sample\_name == bruce)) }
 \\ \> \texttt{WHERE hom\_ref) JOIN (}\=\= \texttt{SELECT * }
 					\\ \>\>\> \texttt{FROM genotypes }
-					\\ \>\>\> \texttt{WHERE individual\_id == aaron))}
-\\ \texttt{WHERE hom\_alt}
+					\\ \>\>\> \texttt{WHERE sample\_name == bob))}
+\\ \texttt{WHERE genotype = hom\_alt}
 
 \end{tabbing}
 
