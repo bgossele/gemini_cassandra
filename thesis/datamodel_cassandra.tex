@@ -13,15 +13,17 @@ Omdat het inspecteren van cellen indruist tegen de principes van Cassandra, zijn
 Cassandra laat toe om indices op kolommen te defini\"eren, maar deze zijn niet bijzonder nuttig. Ze laten enkel gelijkheidsbeperkingen toe (dus geen range-queries) en bovendien raadt Datastax het gebruik van indices op kolommen met zowel een zeer lage als een zeer hoge kardinaliteit af, dit omdat in het eerste geval de index tabel zal bestaan uit zeer weinig zeer lange rijen voor elk van de ge\"indexeerde waarden en in het tweede geval Cassandra bij een query op de ge\"indexeerde kolom door zeer veel verscheidene waarden zal moeten zoeken om een klein aantal resultaten te vinden \cite{when_to_use_index}.
 
 \section{Database schema GEMINI}
-Zoals blijkt uit bovenstaande beschrijving van het datamodel van Cassandra, leent het systeem zich niet zomaar tot ad-hoc querying: het is niet mogelijk op een performante manier zomaar aan willekeurige kolommen in een tabel voorwaarden op te leggen en deze voorwaarden met elkaar te combineren. Dit betekent dat bij het ontwerpen van het database schema al rekening gehouden moet worden met de queries die achteraf op de data mogelijk moeten zijn. Omdat het soort queries dat een tabel ondersteunt sterk samenhangt met de keuze van de primary key van de tabel en GEMINI meerdere, uiteenlopende soorten queries op elke tabel vereist, zal dit onvermijdelijk leiden tot duplicatie van data.\\\\
+Zoals blijkt uit bovenstaande beschrijving van het datamodel van Cassandra, leent het systeem zich niet zomaar tot ad-hoc querying: het is niet mogelijk op een performante manier zomaar aan willekeurige kolommen in een tabel voorwaarden op te leggen en deze voorwaarden met elkaar te combineren. Dit betekent dat bij het ontwerpen van het database schema al rekening gehouden moet worden met de queries die achteraf op de data mogelijk moeten zijn. Omdat het soort queries dat een tabel ondersteunt sterk samenhangt met de keuze van de primary key van de tabel en GEMINI meerdere, uiteenlopende soorten queries op elke tabel vereist, zal dit onvermijdelijk leiden tot duplicatie van data.
+
+\subsection{\texttt{variants}-tabel vs. genotype-informatie}
 
 Het belangrijkste vraagstuk is hoe de genotype-kolommen uit het oorspronkelijke relationele model in Cassandra op te slaan. Hier zijn enkele opties voor:
 
 \begin{itemize}
 
-\item[Collection columns] Cassandra biedt zogenaamde collection types, zoals sets, lists of maps. Dit is vergelijkbaar met de bestaande implementatie in SQLite (buiten dat ze in Cassandra niet als binary blobs bewaard worden). Het nadeel is echter dat deze collections niet meer dan 65536 ($2^{16}$) entries kunnen bevatten, wat het hele nut van de migratie naar Cassandra zou ondermijnen.
+\item \textbf{Collection columns} Cassandra biedt zogenaamde collection types, zoals sets, lists of maps. Dit is vergelijkbaar met de bestaande implementatie in SQLite (buiten dat ze in Cassandra niet als binary blobs bewaard worden). Het nadeel is echter dat deze collections niet meer dan 65536 ($2^{16}$) entries kunnen bevatten, wat het hele nut van de migratie naar Cassandra zou ondermijnen.
 
-\item[Super-\texttt{variants}-tabel] Een andere mogelijkheid is de \texttt{variants}-tabel uit te breiden met een kolom voor elke genotype-eigenschap van elke sample. Deze aanpak heeft als voornaamste voordeel dat de kolommen met genotype-eigenschappen van specifieke samples zonder omwegen uit de \texttt{variants}-tabel gehaald kunnen worden. Dit is vooral van belang voor de in (\ref{gemini_beschrijving}) beschreven sample-filters. Bovendien kan Cassandra tot 2 miljard cellen opslaan op 1 partitie, dus vormt het grote aantal kolommen dat dit model met zich meebrengt, geen probleem.\\
+\item \textbf{Super-\texttt{variants}-tabel} Een andere mogelijkheid is de \texttt{variants}-tabel uit te breiden met een kolom voor elke genotype-eigenschap van elke sample. Deze aanpak heeft als voornaamste voordeel dat de kolommen met genotype-eigenschappen van specifieke samples zonder omwegen uit de \texttt{variants}-tabel gehaald kunnen worden. Dit is vooral van belang voor de in (\ref{gemini_beschrijving}) beschreven sample-filters. Bovendien kan Cassandra tot 2 miljard cellen opslaan op 1 partitie, dus vormt het grote aantal kolommen dat dit model met zich meebrengt, geen probleem.\\
 Het nadeel is echter dat het onmogelijk is ad-hoc queries te defini\"eren op genotypes van willekeurige eigenschappen zonder het gebruik van secundaire indices. Elke query die in een \texttt{WHERE}-clausule andere kolommen of samples betrekt, vereist om de hierboven beschreven redenen een andere keuze van de primary key om effici\"ent de juiste rijen te kunnen opzoeken.
 
 \begin{table}[!htbp]
@@ -31,6 +33,75 @@ variant\_id & ref & alt & \ldots & gt\_type\_bob & gt\_type\_bruce & \ldots & gt
 \end{tabular}
 \end{table}
 
+\item \textbf{\texttt{genotype}-tabellen} Een derde optie is een \texttt{variants}-tabel zonder genotype-informatie, gecombineerd met een tabel voor elke eigenschap van de genotypes van de samples, met een rij voor elke \texttt{(variant, sample)}. Bijvoorbeeld:\\
+
+\begin{itemize}
+
+\item Een \texttt{variants\_by\_samples\_gt}-tabel met als primary key \texttt{((sample\_name, gt\_type), (variant\_id))}. De primary key is zo gekozen dat alle variants waarvoor een sample eenzelfde genotype heeft, bij elkaar op 1 node liggen, zodat deze gemakkelijk opgevraagd kunnen worden. Hetzelfde was mogelijk geweest met enkel \texttt{sample\_name} als partition key, maar met de bovenstaande, granulairdere partition key zijn de variants beter over het cluster verspreid. Bovendien houdt het vanuit een semantisch oogpunt geen steek range queries uit te voeren op de \texttt{gt\_type}-kolom, dus moet deze niet per se in de clustering key staan. De \texttt{variant\_id}-kolom ten slotte maakt enkel deel uit van de primary key om deze uniek te maken voor elk tupel \texttt{(variant, sample, genotype)}.\\
+
+\begin{table}[!htbp]
+\begin{tabular}{@{}|l|l|l|@{}}
+\toprule
+variant\_id & sample\_name & genotype \\ \bottomrule
+\end{tabular}\\
+\end{table}
+
+\item Een \texttt{variants\_by\_samples\_gt\_depth}-tabel met als primary key \texttt{((sample\_name), (gt\_depth, variant\_id))}. Omdat range queries op de \texttt{gt\_depth}-kolom wel een vereiste zijn, moeten alle variants voor eenzelfde sample volgens gt\_depth geclusterd, en dus gerangschikt staan. Vandaar dat de \texttt{gt\_depth}-kolom in dit geval in de clustering key, en niet in de partition key staat. Voor de rest is de keuze van de primary key volledig analoog met die in de \texttt{variants\_by\_samples\_gt}-tabel.
+
+\begin{table}[!htbp]
+\begin{tabular}{@{}|l|l|l|@{}}
+\toprule
+variant\_id & sample\_name & gt\_depth \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\item Vergelijkbare tabellen voor de overige genotype-eigenschappen.
 
 \end{itemize}
+
+Het grote voordeel van deze aanpak is dat het, dankzij de keuze van de primary key, zeer eenvoudig is variants op te vragen waarvoor het genotype van \'e\'en sample aan specifieke gelijkheids- of ongelijkheidsvoorwaarden voldoet. Het nadeel van dit schema is drieledig: ten eerste scheidt het de informatie over de genotypes van samples van de andere informatie over de variants. Dit betekent dat, om deze samen weer te geven, een \texttt{JOIN} van de \texttt{variants}-tabel met een \texttt{genotype}-tabel nodig is, en Cassandra biedt zoals geweten geen \texttt{JOIN}. Ten tweede is het onmogelijk om met een sample-filter voor meerdere samples de genotypes tegelijkertijd op te vragen, en ten laatste is het onmogelijk in een query voorwaarden op te leggen aan de genotypes van meerdere samples.
+
+
+\end{itemize}
+
+De uiteindelijke keuze is gevallen op een combinatie van de tweede en derde optie. Dit om de volledige oorspronkelijke functionaliteit van GEMINI te kunnen bieden: enerzijds het opvragen van de genotype-informatie van willekeurige samples door middel van de sample-filters, en anderzijds het query'en van de \texttt{variants}-tabel met, dankzij gt-filters en -wildcards, beperkingen op de genotypes van specifiek gekozen samples. Zoals hierboven beschreven is dit laatste niet voor de hand liggend, en zal door het ontbreken van \texttt{JOIN}s en de layout van de \texttt{genotype}-tabellen het combineren van beperkingen op de genotypes van meerdere samples nog extra aanpassingen vergen. Hier komt sectie \ref{??} uitgebreid op terug.
+%TODO 
+
+\subsection{\texttt{variants-, samples-}tabel vs. arbitraire queries}
+
+Een tweede belangrijke vraagstuk is hoe de \texttt{variants-} en \texttt{samples-}tabellen zo te ontwerpen dat ze ook op andere, arbitraire kolommen effici\"ent doorzoekbaar zijn.\\
+Om queries op kolommen te ondersteunen die logisch gezien enkel met gelijkheden beperkt zullen worden, zoals \texttt{chrom} of respectievelijk \texttt{sex}, zou het in theorie volstaan op deze kolommen een secundaire index te defini\"eren. Dit is eenvoudig bij de creatie van de tabel, veroorzaakt geen duplicatie van data en is zeer rechttoe-rechtaan bij het query'en, maar heeft zoals hierboven vermeld onvoorspelbare performantie afhankelijk van de kardinaliteit van de kolommen. Bovendien werkt dit mechanisme niet voor kolommen die vaker met ongelijkheidsbeperkingen gequeried zullen worden, zoals \texttt{depth}, \texttt{start}, of in het geval van de \texttt{samples}-tabel (hypothetisch, deze tabellen zitten niet standaard in GEMINI) leeftijd of generatie.\\
+
+Een aanpak die in beide gevallen op een voorspelbare en betrouwbare manier werkt, is om net als voor de genotype-informatie extra tabellen te defini\"eren, met een specifiek gekozen primary key die de gewenste query mogelijk maakt. Deze oplossing zorgt natuurlijk voor veel gedupliceerde data, maar heeft als voordeel dat ze \'e\'en coherente en performante aanpak van het probleem mogelijk maakt. Bij het opstellen van deze tabellen moet goed overwogen worden welke vaakgebruikte queries een eigen tabel vereisen en verdienen. Minder frequente, uitgebreidere queries, kunnen mits een goede keuze van de basistabellen immers gesplitst worden in subqueries op deze basistabellen. Hetzelfde mechanisme dat voor de gt-filters en -wildcards uitgebreide queries zal uitvoeren is ook hier van toepassing. Dit zal natuurlijk minder effici\"ent zijn dan een aangepaste tabel voor de uitgebreide, originele query, maar laat toe de data-duplicatie enigszins binnen de perken te houden. Voorbeelden van zulke basistabellen zijn:
+
+\begin{itemize}
+\item Een \texttt{variants\_by\_chrom\_start}-tabel, die het eenvoudig maakt alle varianten op te zoeken die op een bepaald chromosoom binnen een range van startposities liggen. De primary key is in dit geval: \texttt{((chrom), (start, variant\_id))}. 
+
+\begin{table}[!htbp]
+\begin{tabular}{@{}|l|l|l|@{}}
+\toprule
+ chrom & start & variant\_id \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\item Een \texttt{variants\_by\_gene}-tabel, die het eenvoudig maakt alle varianten binnen \'e\'en gen op te zoeken. De primary key is in dit geval: \texttt{((gene), (variant\_id))}.
+
+\begin{table}[!htbp]
+\begin{tabular}{@{}|l|l|@{}}
+\toprule
+ gene & variant\_id \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\item Een \texttt{samples\_by\_sex}-tabel, die het eenvoudig maakt alle samples van een bepaald geslacht op te vragen. De primary key is in dit geval: \texttt{((sex), (sample\_name))}.
+
+\begin{table}[!htbp]
+\begin{tabular}{@{}|l|l|@{}}
+\toprule
+ sex & sample\_name \\ \bottomrule
+\end{tabular}
+\end{table}
+\end{itemize}
+
+Ten slotte is het ook nog interessant een feature aan de GEMINI command line interface toe te voegen waarmee de gebruiker zelf nieuwe basistabellen kan defini\"eren wanneer hij dit nodig acht.
  
