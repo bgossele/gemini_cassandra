@@ -425,10 +425,11 @@ class GeminiQuery(object):
             print row, gts[idx]
     """
 
-    def __init__(self, db_contact_points, include_gt_cols=False,
+    def __init__(self, db_contact_points, keyspace, include_gt_cols=False,
                  out_format=DefaultRowFormat(None)):
 
         self.db_contact_points = map(strip, db_contact_points.split(','))
+        self.keyspace = keyspace
         self.query_executed = False
         self.for_browser = False
         self.include_gt_cols = include_gt_cols
@@ -454,7 +455,7 @@ class GeminiQuery(object):
     def run(self, query, gt_filter=None, show_variant_samples=False,
             variant_samples_delim=',', predicates=None,
             needs_genotypes=False, needs_genes=False,
-            show_families=False, nr_cores = 1):
+            show_families=False, sort_results=False, nr_cores = 1):
         """
         Execute a query against a Gemini database. The user may
         specify:
@@ -462,9 +463,9 @@ class GeminiQuery(object):
             1. (reqd.) an SQL `query`.
             2. (opt.) a genotype filter.
         """
-        self.query = self.formatter.format_query(query)
+        self.query = self.formatter.format_query(query).replace('==','=')
         self.gt_filter = gt_filter
-        print self.query + '; gt-filter = %s' % gt_filter
+        #print self.query + '; gt-filter = %s \n' % gt_filter
         self.nr_cores = nr_cores
         if self._is_gt_filter_safe() is False:
             sys.exit("ERROR: unsafe --gt-filter command.")
@@ -473,7 +474,7 @@ class GeminiQuery(object):
         
         self.show_variant_samples = show_variant_samples
         self.variant_samples_delim = variant_samples_delim
-
+        self.sort_results = sort_results
         self.needs_genotypes = needs_genotypes
         self.needs_vcf_columns = False
         if self.formatter.name == 'vcf':
@@ -619,7 +620,7 @@ class GeminiQuery(object):
         # open up a new database
         
         self.cluster = Cluster(self.db_contact_points)
-        self.session = self.cluster.connect('gemini_keyspace')
+        self.session = self.cluster.connect(self.keyspace)
 
     def _is_gt_filter_safe(self):
         """
@@ -669,8 +670,13 @@ class GeminiQuery(object):
                         query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
                 query += " " + self.rest_of_query
                 self.session.row_factory = ordered_dict_factory
-                
-                res = self.session.execute(query)            
+                res = self.session.execute(query)  
+                if self.sort_results:
+                    if self.from_table == 'variants':
+                        res = sorted(res, key = lambda x: x['start'])   
+                    elif self.from_table == 'samples':
+                        res = sorted(res, key = lambda x: x['sample_id'])
+                      
                 self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
                 self.result = iter(res)
                 
@@ -718,7 +724,7 @@ class GeminiQuery(object):
 
     def get_partition_key(self, table):
         
-        key = self.cluster.metadata.keyspaces['gemini_keyspace'].tables[table].partition_key[0].name
+        key = self.cluster.metadata.keyspaces[self.keyspace].tables[table].partition_key[0].name
         return key
     
     def _correct_genotype_filter(self):
@@ -846,7 +852,7 @@ class GeminiQuery(object):
     def get_relevant_tables(self, table):
         
         Row = namedtuple('Row', 'name partition_key clustering_key')
-        tables = self.cluster.metadata.keyspaces['gemini_keyspace'].tables
+        tables = self.cluster.metadata.keyspaces[self.keyspace].tables
         interesting_tables = filter(lambda x: x.startswith(table), tables.keys())
         res = []
         for table in interesting_tables:
@@ -910,7 +916,7 @@ class GeminiQuery(object):
         wildcard_rule = self._swap_genotype_for_number(wildcard_rule)
         wildcard_rule = wildcard_rule.replace('==', '=')
         
-        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.db_contact_points, self.nr_cores) 
+        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.db_contact_points, self.keyspace, self.nr_cores) 
     
     def _swap_genotype_for_number(self, token):
                 

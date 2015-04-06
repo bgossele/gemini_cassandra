@@ -43,11 +43,15 @@ class GeminiLoader(object):
         
         self.buffer_size = buffer_size
         self._get_anno_version()
-        self.contact_points = map(strip, args.contact_points.split(','))   
+        self.contact_points = map(strip, args.contact_points.split(','))
+        self.keyspace = args.keyspace
+        
+        self.typed_gt_column_names = []
+        self.gt_column_names = []
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
-            (self.gt_column_names, self.typed_gt_column_names) = self._get_typed_gt_column_names()
+            self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
             
         NUM_BUILT_IN = 6
         self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]
@@ -124,6 +128,7 @@ class GeminiLoader(object):
         self.var_impacts_buffer = blist([])
         self.var_subtypes_buffer = blist([])
         self.var_gene_buffer = blist([])
+        self.var_chrom_start_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
         #extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
@@ -144,7 +149,9 @@ class GeminiLoader(object):
             # add the core variant info to the variant buffer
             self.var_buffer.append(variant)
             self.var_subtypes_buffer.append([self.v_id, variant[11], variant[12]])
-            self.var_gene_buffer.append([self.v_id, variant[55]])
+            if variant[55] != None:
+                self.var_gene_buffer.append([self.v_id, variant[55]])
+            self.var_chrom_start_buffer.append([self.v_id, variant[0], variant[1]])
                 
             var_sample_gt_types_buffer = blist([])
             var_sample_gt_depths_buffer = blist([])
@@ -170,12 +177,14 @@ class GeminiLoader(object):
                 batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                                  get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
                 batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer)
+                batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                 self.var_buffer = blist([])
                 self.var_subtypes_buffer = blist([])
                 self.var_impacts_buffer = blist([])
                 self.var_gene_buffer = blist([])
+                self.var_chrom_start_buffer = blist([])
                 buffer_count = 0
             self.v_id += 1
             self.counter += 1
@@ -191,6 +200,7 @@ class GeminiLoader(object):
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                             get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
         batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer)
+        batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer)
         
         end_time = time.time()
         elapsed_time = end_time - start_time            
@@ -301,16 +311,16 @@ class GeminiLoader(object):
         """
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
-        self.session.execute("""CREATE KEYSPACE IF NOT EXISTS gemini_keyspace
-                                WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""")
-        self.session.set_keyspace('gemini_keyspace')
+        self.session.execute("""CREATE KEYSPACE IF NOT EXISTS %s
+                                WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""" % self.keyspace)
+        self.session.set_keyspace(self.keyspace)
         # create the gemini database tables for the new DB
         create_tables(self.session, self.typed_gt_column_names, self.extra_sample_columns)
         
     def connect_to_db(self):
         
         self.cluster = Cluster(self.contact_points)
-        self.session = self.cluster.connect('gemini_keyspace')        
+        self.session = self.cluster.connect(self.keyspace)        
 
     def _prepare_variation(self, var):
         """private method to collect metrics for a single variant (var) in a VCF file.
@@ -458,6 +468,7 @@ class GeminiLoader(object):
         # build up numpy arrays for the genotype information.
         # these arrays will be pickled-to-binary, compressed,
         # and loaded as SqlLite BLOB values (see compression.pack_blob)
+        sample_info = blist([])
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
             gt_bases = var.gt_bases  # 'A/G', './.'
             gt_types = var.gt_types  # -1, 0, 1, 2
@@ -468,6 +479,9 @@ class GeminiLoader(object):
             gt_quals = var.gt_quals  # 10.78 22 99 -1
             gt_copy_numbers = var.gt_copy_numbers  # 1.0 2.0 2.1 -1
             gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
+
+            for entry in var.samples:
+                sample_info.append((entry.sample, entry.gt_type, entry.gt_depth))
 
             # tally the genotypes
             #TODO: perhapds uncomment? Don't understand the use just yet.
@@ -589,9 +603,7 @@ class GeminiLoader(object):
                    Exac.aaf_NFE, Exac.aaf_OTH,
                    Exac.aaf_SAS] + gt_columns
                    
-        sample_info = blist([])
-        for entry in var.samples:
-            sample_info.append((entry.sample, entry.gt_type, entry.gt_depth))
+        
             
         return variant, variant_impacts, sample_info, extra_fields
     

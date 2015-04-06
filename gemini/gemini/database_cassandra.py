@@ -93,7 +93,7 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                         sample_name text, \
                         gt_depth int, \
                         variant_id int, \
-                        primary key (sample_name, gt_depth, variant_id))'''))    
+                        primary key (sample_name, gt_depth, variant_id))'''))  
     
     session.execute(SimpleStatement('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
                     variant_id int, \
@@ -108,6 +108,12 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                         sub_type text, \
                         call_rate float, \
                         PRIMARY KEY (sub_type, call_rate, variant_id))'''))
+     
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_chrom_start( \
+                        chrom text,
+                        start int,
+                        variant_id int, \
+                        primary key (chrom, start, variant_id))'''))     
     
     session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_gene ( \
                         variant_id int, \

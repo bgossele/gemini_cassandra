@@ -73,6 +73,12 @@ def main():
     parser_load.add_argument('-db', dest='contact_points',
                              default = "127.0.0.1",
                              help='The IP adresses at which the Cassandra cluster is reachable.')
+    parser_load.add_argument('-ks', 
+                            dest='keyspace',
+                            default = 'gemini_keyspace',
+                            metavar = 'STRING',
+                            help="The Cassandra keyspace in which the data should be stored.")
+                             
     parser_load.add_argument('-v', dest='vcf',
                              help='The VCF file to be loaded.')
     parser_load.add_argument('-t', dest='anno_type',
@@ -162,6 +168,11 @@ def main():
     parser_loadchunk.add_argument('-db', dest='contact_points',
                              default = "127.0.0.1",
                              help='The IP adresses at which the Cassandra cluster is reachable.')
+    parser_loadchunk.add_argument('-ks', 
+                                 dest='keyspace',
+                                 default = 'gemini_keyspace',
+                                 metavar = 'STRING',
+                                 help="The Cassandra keyspace in which the data should be stored.")
     parser_loadchunk.add_argument('-v',
                                   dest='vcf',
                                   help='The VCF file to be loaded.')
@@ -234,6 +245,9 @@ def main():
     parser_query.add_argument('-db', dest='contact_points',
                              default = "127.0.0.1",
                              help='The IP adresses at which the Cassandra cluster is reachable.')
+    parser_query.add_argument('-ks', dest='keyspace',
+                             default = "gemini_keyspace",
+                             help='The Cassandra keyspace in which the data is stored.')
     parser_query.add_argument('-q',
             dest='query',
             metavar='QUERY_STR',
@@ -313,6 +327,11 @@ def main():
                               dest='dgidb',
                               action='store_true',
                               help='Request drug-gene interaction info from DGIdb.',
+                              default=False)
+    parser_query.add_argument('--test-mode',
+                              dest='testing',
+                              action='store_true',
+                              help='Sort variants by start, samples by sample_id. ONLY TO BE USED FOR UNIT TESTS',
                               default=False)
     def query_fn(parser, args):
         import gemini_query

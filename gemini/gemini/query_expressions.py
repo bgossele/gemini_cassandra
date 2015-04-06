@@ -46,8 +46,7 @@ class Simple_expression(Expression):
                 query += " AND %s IN ('%s')" % (self.select_column, in_clause)
             else:
                 in_clause = ",".join(map(lambda x: str(x), starting_set))            
-                query += " AND %s IN (%s)" % (self.select_column, in_clause)
-        
+                query += " AND %s IN (%s)" % (self.select_column, in_clause)       
         return rows_as_set(socket.execute(query))
 
     def to_string(self):
@@ -129,7 +128,7 @@ class NOT_expression(Expression):
     
 class GT_wildcard_expression(Expression):
     
-    def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, db_contact_points, cores_for_eval = 1):
+    def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, db_contact_points, keyspace, cores_for_eval = 1):
         self.column = column
         self.wildcard_rule = wildcard_rule
         if rule_enforcement.startswith('count'):
@@ -140,6 +139,7 @@ class GT_wildcard_expression(Expression):
         self.names = sample_names
         self.nr_cores = cores_for_eval
         self.db_contact_points = db_contact_points
+        self.keyspace = keyspace
         
     def to_string(self):
         return "[%s].[%s].[%s].[%s]" % (self.column, "?", self.wildcard_rule, self.rule_enforcement)
@@ -185,7 +185,7 @@ class GT_wildcard_expression(Expression):
             parent_conn, child_conn = Pipe()
             conns.append(parent_conn)
             p = Process(target=eval(target_rule +'_query'), args=(child_conn, self.column, corrected_rule,\
-                                                                   correct_starting_set, self.db_contact_points))
+                                                                   correct_starting_set, self.db_contact_points, self.keyspace))
             procs.append(p)
             p.start()
             
@@ -251,10 +251,10 @@ def rows_as_set(rows):
 def rows_as_list(rows):
     return map(lambda x: x[0], rows)
  
-def all_query(conn, field, clause, initial_set, contact_points):
+def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         
     cluster = Cluster(contact_points)
-    session = cluster.connect('gemini_keyspace')
+    session = cluster.connect(keyspace)
     
     names = conn.recv()
     
@@ -284,10 +284,10 @@ def all_query(conn, field, clause, initial_set, contact_points):
     conn.send(results)
     conn.close()
 
-def any_query(conn, field, clause, initial_set, contact_points):
+def any_query(conn, field, clause, initial_set, contact_points, keyspace):
         
     cluster = Cluster(contact_points)
-    session = cluster.connect('gemini_keyspace')
+    session = cluster.connect(keyspace)
     
     names = conn.recv()
     
@@ -309,10 +309,10 @@ def any_query(conn, field, clause, initial_set, contact_points):
     conn.send(results)
     conn.close()
 
-def none_query(conn, field, clause, initial_set, contact_points):
+def none_query(conn, field, clause, initial_set, contact_points, keyspace):
         
     cluster = Cluster(contact_points)
-    session = cluster.connect('gemini_keyspace')
+    session = cluster.connect(keyspace)
     
     names = conn.recv()
     
@@ -334,10 +334,10 @@ def none_query(conn, field, clause, initial_set, contact_points):
     conn.send(results)
     conn.close()   
     
-def count_query(conn, field, clause, initial_set, contact_points):
+def count_query(conn, field, clause, initial_set, contact_points, keyspace):
     
     cluster = Cluster(contact_points)
-    session = cluster.connect('gemini_keyspace')
+    session = cluster.connect(keyspace)
     
     names = conn.recv()
     

@@ -50,7 +50,7 @@ def get_query_parts(query):
     
     where_end = len(query)
     
-    for keyword in ["order_by", "limit", "allow_filtering"]:
+    for keyword in ["order by", "limit", "allow_filtering"]:
         stop = query.find(keyword)
         if stop > -1:
             from_end = min(stop, from_end)
