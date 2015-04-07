@@ -37,10 +37,15 @@ Dankzij zijn flexibele datamodel, caching en concurrency controle, past CouchBas
 \paragraph{Cassandra}
 
 Cassandra werd oorspronkelijk ontwikkeld voor intern gebruik bij Facebook maar is later als Apache opensourceproject publiekelijk beschikbaar gemaakt. Het combineert het datamodel van Google's BigTable systeem met de architectuur en distributiestrategie van Amazons DynamoDB. Het is gericht op flexibele, quasipermanent beschikbare opslag van zeer grote datasets op goedkope standaardhardware, met daarenboven hoge througput voor schrijfopdrachten zonder effici\"entie bij leesopdrachten op te offeren \cite{borthakur2011apache}.\\
-Sinds zijn ontstaan is Cassandra wel op enkele vlakken afgeweken van het BigTable-model, in die zin dat het nu tabellen en samengestelde kolommen
+Sinds zijn ontstaan is Cassandra wel op enkele vlakken afgeweken van het BigTable-model\cite{cassandra_there&now}, in die zin dat het nu tabellen en samengestelde kolommen
 %TODO betere vertaling voor composite columns?
 biedt, evenals een eigen query taal, CQL \cite{cassandra_CQL}. CQL vertoont op het gebied van syntax en functionaliteit sterke gelijkenissen met SQL, maar is toch sterk beperkt. Zo biedt het bijvoorbeeld geen \texttt{JOIN}-clausule, en zijn \texttt{WHERE}-clausules aan sterke voorwaarden onderhevig. Cassandra moedigt het samenbewaren van gegevens die samen opgevraagd worden sterk aan en ondersteunt denormalizatie met features zoals collection types.\\
 Cassandra heeft indexeringsmechanismes and implementeert deze met log-structured merge trees, met hogere schrijfthroughput als gevolg.
 %TODO hier uitleggen of eerder meer nr boven?
-Net als BigTable biedt Cassandra ook Bloom filters.
+Net als BigTable biedt Cassandra ook Bloom filters.\\
+Om lineair in het aantal ingeschakelde nodes te kunnen schalen naar zeer grote datasets, opereert Cassandra op een volledig hi\"erarchieloze wijze. Vanuit het perspectief van het CAP-theorema, spitst Cassandra zich toe op availability en partition tolerance, ten koste van onmiddellijke consistentie. Het consistentieniveau kan wel per query door de gebruiker bepaald worden, zoals later verduidelijkt wordt. Hoge beschikbaarheid en tolerantie voor fouten bereikt Cassandra door asynchroon data te repliceren over verschillende nodes, met consistent hashing en virtuele nodes om frequent komen-en-gaan en incrementeel toevoegen van nodes op te vangen. Het aantal replica's kan de gebruiker zelf kiezen. Bovendien voorziet Cassandra ook interdatacenterreplicatie, om zelfs het falen van volledige datacenters op te vangen\cite{decandia2007dynamo} \cite{lakshman2010cassandra} \cite{cassandra_then&now}.\\
+Bij lees- en schrijfopdrachten kan de gebruiker een quorum specifi\"eren. Hoewel Cassandra met uiteindelijke consistentie voor het oog ontworpen werd, is onmiddellijke consistentie mits een juiste keuze van de quorum dus ook een optie.\\
+Op het gebied van concurrency controle garandeert Cassandra atomiciteit binnen rijen en serializeerbare \textit{lightweight transactions}, eigenlijk compare-and-set functionaliteit, voor grotere operaties.
+\\\\
+Samengevat biedt Cassandra redelijk flexibele datamodellering met (licht beperkte) query- en indexeringsmechanismen via de CQL-interface. Het sterkste punt is echter dat Cassandra incrementeel schaalt naar enorme datasets, dankzij uitvoerige replicatie- en foutverwerkingsfeatures.
 
