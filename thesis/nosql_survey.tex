@@ -37,7 +37,7 @@ Dankzij zijn flexibele datamodel, caching en concurrency controle, past CouchBas
 \paragraph{Cassandra}
 
 Cassandra werd oorspronkelijk ontwikkeld voor intern gebruik bij Facebook maar is later als Apache opensourceproject publiekelijk beschikbaar gemaakt. Het combineert het datamodel van Google's BigTable systeem met de architectuur en distributiestrategie van Amazons DynamoDB. Het is gericht op flexibele, quasipermanent beschikbare opslag van zeer grote datasets op goedkope standaardhardware, met daarenboven hoge througput voor schrijfopdrachten zonder effici\"entie bij leesopdrachten op te offeren \cite{borthakur2011apache}.\\
-Sinds zijn ontstaan is Cassandra wel op enkele vlakken afgeweken van het BigTable-model\cite{cassandra_there&now}, in die zin dat het nu tabellen en samengestelde kolommen
+Sinds zijn ontstaan is Cassandra wel op enkele vlakken afgeweken van het BigTable-model\cite{cassandra_then&now}, in die zin dat het nu tabellen en samengestelde kolommen
 %TODO betere vertaling voor composite columns?
 biedt, evenals een eigen query taal, CQL \cite{cassandra_CQL}. CQL vertoont op het gebied van syntax en functionaliteit sterke gelijkenissen met SQL, maar is toch sterk beperkt. Zo biedt het bijvoorbeeld geen \texttt{JOIN}-clausule, en zijn \texttt{WHERE}-clausules aan sterke voorwaarden onderhevig. Cassandra moedigt het samenbewaren van gegevens die samen opgevraagd worden sterk aan en ondersteunt denormalizatie met features zoals collection types.\\
 Cassandra heeft indexeringsmechanismes and implementeert deze met log-structured merge trees, met hogere schrijfthroughput als gevolg.
@@ -49,3 +49,31 @@ Op het gebied van concurrency controle garandeert Cassandra atomiciteit binnen r
 \\\\
 Samengevat biedt Cassandra redelijk flexibele datamodellering met (licht beperkte) query- en indexeringsmechanismen via de CQL-interface. Het sterkste punt is echter dat Cassandra incrementeel schaalt naar enorme datasets, dankzij uitvoerige replicatie- en foutverwerkingsfeatures.
 
+\paragraph{HBase}
+
+Apache HBase is een opensource datastore gebaseerd op het datamodel van Google BigTable, die draait bovenop het Hadoop Distributed File System (HDFS) in plaats van het Google File System (GFS).\\
+Sinds z'n lancering heeft HBase verschillende secundaire indexeringsmechanismes verworven. Deze zijn ook gebaseerd op LSM trees en daarnaast biedt ook HBase Bloom filters\cite{borthakur2011apache}\cite{hbase_schema}. HBase heeft een Java API, maar zonder SQL-achtige geavanceerde querytaal. Hierbij moet wel opgemerkt worden dat een omweg via Apache Hive, een ander data-opslag en -analyseproject \cite{apache_hive}, en de bijhorende querytaal HiveQL dit probleem kan verhelpen. Dankzij de HDFS-fundering can HBase vlot fungeren als in- en output voor MapReduce taken.\\
+HBase partitioneert data net als BigTable in ranges en repliceert gegevens op ofwel master-slave of multi-master wijze. Leesopdrachten worden echter niet gedistribueerd: er is slechts 1 server die instaat voor elke rij. De replica's zijn enkel bestemd voor het herstellen van fouten.\\
+De sterke punten van HBase zijn de sterke consistentie, een rariteit in de NoSQL-wereld, en concurrency-model: ACID transactions binnen rijen en optimistische, multi-version concurrency controle voor grootschaligere operaties \cite{hbase_acid}\cite{grolinger2013data}\cite{borthakur2011apache}.\\\\
+
+Kort samengevat laat HBase gebruikers toe flexibel data te modelleren en is het systeem vooral nuttig wanneer het startpunt een dataset in HDFS is en MapReduce-compatibiliteit een prioriteit is. HBase schaalt goed naar zeer grote datasets en beschikt over uitstekende concurrency- en consistentie-eigenschappen.
+
+\subsection{NewSQL} 
+
+\paragraph{VoltDB}
+
+VoltDB is een relationele, gedistribueerde in-memory databank, die als doel heeft de garanties van klassieke SQL-stores te koppelen met de schaalbaarheid van NoSQL-systemen, en bovendien aan zeer hoge snelheden te functioneren\cite{stonebraker2013voltdb}.\\
+VoltDB bewaart gegevens in het traditionele relationele model, maar gerepliceerd en gepartitioneerd (met consistent hashing) over verschillende nodes\cite{grolinger2013data}. De data is doorzoekbaar via een (groeiende) subset van SQL-92\cite{voltdb2010voltdb}. Queries worden bij voorkeur gedefinieerd als stored procedures in Java, met daarin ingebed de SQL uitdrukkingen. VoltDB ondersteunt primaire en secundaire indices en laat de gebruiker de keuze tussen hash- en boomindices\cite{voltdb_indexes}. VoltDB plant en optimaliseert de queries in stored procedures offline tijdens het compileren\cite{voltdb_query_plans}.\\
+Omdat VoltDB volledig op RAM geheugen vertrouwt, is het duur om te schalen naar datavolumes in de grootorde van meerdere petabytes, maar VoltDB kan data exporteren naar andere, meer geschikte databanksystemen zoals columnaire NoSQL systemen.\\
+Vooral op het gebied van concurrency controle onderscheidt VoltDB zich van andere systemen: transacties voldoen aan de ACID-eigenschappen en worden simultaan op alle replica's uitgevoerd. Het geheugen is in blokken verdeeld, die elk statisch toegewezen zijn aan \'e\'en enkele, single-threaded core. Een globale controller serializeert alle transacties waarbij meerdere nodes betrokken zijn tot een sequentie van enkelvoudige transacties en voegt deze in de transaction queues van de betrokken nodes. Op deze manier maakt VoltDB locking en latching technieken overbodig. De durability uit ACID bereikt VoltDB door op regelmatige basis snapshots van de databank in het geheugen te nemen en deze op schijf op te slaan.\\\\
+
+Kort samengevat is VoltDB een relationele databank in main memory die schaalt tot relatief grote datasets, met zeer snelle SQL-query-capaciteiten en ACID-transacties. Het is bijgevolg meer geschikt voor rekenintensieve toepassingen die niet overdreven veel data verwerken, maar wel zeer lage latentie vereisen.
+
+\paragraph{Cloudera Impala}
+
+Cloudera Impala is een gedistribueerde SQL-machine die draait bovenop de Hadoopstack, ofwel op HDFS of op HBase \cite{cloudera_impala}. Ze is specfiek bedoeld voor analytisch gebruik, met een focus op het leveren van real-time query-capaciteiten eerder dan op hoge throughput bij schrijfopdrachten.\\
+Opgeslagen data is toegankelijk via een subset van SQL-92.\\
+Impala's architectuur is bijna perfect symmetrisch gedistribueerd: alle nodes voeren hetzelfde \texttt{impalad}-proces uit, dat de belangrijkste databankfunctionaliteiten verzorgt. Elke node kan als startpunt fungeren voor een query en zal vervolgens de query in kwestie co\"ordineren. Twee processen lopen daarentegen op \'e\'en enkele (niet noodzakelijk dezelfde) node in het cluster; zij staan in voor boekhoudkundige taken en doorgeven van wijzingen aan metadata doorheen het cluster \cite{impala_components}.\\
+In tegenstelling tot voorgaande opties partitioneert Impala rijen niet automatisch. De gebruiker krijgt wel de keuze hiertoe, voor in het geval de hoeveelheid gegevens hierom zou vragen \cite{impala_partitioning}.\\
+Impala beschikt over een zeer effici\"ente I/O-laag die schijf- en CPU-gebruik te allen tijde hoog houdt, wat resulteert in aanzienlijk snellere prestaties dan andere SQL-on-Hadoop oplossingen zoals Apache Hive\cite{floratou2014sql}. Het inherente nadeel is echter dat de volledige dataset moet passen in het totale werkgeheugen van het cluster waarin Impala draait. Dit beperkt enigszins de grootte van datasets diet Impala kan verwerken, ondanks de schaalbaarheid van de onderliggende Hadooplaag.\\
+Omwille van z'n analytische doeleinden heeft Impala geen uitvoerige mechanismes voor concurrency controle, maar vertrouwt hiervoor op het onderliggende opslagsysteem. Gezien de uitstekende concurrency-eigenschappen van HBase vormt dit niet noodzakelijk een probleem.
