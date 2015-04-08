@@ -93,7 +93,14 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                         sample_name text, \
                         gt_depth int, \
                         variant_id int, \
-                        primary key (sample_name, gt_depth, variant_id))'''))  
+                        primary key (sample_name, gt_depth, variant_id))''')) 
+     
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt( \
+                        sample_name text, \
+                        gt text, \
+                        variant_id int, \
+                        primary key (sample_name, gt, variant_id))'''))
+    
     
     session.execute(SimpleStatement('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
                     variant_id int, \

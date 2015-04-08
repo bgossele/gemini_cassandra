@@ -142,7 +142,7 @@ class GT_wildcard_expression(Expression):
         self.keyspace = keyspace
         
     def to_string(self):
-        return "[%s].[%s].[%s].[%s]" % (self.column, "?", self.wildcard_rule, self.rule_enforcement)
+        return "[%s].[%s].[%s].[%s]" % (self.column, ','.join(self.names), self.wildcard_rule, self.rule_enforcement)
     
     def can_prune(self):
         return True
@@ -174,7 +174,7 @@ class GT_wildcard_expression(Expression):
             target_rule = self.rule_enforcement
             corrected_rule = self.wildcard_rule
             
-        if starting_set == "*" and (invert or target_rule == 'none'):
+        if starting_set == "*" and (invert or target_rule == 'none' or target_rule == 'count'):
             correct_starting_set = array.array('i', rows_as_set(session.execute("SELECT variant_id FROM variants")))
         elif starting_set != "*":
             correct_starting_set = array.array('i', starting_set)
@@ -218,9 +218,10 @@ class GT_wildcard_expression(Expression):
             res = diff(set(correct_starting_set), res)
         
         if target_rule == 'count':
-            res_dict = dict()
+            res_dict = {x: 0 for x in correct_starting_set}
             for d in results:
-                res_dict = add_sub_res_to_count_dict(res_dict, d)            
+                for var, count in d.iteritems():
+                    res_dict[var] += count     
             if invert_count:
                 #TODO: if starting_set == "*", retrieve nr of variants somewhere
                 total = len(starting_set)
@@ -258,7 +259,10 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
     
     names = conn.recv()
     
-    results = set(initial_set)
+    if initial_set != "*":
+        results = set(initial_set)
+    else:
+        results = initial_set
     
     for name in names:
         
@@ -266,18 +270,15 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
             break
         
         query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
-        
-        if not any (op in clause for op in ["<", ">"]):  
-            if initial_set != "*":     
-                in_clause = ",".join(map(lambda x: str(x), results))
-                query += " AND variant_id IN (%s)" % in_clause
-            results = rows_as_set(session.execute(query))            
+                
+        if results == "*":
+            results = rows_as_set(session.execute(query))
+        elif not any (op in clause for op in ["<", ">"]):
+            in_clause = ",".join(map(lambda x: str(x), results))
+            query += " AND variant_id IN (%s)" % in_clause
+            results = rows_as_set(session.execute(query))
         else:
-            row = rows_as_set(session.execute(query))
-            if initial_set != "*":
-                results = intersect(row, results)
-            else:
-                results = row
+            results = intersect(rows_as_set(session.execute(query)), results)
         
     session.shutdown()   
     
@@ -369,13 +370,4 @@ def add_row_to_count_dict(res_dict, variants):
     
     return res_dict   
 
-def add_sub_res_to_count_dict(res_dict, variants):
-    
-    for var, count in variants.iteritems():
-        if not var in res_dict:
-            res_dict[var] = count
-        else:
-            res_dict[var] += count
-    
-    return res_dict 
     

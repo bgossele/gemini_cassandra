@@ -155,15 +155,18 @@ class GeminiLoader(object):
                 
             var_sample_gt_types_buffer = blist([])
             var_sample_gt_depths_buffer = blist([])
+            var_sample_gt_buffer = blist([])
                 
             for sample in sample_info:
                     #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
                 var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
                 var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
+                var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
                                     
             batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
             batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
             batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], var_sample_gt_depths_buffer)
+            batch_insert(self.session, 'variants_by_samples_gt', ["variant_id", "sample_name", "gt"], var_sample_gt_buffer)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
                 self.var_impacts_buffer.append(var_impact)
@@ -481,7 +484,7 @@ class GeminiLoader(object):
             gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
 
             for entry in var.samples:
-                sample_info.append((entry.sample, entry.gt_type, entry.gt_depth))
+                sample_info.append((entry.sample, entry.gt_type, entry.gt_depth, entry.gt_bases))
 
             # tally the genotypes
             #TODO: perhapds uncomment? Don't understand the use just yet.

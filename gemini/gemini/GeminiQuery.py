@@ -469,8 +469,8 @@ class GeminiQuery(object):
         self.nr_cores = nr_cores
         if self._is_gt_filter_safe() is False:
             sys.exit("ERROR: unsafe --gt-filter command.")
-        if not self.gt_filter == None:
-            self.gt_filter = self.gt_filter.replace('==','=')
+        '''if not self.gt_filter == None:
+            self.gt_filter = self.gt_filter.replace('==','=')'''
         
         self.show_variant_samples = show_variant_samples
         self.variant_samples_delim = variant_samples_delim
@@ -862,9 +862,11 @@ class GeminiQuery(object):
     
     def gt_base_parser(self, clause):
         if (clause.find("gt") >= 0 or clause.find("GT") >= 0) and not '[' in clause:
-            return self.gt_filter_to_query_exp(clause)
+            return self.gt_filter_to_query_exp(clause.replace('==', '='))
         elif (clause.find("gt") >= 0 or clause.find("GT") >= 0) and '[' in clause:
-            return self.parse_gt_wildcard(clause)
+            dink = self.parse_gt_wildcard(clause)
+            #print dink.to_string()
+            return dink
         else:
             sys.exit("ERROR: invalid --gt-filter command")   
         
@@ -906,9 +908,12 @@ class GeminiQuery(object):
     
         (column, wildcard, wildcard_rule, wildcard_op) = token.split('.')
         column = column.strip('[').strip(']').strip()
-        wildcard = wildcard.strip('[').strip(']').strip()
+        wildcard = wildcard.strip('[').strip(']').strip().replace('==', '=')
         wildcard_rule = wildcard_rule.strip('[').strip(']').strip()
         wildcard_op = wildcard_op.strip('[').strip(']').strip()
+        
+        if not (wildcard_op.lower().strip() in ['any', 'all', 'none'] or wildcard_op.lower().strip().startswith('count')):
+            sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
                     
         sample_names = self._get_matching_sample_ids(wildcard)
     
@@ -951,16 +956,14 @@ class GeminiQuery(object):
         # distinguish the genotype-specific columns from the base columns
         if "from" not in self.query.lower():
             sys.exit("Malformed query: expected a FROM keyword.")
-
-
+        
+        tokens_to_be_removed = set()
         for token in self.requested_columns:
-
             # it is a WILDCARD
             if (token.find("gt") >= 0 or token.find("GT") >= 0) \
                 and '.(' in token and ').' in token:
                 # break the wildcard into its pieces. That is:
                 # (COLUMN).(WILDCARD)
-                
                 (column, wildcard) = token.split('.')
 
                 # remove the syntactic parentheses
@@ -976,9 +979,11 @@ class GeminiQuery(object):
                 for sample in sample_info:
                     wildcard_col = column + '_' + sample
                     self.requested_columns.append(wildcard_col)
-                
-                self.requested_columns.remove(token)
-
+                tokens_to_be_removed.add(token)
+        
+        for token in tokens_to_be_removed:
+            self.requested_columns.remove(token)
+            
     def _info_dict_to_string(self, info):
         """
         Flatten the VCF info-field OrderedDict into a string,
