@@ -224,7 +224,7 @@ class GT_wildcard_expression(Expression):
                     res_dict[var] += count     
             if invert_count:
                 #TODO: if starting_set == "*", retrieve nr of variants somewhere
-                total = len(starting_set)
+                total = len(self.names)
                 for variant, count in res_dict.iteritems():
                     res_dict[variant] = total - count
             res = set([v for v, c in res_dict.iteritems() if eval(str(c) + self.count_comp)])
