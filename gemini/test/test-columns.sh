@@ -1,3 +1,4 @@
+
 ####################################################################
 # 1. Make sure we are representing the correct REF and ALT alleles.
 ####################################################################
@@ -13,7 +14,7 @@ chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
 gemini query -q "select chrom, start, end, ref, alt from variants" \
-	   test.snpeff.vcf.db \
+	   --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -34,7 +35,7 @@ snp	ts
 snp	tv
 snp	ts" > exp
 gemini query -q "select type, sub_type from variants" \
-	   test.snpeff.vcf.db \
+	   --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -55,7 +56,7 @@ echo "7
 574
 154" > exp
 gemini query -q "select depth from variants" \
-	   test.snpeff.vcf.db \
+	   --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -65,18 +66,18 @@ rm obs exp
 # 4. Test qual
 ####################################################################
 echo "    columns.t04...\c"
-echo "50.09
-54.3
-49.48
-51.79
-601.49
-2971.02
-938.56
-101944.44
-1026.71
-82.97" > exp
+echo "50.0900001526
+54.2999992371
+49.4799995422
+51.7900009155
+601.489990234
+2971.02001953
+938.559997559
+101944.4375
+1026.70996094
+82.9700012207" > exp
 gemini query -q "select qual from variants" \
-	   test.snpeff.vcf.db \
+	   --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -96,7 +97,7 @@ ABFilter;LowQual;QDFilter;QUALFilter;SBFilter
 ABFilter;LowQual;QUALFilter
 None" > exp
 gemini query -q "select filter from variants" \
-	   test2.snpeff.db \
+	   --test-mode -ks test2_snpeff_db \
        > obs
 check obs exp
 rm obs exp
@@ -117,7 +118,7 @@ echo "0	0	0	4
 3	1	0	0
 3	0	0	1" > exp
 gemini query -q "select num_hom_ref, num_het, num_hom_alt, num_unknown \
-	             from variants" test.snpeff.vcf.db \
+	             from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -138,7 +139,7 @@ echo "0.0
 1.0
 0.75" > exp
 gemini query -q "select call_rate \
-	             from variants" test.snpeff.vcf.db \
+	             from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -159,7 +160,7 @@ echo "0.0
 0.125
 0.0" > exp
 gemini query -q "select aaf \
-	             from variants" test.snpeff.vcf.db \
+	             from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -178,7 +179,7 @@ echo "6
 79
 8
 2" > exp
-gemini query -q "select allele_count from variants" test.snpeff.vcf.db \
+gemini query -q "select allele_count from variants" --test-mode -ks test_snpeff_vcf_db \
     > obs
     
 check obs exp
@@ -198,7 +199,7 @@ echo "14
 90
 88
 80" > exp
-gemini query -q "select num_alleles from variants" test.snpeff.vcf.db \
+gemini query -q "select num_alleles from variants" --test-mode -ks test_snpeff_vcf_db \
     > obs
 check obs exp
 rm obs exp
@@ -207,17 +208,17 @@ rm obs exp
 # 11. Test qual_depth
 #########################################################################
 echo "    columns.t11...\c"
-echo "16.7
-13.57
-3.81
-3.98
-35.38
-31.61
-18.4
-26.51
-21.39
-20.74" > exp
-gemini query -q "select qual_depth from variants" test.snpeff.vcf.db \
+echo "16.7000007629
+13.5699996948
+3.80999994278
+3.98000001907
+35.3800010681
+31.6100006104
+18.3999996185
+26.5100002289
+21.3899993896
+20.7399997711" > exp
+gemini query -q "select qual_depth from variants" --test-mode -ks test_snpeff_vcf_db \
     > obs
 check obs exp
 rm obs exp
@@ -228,15 +229,15 @@ rm obs exp
 echo "    columns.t12...\c"
 echo "29.0
 36.25
-36.09
-36.09
-35.61
-31.06
-29.79
-33.24
-32.18
-31.1" > exp
-gemini query -q "select rms_map_qual from variants" test.snpeff.vcf.db \
+36.0900001526
+36.0900001526
+35.6100006104
+31.0599994659
+29.7900009155
+33.2400016785
+32.1800003052
+31.1000003815" > exp
+gemini query -q "select rms_map_qual from variants" --test-mode -ks test_snpeff_vcf_db \
     > obs
 check obs exp
 rm obs exp
@@ -255,11 +256,10 @@ echo "0
 0
 0
 0" > exp
-gemini query -q "select num_mapq_zero from variants" test.snpeff.vcf.db \
+gemini query -q "select num_mapq_zero from variants" --test-mode -ks test_snpeff_vcf_db \
  > obs
 check obs exp
 rm obs exp
-
 
 ##############################################################################
 #14. Test the ID column
@@ -272,7 +272,7 @@ rs567,rs89
 None
 foo
 777" > exp
-gemini query -q "select vcf_id from variants" test.vcf_id.snpeff.vcf.db \
+gemini query -q "select vcf_id from variants" --test-mode -ks test_vcf_id_snpeff_vcf_db \
  > obs
 check obs exp
 rm obs exp

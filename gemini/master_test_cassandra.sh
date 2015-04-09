@@ -23,3 +23,5 @@ bash test-genotypes.sh
 bash test-exac.sh
 
 bash test-genome.sh
+
+bash test-columns.sh
