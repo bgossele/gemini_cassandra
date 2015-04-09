@@ -708,7 +708,8 @@ class GeminiQuery(object):
         if self.show_families or self.show_variant_samples:
             if (not 'variant_id' in self.requested_columns) and (not "*" in self.requested_columns):
                 self.extra_columns.append('variant_id')
-
+        if self.sort_results and self.from_table == 'variants' and not 'start' in self.requested_columns:
+            self.extra_columns.append('start')
         self._execute_query()
         
 

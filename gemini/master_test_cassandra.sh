@@ -17,3 +17,5 @@ bash cassandra-test-query.sh
 bash test-load.sh
 
 bash test-wildcards.sh
+
+bash test-genotypes.sh

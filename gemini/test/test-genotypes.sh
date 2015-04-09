@@ -1,12 +1,4 @@
-check()
-{
-	if diff $1 $2; then
-    	echo ok
-	else
-    	echo fail
-	fi
-}
-export -f check
+
 ####################################################################
 # 1. Test accessing individual genotype alleles
 ####################################################################
@@ -21,9 +13,9 @@ T/T	T/T	T/T	T/T
 ./.	./.	A/G	A/G
 A/A	A/T	A/A	A/A
 ./.	G/G	G/G	G/G" > exp
-gemini query -q "select gts.1094PC0005, gts.1094PC0009, \
-				gts.1094PC0012, gts.1094PC0013 \
-				from variants" test.snpeff.vcf.db \
+gemini query -q "select gts_1094pc0005, gts_1094pc0009, \
+				gts_1094PC0012, gts_1094PC0013 \
+				from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -43,9 +35,9 @@ echo "2	2	2	2
 2	2	1	1
 0	1	0	0
 2	0	0	0" > exp
-gemini query -q "select gt_types.1094PC0005, gt_types.1094PC0009, \
-	                    gt_types.1094PC0012, gt_types.1094PC0013 \
-	             from variants" test.snpeff.vcf.db \
+gemini query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
+	                    gt_types_1094pc0012, gt_types_1094pc0013 \
+	             from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -57,11 +49,11 @@ rm obs exp
 echo "    genotypes.t03...\c"
 echo "0	0	1	0
 2	2	1	1" > exp
-gemini query -q "select gt_types.1094PC0005, gt_types.1094PC0009, \
-	                    gt_types.1094PC0012, gt_types.1094PC0013 \
+gemini query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
+	                    gt_types_1094pc0012, gt_types_1094pc0013 \
 	             from variants" \
-			 --gt-filter "gt_types.1094PC0012 == HET" \
-			 test.snpeff.vcf.db \
+			 --gt-filter "gt_type.1094PC0012 == HET" \
+			 --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -71,18 +63,18 @@ rm obs exp
 # 4. Test a more complex genotype filter
 ####################################################################
 echo "    genotypes.t04...\c"
-echo "chrom	end	ref	alt	gt_types.1094PC0005	gt_types.1094PC0009	gt_types.1094PC0012	gt_types.1094PC0013
+echo "chrom	end	ref	alt	gt_types_1094pc0005	gt_types_1094pc0009	gt_types_1094pc0012	gt_types_1094pc0013
 chr1	30869	CCT	C	0	0	1	0
 chr1	30895	T	C	1	1	0	0
 chr1	69511	A	G	2	2	1	1" > exp
 gemini query -q "select chrom, end, ref, alt, \
-	                    gt_types.1094PC0005, gt_types.1094PC0009, \
-	                    gt_types.1094PC0012, gt_types.1094PC0013 \
+	                    gt_types_1094pc0005, gt_types_1094pc0009, \
+	                    gt_types_1094pc0012, gt_types_1094pc0013 \
 	             from variants" \
-			 --gt-filter "(gt_types.1094PC0012 == HET or \
-						   gt_types.1094PC0005 == HET)" \
-			 --header \
-			 test.snpeff.vcf.db \
+			 --gt-filter "(gt_type.1094PC0012 == HET || \
+						   gt_type.1094PC0005 == HET)" \
+			 --header --test-mode \
+			 -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -91,7 +83,7 @@ rm obs exp
 # 5.  Test accessing individual genotype depths
 ####################################################################
 echo "    genotypes.t05...\c"
-echo "chrom	end	ref	alt	gt_depths.1094PC0005	gt_depths.1094PC0009	gt_depths.1094PC0012	gt_depths.1094PC0013
+echo "chrom	end	ref	alt	gt_depths_1094pc0005	gt_depths_1094pc0009	gt_depths_1094pc0012	gt_depths_1094pc0013
 chr1	30548	T	G	-1	-1	-1	-1
 chr1	30860	G	C	7	2	6	4
 chr1	30869	CCT	C	8	3	6	5
@@ -103,11 +95,11 @@ chr1	69511	A	G	-1	-1	6	4
 chr1	69761	A	T	1	7	12	9
 chr1	69871	G	A	-1	4	2	2" > exp
 gemini query -q "select chrom, end, ref, alt, \
-	                    gt_depths.1094PC0005, gt_depths.1094PC0009, \
-	                    gt_depths.1094PC0012, gt_depths.1094PC0013 \
+	                    gt_depths_1094pc0005, gt_depths_1094pc0009, \
+	                    gt_depths_1094pc0012, gt_depths_1094pc0013 \
 	             from variants" \
-			 --header \
-			 test.snpeff.vcf.db \
+			 --header --test-mode \
+			 -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -126,7 +118,7 @@ rm obs exp
 #GT:AD:DP:GQ:PL	0/0:1,0:1:3.01:0,3,33	0/1:6,1:7:12.39:12,0,177	0/0:12,0:12:36.11:0,36,442	0/0:9,0:9:27.08:0,27,324
 #GT:AD:DP:GQ:PL	./.	0/0:4,0:4:12.02:0,12,129	0/0:2,0:2:6.02:0,6,67	0/0:2,0:2:6.02:0,6,73
 echo "    genotypes.t06...\c"
-echo "chrom	end	ref	alt	gt_ref_depths.1094PC0005	gt_ref_depths.1094PC0009	gt_ref_depths.1094PC0012	gt_ref_depths.1094PC0013
+echo "chrom	end	ref	alt	gt_ref_depths_1094pc0005	gt_ref_depths_1094pc0009	gt_ref_depths_1094pc0012	gt_ref_depths_1094pc0013
 chr1	30548	T	G	-1	-1	-1	-1
 chr1	30860	G	C	7	2	6	4
 chr1	30869	CCT	C	8	3	5	5
@@ -138,11 +130,11 @@ chr1	69511	A	G	-1	-1	2	2
 chr1	69761	A	T	1	6	12	9
 chr1	69871	G	A	-1	4	2	2" > exp
 gemini query -q "select chrom, end, ref, alt, \
-	                    gt_ref_depths.1094PC0005, gt_ref_depths.1094PC0009, \
-	                    gt_ref_depths.1094PC0012, gt_ref_depths.1094PC0013 \
+	                    gt_ref_depths_1094pc0005, gt_ref_depths_1094pc0009, \
+	                    gt_ref_depths_1094pc0012, gt_ref_depths_1094pc0013 \
 	             from variants" \
-			 --header \
-			 test.snpeff.vcf.db \
+			 --header --test-mode \
+			 -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -161,7 +153,7 @@ rm obs exp
 #GT:AD:DP:GQ:PL	0/0:1,0:1:3.01:0,3,33	0/1:6,1:7:12.39:12,0,177	0/0:12,0:12:36.11:0,36,442	0/0:9,0:9:27.08:0,27,324
 #GT:AD:DP:GQ:PL	./.	0/0:4,0:4:12.02:0,12,129	0/0:2,0:2:6.02:0,6,67	0/0:2,0:2:6.02:0,6,73
 echo "    genotypes.t07...\c"
-echo "chrom	end	ref	alt	gt_alt_depths.1094PC0005	gt_alt_depths.1094PC0009	gt_alt_depths.1094PC0012	gt_alt_depths.1094PC0013
+echo "chrom	end	ref	alt	gt_alt_depths_1094pc0005	gt_alt_depths_1094pc0009	gt_alt_depths_1094pc0012	gt_alt_depths_1094pc0013
 chr1	30548	T	G	-1	-1	-1	-1
 chr1	30860	G	C	0	0	0	0
 chr1	30869	CCT	C	0	0	1	0
@@ -173,11 +165,11 @@ chr1	69511	A	G	-1	-1	4	2
 chr1	69761	A	T	0	1	0	0
 chr1	69871	G	A	-1	0	0	0" > exp
 gemini query -q "select chrom, end, ref, alt, \
-	                    gt_alt_depths.1094PC0005, gt_alt_depths.1094PC0009, \
-	                    gt_alt_depths.1094PC0012, gt_alt_depths.1094PC0013 \
+	                    gt_alt_depths_1094pc0005, gt_alt_depths_1094pc0009, \
+	                    gt_alt_depths_1094pc0012, gt_alt_depths_1094pc0013 \
 	             from variants" \
-			 --header \
-			 test.snpeff.vcf.db \
+			 --header --test-mode \
+			 -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -197,7 +189,7 @@ rm obs exp
 #GT:AD:DP:GQ:PL	0/0:1,0:1:3.01:0,3,33	0/1:6,1:7:12.39:12,0,177	0/0:12,0:12:36.11:0,36,442	0/0:9,0:9:27.08:0,27,324
 #GT:AD:DP:GQ:PL	./.	0/0:4,0:4:12.02:0,12,129	0/0:2,0:2:6.02:0,6,67	0/0:2,0:2:6.02:0,6,73
 echo "    genotypes.t08...\c"
-echo "chrom	end	ref	alt	gt_quals.1094PC0005	gt_quals.1094PC0009	gt_quals.1094PC0012	gt_quals.1094PC0013
+echo "chrom	end	ref	alt	gt_quals_1094pc0005	gt_quals_1094pc0009	gt_quals_1094pc0012	gt_quals_1094pc0013
 chr1	30548	T	G	-1.0	-1.0	-1.0	-1.0
 chr1	30860	G	C	15.0399999619	3.00999999046	12.0200004578	9.02999973297
 chr1	30869	CCT	C	18.0599994659	6.01000022888	17.1200008392	9.02999973297
@@ -209,11 +201,11 @@ chr1	69511	A	G	-1.0	-1.0	15.6999998093	21.5900001526
 chr1	69761	A	T	3.00999999046	12.3900003433	36.1100006104	27.0799999237
 chr1	69871	G	A	-1.0	12.0200004578	6.01999998093	6.01999998093" > exp
 gemini query -q "select chrom, end, ref, alt, \
-	                    gt_quals.1094PC0005, gt_quals.1094PC0009, \
-	                    gt_quals.1094PC0012, gt_quals.1094PC0013 \
+	                    gt_quals_1094pc0005, gt_quals_1094pc0009, \
+	                    gt_quals_1094pc0012, gt_quals_1094pc0013 \
 	             from variants" \
-			 --header \
-			 test.snpeff.vcf.db \
+			 --header --test-mode \
+			 -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
