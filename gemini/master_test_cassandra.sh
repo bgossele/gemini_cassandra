@@ -19,3 +19,5 @@ bash test-load.sh
 bash test-wildcards.sh
 
 bash test-genotypes.sh
+
+bash test-exac.sh

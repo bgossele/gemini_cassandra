@@ -778,9 +778,9 @@ def parse_float(s):
         return float(s)
     except ValueError:
         #TODO: sensible value?
-        return -42.0
+        return None
     except TypeError:
-        return -43.0
+        return None
     
 def parse_int(s):
     try:
