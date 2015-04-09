@@ -1,9 +1,26 @@
-\chapter{Datamodel Cassandra}
+\chapter{Implementatie}
+\label{implementatie}
+
+Dit hoofdstuk belicht aan de hand van een case-study de praktische realisatie van een schaalbare tool voor software-analyse. De case-study in kwestie is een implementatie van GEMINI die werkt met een Cassandra i.p.v. SQLite databank. Achtereenvolgens komen een motivatie voor de keuze voor Cassandra, de nodige aanpassingen aan het dataschema van GEMINI, en de nodige aanpassingen aan de implementatie van de querying-functionaliteit van GEMINI aan bod.
+
+\section{Keuze database}
+
+\subsection{Vereisten}
+
+Zoals beschreven in \ref{gemini_beschrijving} bewaart GEMINI de data over genetische varianten en proefpersonen in enkele zeer grote tabellen. Een eerste vereiste voor een database is dus om deze tabulaire data goed te kunnen voorstellen en beheren. Omdat de nadruk van dit onderzoek specifiek ligt op het schaalbaar maken van de applicatie, gebeurt dit bij voorkeur d.m.v. automatische verspreiding over verschillende nodes in een cluster.\\
+Omdat GEMINI meerdere processoren of zels computers kan gebruiken bij het inladen van de gegevens uit VCF-bestanden, is goede concurrency controle en hoge schrijf-throughput eveneens belangrijk. Na het inladen van de VCF bestanden voert GEMINI enkel nog lees-queries uit, dus zijn de belangrijkste verdere vereisten voor een database hoge lees-throughput, goede query-mogelijkheden en indexeringsmechanismes.
+\\Ten laatste is een Python-API ook nuttig, gezien GEMINI in Python ge\"implementeerd is.
+
+\subsection{Keuze}
+
+Denk denk denk: Cassandra niet beste optie, maar toch gekozen. Eerste prioriteit schaalbaarheid?
+
+\section{Dataschema GEMINI in Cassandra}
 \label{cassandra_datamodel}
 
 Het datamodel van Apache Cassandra vertoont enkele sterke verschillen met het relationele datamodel. Dit vereist enkele grondige aanpassingen aan het database schema van GEMINI. In deze sectie komen de belangrijkste eigenschappen van Cassandra aan bod, hun gevolgen voor de belangrijkste database-functionaliteiten, en de uitgevoerde aanpassingen aan het onderliggende schema van GEMINI ten op zichte van de SQLite implementatie.
 
-\section{Datamodel Cassandra}
+\subsection{Datamodel Cassandra}
 
 Zoals eerder vermeld bewaart Cassandra de cellen in een tabel als een 2 dimensionele map van enerzijds een per rij gedefinieerde primary key, en de naam van een kolom. De inhoud van cellen die niet in de primary key van een rij liggen, heeft voor Cassandra geen enkele betekenis.\\
 Die primary key bestaat uit 2 delen: het eerste is de partition key, deze bestaat uit minstens 1 kolom en de waarde hiervan die via het consistent-hashing mechanisme bepaalt op welke knopen in het cluster de rij terechtkomt. Het tweede, optionele, deel is de clustering key, en bepaalt in welke volgorde rijen met dezelfde partition key op 1 node bewaard worden. Dit is standaard in oplopende volgorde.\\\\
@@ -12,10 +29,10 @@ Die primary key bestaat uit 2 delen: het eerste is de partition key, deze bestaa
 Omdat het inspecteren van cellen indruist tegen de principes van Cassandra, zijn de query-mogelijkheden eerder beperkt: zonder het defini\"eren van indices is het in \texttt{WHERE}-clausules enkel mogelijk beperkingen op te leggen aan kolommen in de primary key, en dan nog zo dat de bedoelde rijen binnen 1 partitie liggen, en opeenvolgend opgeslagen zijn. Daarom moet er een gelijkheidsbeperking opgelegd worden aan de volledige partition key, en mogen er zowel gelijk- als ongelijkheidsbeperkingen opgelegd worden aan de kolommen in de clustering key, maar enkel op voorwaarde dat de voorgaande kolom in de clustering key ook met een gelijkheidsbeperking gespecifieerd is. Op deze manier kan Cassandra queries zeer snel uitvoeren door ze a.d.h.v. de hash van de partition key naar een juiste node te routeren, en vervolgens via de overige opgegeven kolommen de locatie van de juiste rijen te berekenen (die omwille van de clustering allemaal opelkaar volgend opgeslagen zijn). Dit gebeurt zonder de waarden van individuele cellen te bekijken, maar dus enkel door het berekenen van een simpele hashfunctie. Range-queries zijn dus enkel mogelijk op kolommen in de clustering key en het is niet mogelijk \texttt{!=}-beperkingen te gebruiken in \texttt{WHERE}-clausules. Bovendien laat Cassandra enkel toe beperkingen met elkaar te combineren via conjuncties, dus niet via \texttt{OR}- of \texttt{NOT}-operatoren. Een uitzondering op dit laatste is de \texttt{IN}-operator: op deze manier kan de gebruiker meegeven in welke set van waarden een bepaalde kolom moet liggen, maar dit is ook enkel mogelijk op de laatste kolom in de partition key of de laatste kolom in de clustering key (maar weer op voorwaarde dat de voorgaande kolommen reeds beperkt zijn).\\
 Cassandra laat toe om indices op kolommen te defini\"eren, maar deze zijn niet bijzonder nuttig. Ze laten enkel gelijkheidsbeperkingen toe (dus geen range-queries) en bovendien raadt Datastax het gebruik van indices op kolommen met zowel een zeer lage als een zeer hoge kardinaliteit af, dit omdat in het eerste geval de index tabel zal bestaan uit zeer weinig zeer lange rijen voor elk van de ge\"indexeerde waarden en in het tweede geval Cassandra bij een query op de ge\"indexeerde kolom door zeer veel verscheidene waarden zal moeten zoeken om een klein aantal resultaten te vinden \cite{when_to_use_index}.
 
-\section{Database schema GEMINI}
+\subsection{Databaseschema GEMINI}
 Zoals blijkt uit bovenstaande beschrijving van het datamodel van Cassandra, leent het systeem zich niet zomaar tot ad-hoc querying: het is niet mogelijk op een performante manier zomaar aan willekeurige kolommen in een tabel voorwaarden op te leggen en deze voorwaarden met elkaar te combineren. Dit betekent dat bij het ontwerpen van het database schema al rekening gehouden moet worden met de queries die achteraf op de data mogelijk moeten zijn. Omdat het soort queries dat een tabel ondersteunt sterk samenhangt met de keuze van de primary key van de tabel en GEMINI meerdere, uiteenlopende soorten queries op elke tabel vereist, zal dit onvermijdelijk leiden tot duplicatie van data.
 
-\subsection{\texttt{variants}-tabel vs. genotype-informatie}
+\paragraph{\texttt{variants}-tabel vs. genotype-informatie}
 
 Het belangrijkste vraagstuk is hoe de genotype-kolommen uit het oorspronkelijke relationele model in Cassandra op te slaan. Hier zijn enkele opties voor:
 
@@ -67,7 +84,7 @@ Het grote voordeel van deze aanpak is dat het, dankzij de keuze van de primary k
 De uiteindelijke keuze is gevallen op een combinatie van de tweede en derde optie. Dit om de volledige oorspronkelijke functionaliteit van GEMINI te kunnen bieden: enerzijds het opvragen van de genotype-informatie van willekeurige samples door middel van de sample-filters, en anderzijds het query'en van de \texttt{variants}-tabel met, dankzij gt-filters en -wildcards, beperkingen op de genotypes van specifiek gekozen samples. Zoals hierboven beschreven is dit laatste niet voor de hand liggend, en zal door het ontbreken van \texttt{JOIN}s en de layout van de \texttt{genotype}-tabellen het combineren van beperkingen op de genotypes van meerdere samples nog extra aanpassingen vergen. Hier komt sectie \ref{??} uitgebreid op terug.
 %TODO 
 
-\subsection{\texttt{variants-, samples-}tabel vs. arbitraire queries}
+\paragraph{\texttt{variants-, samples-}tabel vs. arbitraire queries}
 
 Een tweede belangrijke vraagstuk is hoe de \texttt{variants-} en \texttt{samples-}tabellen zo te ontwerpen dat ze ook op andere, arbitraire kolommen effici\"ent doorzoekbaar zijn.\\
 Om queries op kolommen te ondersteunen die logisch gezien enkel met gelijkheden beperkt zullen worden, zoals \texttt{chrom} of respectievelijk \texttt{sex}, zou het in theorie volstaan op deze kolommen een secundaire index te defini\"eren. Dit is eenvoudig bij de creatie van de tabel, veroorzaakt geen duplicatie van data en is zeer rechttoe-rechtaan bij het query'en, maar heeft zoals hierboven vermeld onvoorspelbare performantie afhankelijk van de kardinaliteit van de kolommen. Bovendien werkt dit mechanisme niet voor kolommen die vaker met ongelijkheidsbeperkingen gequeried zullen worden, zoals \texttt{depth}, \texttt{start}, of in het geval van de \texttt{samples}-tabel (hypothetisch, deze tabellen zitten niet standaard in GEMINI) leeftijd of generatie.\\
@@ -104,4 +121,13 @@ Een aanpak die in beide gevallen op een voorspelbare en betrouwbare manier werkt
 \end{itemize}
 
 Ten slotte is het ook nog interessant een feature aan de GEMINI command line interface toe te voegen waarmee de gebruiker zelf nieuwe basistabellen kan defini\"eren wanneer hij dit nodig acht.
+
+\section{Implementatie GEMINI vs. Cassandra}
+
+\paragraph{\texttt{gemini load}}
+
+Het inladen van genoomdata in GEMINI gebeurt in twee stappen. De reden voor deze opsplitsing is dat een klein deel van het inladen en initialiseren van de databank niet parallel op meerdere processoren kan verlopen. \\In de eerste en kleinste van de twee, initialiseert GEMINI de databank, maakt de nodige tabellen aan en laadt de samples-informatie in. GEMINI haalt de namen van de samples uit de VCF-file, en vult deze aan met informatie uit de ped-file. Indien er geen ped-file voorhanden is, initialiseert GEMINI de \texttt{samples}-tabel met default-waarden voor de kolommen zoals \texttt{sex} en \texttt{phenotype}. Meteen worden ook de extra, aan de \texttt{samples}-tabel verbonden tabellen zoals \texttt{samples\_by\_sex} en \texttt{samples\_by\_phenotype} aangemaakt en gevuld. Ook de \texttt{resources, gene\_detailed, gene\_summary, version} worden in deze fase gevuld. Dit omdat de pedigree-files en de bestanden met data over de genen niet effici\"ent opgesplitst kunnen worden. Bovendien is de duur van het inladen van de \texttt{samples}-tabel zelfs bij 10000'en samples verwaarloosbaar tegenover het inladen en annoteren van de \texttt{variants}-tabel.\\
+
+In de tweede fase gebeurt het leeuwendeel van het werk: het inladen van de variants-informatie uit de (verplicht meegegeven) VCF-file. Dankzij de bgzip \cite{bgzip} en grabix \cite{grabix} tools kan GEMINI effici\"ent VCF-bestanden in blokken opsplitsen, comprimeren, hierop een index defini\"eren en vervolgens daarmee verderwerken. Zo kan GEMINI eenvoudig het inladen van de variants, die elk \'e\'en lijn in de VCF-file in beslag nemen, gemakkelijk over meerdere cores verdelen. Het is uiteraard ook in deze fase dat GEMINI de aan de \texttt{variants}-tabel verwante tabellen zoals \texttt{variants\_by\_samples\_gt\_type}, \texttt{variants\_by\_samples\_gt\_depth} en \texttt{variants\_by\_chrom\_start} opvult. Alle cores of nodes in het cluster, voeren rechtstreeks rijen in in \'e\'en en dezelfde tabel in de Cassandra-databank. Omdat Cassandra atomiciteit binnen rijen garandeert en alle workers strikt disjuncte sets van variants invoeren in het systeem, is er geen enkel risico op conflicten.\\\\
+De grote winst ten opzichte van de SQLite-implementatie van GEMINI is dat in het parallelle gedeelte, alle workers naar de zelfde databank kunnen schrijven. In de SQLite-versie van GEMINI schreven alle workers naar een aparte SQLite-database, die vervolgens in een kostelijke operatie nog allemaal samengevoegd moeten worden tot \'e\'en grote SQLite-databank. Deze stap (het \texttt{gemini merge}-commando) kan de Cassandra-implementatie volledig overslaan.
  
