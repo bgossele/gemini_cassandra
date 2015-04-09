@@ -21,3 +21,5 @@ bash test-wildcards.sh
 bash test-genotypes.sh
 
 bash test-exac.sh
+
+bash test-genome.sh
