@@ -922,7 +922,9 @@ class GeminiQuery(object):
         wildcard_rule = self._swap_genotype_for_number(wildcard_rule)
         wildcard_rule = wildcard_rule.replace('==', '=')
         
-        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.db_contact_points, self.keyspace, self.nr_cores) 
+        actual_nr_cores = min(len(sample_names), self.nr_cores)
+        
+        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.db_contact_points, self.keyspace, actual_nr_cores) 
     
     def _swap_genotype_for_number(self, token):
                 
