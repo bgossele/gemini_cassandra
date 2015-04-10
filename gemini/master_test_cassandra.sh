@@ -29,3 +29,5 @@ bash test-exac.sh
 bash test-genome.sh
 
 bash test-columns.sh
+
+bash test-clinvar.sh

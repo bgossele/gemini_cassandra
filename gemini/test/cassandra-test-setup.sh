@@ -5,4 +5,5 @@ gemini load --skip-gene-tables --test-mode -v test.exac.vcf --skip-gerp-bp --ski
 gemini load --skip-gene-tables --test-mode -v test3.snpeff.vcf --skip-gerp-bp --skip-cadd -ks test3_snpeff_db --cores 3
 gemini load --skip-gene-tables --test-mode -v test.vcf_id.snpeff.vcf  --skip-gerp-bp --skip-cadd -t snpEff -ks test_vcf_id_snpeff_vcf_db --cores 3
 gemini load --skip-gene-tables --test-mode -v test2.snpeff.vcf --skip-gerp-bp --skip-cadd -ks test2_snpeff_db --cores 3
+gemini load --skip-gene-tables --test-mode -v test.clinvar.vcf --skip-gerp-bp --skip-cadd -ks test_clinvar_db
 
