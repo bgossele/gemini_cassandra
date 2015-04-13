@@ -18,9 +18,7 @@ def all_samples_predicate(args):
     return select_subjects_predicate(subjects, args)
 
 def family_wise_predicate(args):
-    formatter = select_formatter(args)
     families = get_family_dict(args)
-    gq = GeminiQuery.GeminiQuery(args.db, out_format=formatter)
     predicates = []
     for f in families.values():
         family_names = [x.name for x in f]
@@ -116,10 +114,11 @@ def run_query(args):
     formatter = select_formatter(args)
     genotypes_needed = needs_genotypes(args)
     gene_needed = needs_gene(args)
+    sample_names_needed = args.sample_filter or args.family_wise
     gq = GeminiQuery.GeminiQuery(args.contact_points, args.keyspace, out_format=formatter)
     gq.run(args.query, args.gt_filter, args.show_variant_samples,
            args.sample_delim, predicates, genotypes_needed,
-           gene_needed, args.show_families, args.testing, args.cores)
+           gene_needed, args.show_families, args.testing, sample_names_needed, args.cores)
 
     if args.use_header and gq.header:
         print gq.header

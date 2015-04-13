@@ -270,6 +270,51 @@ gemini query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" 
 check obs exp
 rm obs exp
 
+########################################################################
+# 23. Test exclude-phenotype query
+########################################################################
+echo "    query.t23...\c"
+echo "C/T	C/C	C/C	C/C	1	0	0	0
+G/G	G/A	G/G	G/G	0	1	0	0" > exp
+gemini query --sample-filter "NOT phenotype='2'" --in only -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test4_snpeff_ped_db > obs
+check obs exp
+rm obs exp
+
+########################################################################
+# 24. Test phenotype query
+########################################################################
+echo "    query.t24...\c"
+echo "./.	./.	C/C	C/C	2	2	3	3
+T/T	T/T	C/C	C/C	0	0	3	3
+T/T	T/T	T/C	T/C	0	0	1	1" > exp
+gemini query --sample-filter "phenotype='2'" --in only all -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test4_snpeff_ped_db > obs
+check obs exp
+rm obs exp
+
+########################################################################
+# 26. Test family-wise query
+########################################################################
+echo "    query.t26...\c"
+echo "T/T	C/C	T/T	T/T	T/C	T/T	T/T	T/T	T/T	0	3	0	0	1	0	0	0	0
+C/T	C/T	C/T	C/T	T/T	C/C	C/T	C/C	C/T	1	1	1	1	3	0	1	0	1
+C/T	C/T	C/C	T/T	C/T	C/T	C/T	C/T	C/C	1	1	0	3	1	1	1	1	0
+G/G	G/A	G/A	G/A	G/A	G/G	G/G	G/G	G/A	0	1	1	1	1	0	0	0	1
+T/T	T/C	T/T	T/C	T/C	T/T	T/T	T/T	T/T	0	1	0	1	1	0	0	0	0" > exp
+gemini query  --min-kindreds 2 --family-wise --sample-filter "phenotype='2'" --in all -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test_family_db > obs
+check obs exp
+rm obs exp
+
+########################################################################
+# 27. Test family-wise phenotype exclusion query
+########################################################################
+echo "    query.t27...\c"
+echo "T/T	C/C	T/T	T/T	T/C	T/T	T/T	T/T	T/T	0	3	0	0	1	0	0	0	0
+T/T	T/C	T/T	T/T	T/T	T/T	T/T	T/T	T/T	0	1	0	0	0	0	0	0	0
+T/T	T/C	T/T	T/C	T/C	T/T	T/T	T/T	T/T	0	1	0	1	1	0	0	0	0" > exp
+gemini query  --in none --sample-filter "phenotype='1'" -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test_family_db > obs
+check obs exp
+rm obs exp
+
 ####################################################################
 # 31. Test that rows are filtered based on a --gt-filter if
 #     a GT* column is SELECTed.

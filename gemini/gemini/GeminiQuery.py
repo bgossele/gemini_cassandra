@@ -5,7 +5,6 @@ import cassandra
 from cassandra.cluster import Cluster
 import collections
 import json
-import os
 import re
 import sys
 
@@ -455,7 +454,7 @@ class GeminiQuery(object):
     def run(self, query, gt_filter=None, show_variant_samples=False,
             variant_samples_delim=',', predicates=None,
             needs_genotypes=False, needs_genes=False,
-            show_families=False, sort_results=False, nr_cores = 1):
+            show_families=False, sort_results=False, needs_sample_names=False, nr_cores = 1):
         """
         Execute a query against a Gemini database. The user may
         specify:
@@ -479,6 +478,7 @@ class GeminiQuery(object):
         self.needs_vcf_columns = False
         if self.formatter.name == 'vcf':
             self.needs_vcf_columns = True
+        self.needs_sample_names = needs_sample_names
 
         self.needs_genes = needs_genes
         self.show_families = show_families
@@ -519,7 +519,33 @@ class GeminiQuery(object):
             
         self._apply_query()
         self.query_executed = True
-
+        
+    def run_simple_query(self, query):
+        (requested_columns, from_table, where_clause, rest_of_query) = get_query_parts(query)
+        if where_clause != '':
+            where_exp = self.parse_where_clause(where_clause, from_table)
+        if not where_exp is None:
+            matches = where_exp.evaluate(self.session, "*")
+            
+        if len(matches) == 0:
+            return OrderedDict([])
+        else:
+            try:
+                dink_query = "SELECT %s FROM %s" % (','.join(requested_columns), from_table)
+                if matches != "*":
+                    if from_table.startswith('samples'):
+                        in_clause = "','".join(matches)            
+                        dink_query += " WHERE %s IN ('%s')" % (self.get_partition_key(from_table), in_clause)
+                    else:
+                        in_clause = ",".join(map(lambda x: str(x), matches))            
+                        dink_query += " WHERE %s IN (%s)" % (self.get_partition_key(from_table), in_clause)
+                dink_query += " " + rest_of_query
+                self.session.row_factory = ordered_dict_factory
+                return self.session.execute(dink_query)                
+                
+            except cassandra.protocol.SyntaxException as e:
+                print "Cassandra error: {0}".format(e)
+                sys.exit("The query issued (%s) has a syntax error." % query)
 
     def __iter__(self):
         return self
@@ -568,7 +594,7 @@ class GeminiQuery(object):
                 elif col == "info":
                     fields[col] = self._info_dict_to_string(info)
 
-            if self.show_variant_samples:
+            if self.show_variant_samples or self.needs_sample_names:
                 
                 het_names = self._get_variant_samples(row['variant_id'], HET)
                 hom_alt_names = self._get_variant_samples(row['variant_id'], HOM_ALT)
@@ -576,18 +602,19 @@ class GeminiQuery(object):
                 unknown_names = self._get_variant_samples(row['variant_id'], UNKNOWN)
                 variant_names = het_names | hom_alt_names
                 
-                fields["variant_samples"] = \
-                    self.variant_samples_delim.join(variant_names)
-                fields["HET_samples"] = \
-                    self.variant_samples_delim.join(het_names)
-                fields["HOM_ALT_samples"] = \
-                    self.variant_samples_delim.join(hom_alt_names)
+                if self.show_variant_samples:
+                    fields["variant_samples"] = \
+                        self.variant_samples_delim.join(variant_names)
+                    fields["HET_samples"] = \
+                        self.variant_samples_delim.join(het_names)
+                    fields["HOM_ALT_samples"] = \
+                        self.variant_samples_delim.join(hom_alt_names)
                     
             if self.show_families:
                 families = map(str, list(set([self.sample_to_sample_object[x].family_id
                                               for x in variant_names])))
                 fields["families"] = self.variant_samples_delim.join(families)
-
+            
             gemini_row = GeminiRow(fields, variant_names, het_names, hom_alt_names,
                                    hom_ref_names, unknown_names, info,
                                    formatter=self.formatter)
@@ -705,7 +732,7 @@ class GeminiQuery(object):
             # names with sample indices
             self._split_select()
                 
-        if self.show_families or self.show_variant_samples:
+        if self.show_families or self.show_variant_samples or self.needs_sample_names:
             if (not 'variant_id' in self.requested_columns) and (not "*" in self.requested_columns):
                 self.extra_columns.append('variant_id')
         if self.sort_results and self.from_table == 'variants' and not 'start' in self.requested_columns:
@@ -715,7 +742,6 @@ class GeminiQuery(object):
 
     def _get_matching_sample_ids(self, wildcard):
         
-        query = 'SELECT name FROM '
         if wildcard.strip() != "*":        
             query = self.parse_where_clause(wildcard, 'samples')
         else:
@@ -749,12 +775,12 @@ class GeminiQuery(object):
         to:
             "gt_types[2] == HET and gt_types[5] == HET"
         """
-        return self.parse_clause(self.gt_filter, self.gt_base_parser)
+        return self.parse_clause(self.gt_filter, self.gt_base_parser, 'variants')
     
     def parse_where_clause(self, where_clause, table):
-        return self.parse_clause(where_clause, lambda x: self.where_clause_to_exp(table, self.get_partition_key(table), x,))
+        return self.parse_clause(where_clause, lambda x: self.where_clause_to_exp(table, self.get_partition_key(table), x), table)
     
-    def parse_clause(self, clause, base_clause_parser):
+    def parse_clause(self, clause, base_clause_parser, table):
         
         clause = clause.strip()    
         depth = 0
@@ -776,29 +802,29 @@ class GeminiQuery(object):
             elif i < len(clause) - 2:
                 if clause[i:i+2] == "||":
                     if depth == 0:
-                        left = self.parse_clause(clause[:i].strip(), base_clause_parser)
-                        right = self.parse_clause(clause[i+2:].strip(), base_clause_parser)
+                        left = self.parse_clause(clause[:i].strip(), base_clause_parser, table)
+                        right = self.parse_clause(clause[i+2:].strip(), base_clause_parser, table)
                         return OR_expression(left, right)
                     else:
                         min_depth = min(min_depth, depth)
                 elif clause[i:i+2] == "&&":
                     if depth == 0:
-                        left = self.parse_clause(clause[:i].strip(), base_clause_parser)
-                        right = self.parse_clause(clause[i+2:].strip(), base_clause_parser)
+                        left = self.parse_clause(clause[:i].strip(), base_clause_parser, table)
+                        right = self.parse_clause(clause[i+2:].strip(), base_clause_parser, table)
                         return AND_expression(left, right)
                     else:
                         min_depth = min(min_depth, depth)   
                 elif i < len(clause) - 3:                
                     if clause[i:i+3] == "NOT":
                         if depth == 0:
-                            body = self.parse_clause(clause[i+3:].strip(), base_clause_parser)
-                            return NOT_expression(body, 'variants', 'variant_id')
+                            body = self.parse_clause(clause[i+3:].strip(), base_clause_parser, table)
+                            return NOT_expression(body, table, self.get_partition_key(table))
                         else:
                             min_depth = min(min_depth, depth)
         if depth == 0:
             if min_depth < 100000:
                 #Strip away all brackets to expose uppermost boolean operator
-                return self.parse_clause(clause[min_depth:len(clause)-min_depth], base_clause_parser)
+                return self.parse_clause(clause[min_depth:len(clause)-min_depth], base_clause_parser, table)
             else:
                 #No more boolean operators, strip all remaining brackets
                 token = clause.strip('(').strip(')')

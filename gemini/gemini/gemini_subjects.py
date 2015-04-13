@@ -2,10 +2,9 @@
 import sqlite3
 import os
 import sys
-import numpy as np
 from collections import defaultdict
 
-from gemini_constants import *
+from gemini_constants import HET, HOM_ALT, HOM_REF
 import GeminiQuery
 
 class Subject(object):
@@ -27,7 +26,7 @@ class Subject(object):
         self.mother = True
 
     def _set_fields_from_row(self, row):
-        [setattr(self, k, v) for (k, v) in zip(row.keys(), list(row))]
+        [setattr(self, k, v) for (k, v) in row.iteritems()]
         self.phenotype = int(self.phenotype) if self._has_phenotype() else None
         self._set_affected_status(row)
 
@@ -560,25 +559,6 @@ class Family(object):
 
         return mask
 
-
-    def get_genotype_columns(self):
-        """
-        Return the indices into the gts numpy array for the parents
-        and the children.
-        """
-        columns = []
-
-        if not self.find_parents():
-            for subject in self.subjects:
-                columns.append('gts[' + str(subject.sample_id - 1) + ']')
-        else:
-            columns.append('gts[' + str(self.father.sample_id - 1) + ']')
-            columns.append('gts[' + str(self.mother.sample_id - 1) + ']')
-            for child in self.children:
-                columns.append('gts[' + str(child.sample_id - 1) + ']')
-
-        return columns
-
     def get_genotype_depths(self):
         """
         Return the indices into the gt_depths numpy array for the parents
@@ -711,14 +691,14 @@ def get_subjects(args, skip_filter=False):
     return a dictionary of subjects, optionally using the
     subjects_query argument to filter them.
     """
-    gq = GeminiQuery.GeminiQuery(args.db)
+    gq = GeminiQuery.GeminiQuery(args.contact_points, args.keyspace)
     query = "SELECT * FROM samples"
     if not skip_filter:
         if hasattr(args, 'sample_filter') and args.sample_filter:
             query += " WHERE " + args.sample_filter
-    gq.c.execute(query)
+    res = gq.run_simple_query(query)
     samples_dict = {}
-    for row in gq.c:
+    for row in res:
         subject = Subject(row)
         samples_dict[subject.name] = subject
     return samples_dict

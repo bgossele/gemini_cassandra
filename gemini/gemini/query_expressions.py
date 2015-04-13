@@ -16,7 +16,7 @@ class Expression(object):
     @abc.abstractmethod
     def evaluate(self, session, starting_set):
         return
-
+    
     @abc.abstractmethod
     def to_string(self):
         return
@@ -41,12 +41,12 @@ class Simple_expression(Expression):
         if self.where_clause != "":
             query += " WHERE %s" % self.where_clause            
         if self.can_prune() and not starting_set == "*":
-            if self.table == 'samples':
+            if self.table.startswith('samples'):
                 in_clause = "','".join(starting_set)            
                 query += " AND %s IN ('%s')" % (self.select_column, in_clause)
             else:
                 in_clause = ",".join(map(lambda x: str(x), starting_set))            
-                query += " AND %s IN (%s)" % (self.select_column, in_clause)       
+                query += " AND %s IN (%s)" % (self.select_column, in_clause)     
         return rows_as_set(socket.execute(query))
 
     def to_string(self):
@@ -117,7 +117,7 @@ class NOT_expression(Expression):
             correct_starting_set = rows_as_set(session.execute("SELECT %s FROM %s" % (self.select_column, self.table)))
         else:
             correct_starting_set = starting_set
-            
+        
         return diff(correct_starting_set, self.exp.evaluate(session, correct_starting_set))
 
     def to_string(self):
