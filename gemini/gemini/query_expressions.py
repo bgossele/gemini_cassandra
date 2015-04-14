@@ -16,10 +16,6 @@ class Expression(object):
     @abc.abstractmethod
     def evaluate(self, session, starting_set):
         return
-    
-    @abc.abstractmethod
-    def to_string(self):
-        return
 
     @abc.abstractmethod
     def can_prune(self):
@@ -49,7 +45,7 @@ class Simple_expression(Expression):
                 query += " AND %s IN (%s)" % (self.select_column, in_clause)     
         return rows_as_set(socket.execute(query))
 
-    def to_string(self):
+    def __str__(self):
         return self.where_clause
 
     def can_prune(self):
@@ -74,10 +70,10 @@ class AND_expression(Expression):
             return self.left.evaluate(session, temp)
         else:
             temp = self.left.evaluate(session, starting_set)
-            return intersect(temp, self.right.evaluate(session, temp))
+            return temp & self.right.evaluate(session, temp)
 
-    def to_string(self):
-        res = "(" + self.left.to_string() + ")" + " AND " + "(" + self.right.to_string() + ")"
+    def __str__(self):
+        res = "(" + str(self.left) + ")" + " AND " + "(" + str(self.right) + ")"
         return res
 
     def can_prune(self):
@@ -93,10 +89,10 @@ class OR_expression(Expression):
         
         if len(starting_set) == 0:
             return set()        
-        return union(self.left.evaluate(session, starting_set), self.right.evaluate(session, starting_set))
+        return self.left.evaluate(session, starting_set) | self.right.evaluate(session, starting_set)
 
-    def to_string(self):
-        res = "(" + self.left.to_string() + ")" + " OR " + "(" + self.right.to_string() + ")"
+    def __str__(self):
+        res = "(" + str(self.left) + ")" + " OR " + "(" + str(self.right) + ")"
         return res
 
     def can_prune(self):
@@ -118,10 +114,10 @@ class NOT_expression(Expression):
         else:
             correct_starting_set = starting_set
         
-        return diff(correct_starting_set, self.exp.evaluate(session, correct_starting_set))
+        return correct_starting_set - self.exp.evaluate(session, correct_starting_set)
 
-    def to_string(self):
-        return "NOT (" + self.exp.to_string() + ")"
+    def __str__(self):
+        return "NOT (" + str(self.exp) + ")"
 
     def can_prune(self):
         return True
@@ -141,7 +137,7 @@ class GT_wildcard_expression(Expression):
         self.db_contact_points = db_contact_points
         self.keyspace = keyspace
         
-    def to_string(self):
+    def __str__(self):
         return "[%s].[%s].[%s].[%s]" % (self.column, ','.join(self.names), self.wildcard_rule, self.rule_enforcement)
     
     def can_prune(self):
@@ -208,14 +204,14 @@ class GT_wildcard_expression(Expression):
         
         if target_rule == 'any':
             for r in results:
-                res = union(res, r)
+                res = res | r
         elif target_rule in ['all', 'none']:
             res = results[0]
             for r in results[1:]:
-                res = intersect(res, r)
+                res = res & r
                                 
         if invert:
-            res = diff(set(correct_starting_set), res)
+            res = set(correct_starting_set) - res
         
         if target_rule == 'count':
             res_dict = {x: 0 for x in correct_starting_set}
@@ -230,27 +226,12 @@ class GT_wildcard_expression(Expression):
             res = set([v for v, c in res_dict.iteritems() if eval(str(c) + self.count_comp)])
         
         return res
-
-def diff(list1, list2):
-    return list1 - list2
-    #return filter(lambda x: not x in list2, list1)
-
-def union(list1, list2):
-    return list1 | list2
-    #return set(list1).union(list2)
-
-def intersect(list1, list2):
-    return list1 & list2
-    #return filter(lambda x: x in list2, list1)
     
 def rows_as_set(rows):
     s = set()
     for r in rows:
         s.add(r[0])
     return s
-
-def rows_as_list(rows):
-    return map(lambda x: x[0], rows)
  
 def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         
@@ -278,7 +259,7 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
             query += " AND variant_id IN (%s)" % in_clause
             results = rows_as_set(session.execute(query))
         else:
-            results = intersect(rows_as_set(session.execute(query)), results)
+            results = rows_as_set(session.execute(query)) | results
         
     session.shutdown()   
     
@@ -303,7 +284,7 @@ def any_query(conn, field, clause, initial_set, contact_points, keyspace):
             query += " AND variant_id IN (%s)" % in_clause      
         
         row = rows_as_set(session.execute(query))
-        results = union(row, results)
+        results = row | results
         
     session.shutdown()   
     
@@ -327,8 +308,8 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
             in_clause = ",".join(map(lambda x: str(x), results))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        row = rows_as_set(session.execute(query))
-        results = diff(results, row)
+        variants = rows_as_set(session.execute(query))
+        results = results - variants
         
     session.shutdown()   
     
