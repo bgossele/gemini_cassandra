@@ -21,7 +21,7 @@ class Expression(object):
     def can_prune(self):
         return True
 
-class Simple_expression(Expression):
+class Basic_expression(Expression):
     
     def __init__(self, from_table, select_column, where_clause):
         self.table = from_table
@@ -33,23 +33,27 @@ class Simple_expression(Expression):
         if len(starting_set) == 0:
             return set()
         
-        query = "SELECT %s FROM %s" % (self.select_column, self.table)
+        query = "SELECT %s FROM %s" % \
+            (self.select_column, self.table)
         if self.where_clause != "":
             query += " WHERE %s" % self.where_clause            
         if self.can_prune() and not starting_set == "*":
             if self.table.startswith('samples'):
                 in_clause = "','".join(starting_set)            
-                query += " AND %s IN ('%s')" % (self.select_column, in_clause)
+                query += " AND %s IN ('%s')" % \
+                    (self.select_column, in_clause)
             else:
-                in_clause = ",".join(map(lambda x: str(x), starting_set))            
-                query += " AND %s IN (%s)" % (self.select_column, in_clause)     
+                in_clause = ",".join(map(str, starting_set))            
+                query += " AND %s IN (%s)" % \
+                    (self.select_column, in_clause)     
         return rows_as_set(socket.execute(query))
+    
+    def can_prune(self):
+        return not any (op in self.where_clause \
+                        for op in ["<", ">"])
 
     def __str__(self):
         return self.where_clause
-
-    def can_prune(self):
-        return not any (op in self.where_clause for op in ["<", ">"])
     
 class AND_expression(Expression):
     
@@ -101,7 +105,7 @@ class OR_expression(Expression):
 class NOT_expression(Expression):
     
     def __init__(self, exp, table, select_column):
-        self.exp = exp
+        self.body = exp
         self.table = table
         self.select_column = select_column
  
@@ -110,14 +114,16 @@ class NOT_expression(Expression):
         if len(starting_set) == 0:
             return set()        
         elif starting_set == '*':
-            correct_starting_set = rows_as_set(session.execute("SELECT %s FROM %s" % (self.select_column, self.table)))
+            correct_starting_set = rows_as_set(session.execute(\
+                "SELECT %s FROM %s" % (self.select_column, self.table)))
         else:
             correct_starting_set = starting_set
         
-        return correct_starting_set - self.exp.evaluate(session, correct_starting_set)
+        return correct_starting_set - \
+            self.body.evaluate(session, correct_starting_set)
 
     def __str__(self):
-        return "NOT (" + str(self.exp) + ")"
+        return "NOT (" + str(self.body) + ")"
 
     def can_prune(self):
         return True
@@ -255,7 +261,7 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         if results == "*":
             results = rows_as_set(session.execute(query))
         elif not any (op in clause for op in ["<", ">"]):
-            in_clause = ",".join(map(lambda x: str(x), results))
+            in_clause = ",".join(map(str, results))
             query += " AND variant_id IN (%s)" % in_clause
             results = rows_as_set(session.execute(query))
         else:
@@ -280,7 +286,7 @@ def any_query(conn, field, clause, initial_set, contact_points, keyspace):
         query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
         if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
-            in_clause = ",".join(map(lambda x: str(x), initial_set))
+            in_clause = ",".join(map(str, initial_set))
             query += " AND variant_id IN (%s)" % in_clause      
         
         row = rows_as_set(session.execute(query))
@@ -305,7 +311,7 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
         query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
         if not any (op in clause for op in ["<", ">"]):           
-            in_clause = ",".join(map(lambda x: str(x), results))
+            in_clause = ",".join(map(str, results))
             query += " AND variant_id IN (%s)" % in_clause      
         
         variants = rows_as_set(session.execute(query))
@@ -330,7 +336,7 @@ def count_query(conn, field, clause, initial_set, contact_points, keyspace):
         query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
         if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
-            in_clause = ",".join(map(lambda x: str(x), initial_set))
+            in_clause = ",".join(map(str, initial_set))
             query += " AND variant_id IN (%s)" % in_clause      
         
         row = rows_as_set(session.execute(query))

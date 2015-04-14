@@ -14,7 +14,7 @@ from gemini_subjects import get_subjects
 from gemini_utils import (OrderedDict, itersubclasses, partition_by_fn)
 from sql_utils import ensure_columns
 from collections import namedtuple
-from gemini.query_expressions import Simple_expression, AND_expression,\
+from gemini.query_expressions import Basic_expression, AND_expression,\
     NOT_expression, OR_expression, rows_as_set, GT_wildcard_expression
 from gemini.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
@@ -537,7 +537,7 @@ class GeminiQuery(object):
                         in_clause = "','".join(matches)            
                         dink_query += " WHERE %s IN ('%s')" % (self.get_partition_key(from_table), in_clause)
                     else:
-                        in_clause = ",".join(map(lambda x: str(x), matches))            
+                        in_clause = ",".join(map(str, matches))            
                         dink_query += " WHERE %s IN (%s)" % (self.get_partition_key(from_table), in_clause)
                 dink_query += " " + rest_of_query
                 self.session.row_factory = ordered_dict_factory
@@ -690,7 +690,7 @@ class GeminiQuery(object):
                 query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
                 if self.matches != "*":
                     if self.from_table != 'samples':
-                        in_clause = ",".join(map(lambda x: str(x), self.matches))            
+                        in_clause = ",".join(map(str, self.matches))            
                         query += " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
                     else:
                         in_clause = "','".join(self.matches)            
@@ -745,7 +745,7 @@ class GeminiQuery(object):
         if wildcard.strip() != "*":        
             query = self.parse_where_clause(wildcard, 'samples')
         else:
-            query = Simple_expression('samples', 'name', "")
+            query = Basic_expression('samples', 'name', "")
         return list(query.evaluate(self.session, '*'))
 
 
@@ -835,7 +835,7 @@ class GeminiQuery(object):
     def where_clause_to_exp(self, table, cols, clause):
         
         target_table = self.get_table_from_where_clause(table, clause)
-        exp = Simple_expression(target_table, cols, clause)
+        exp = Basic_expression(target_table, cols, clause)
         return exp
     
     def get_table_from_where_clause(self, table, where_clause):
@@ -920,7 +920,7 @@ class GeminiQuery(object):
                         
         (column, sample) = left.split('.', 1)
                 
-        exp = Simple_expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
+        exp = Basic_expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
         if not_exp:
             return NOT_expression(exp, 'variants', 'variant_id')
         else:
