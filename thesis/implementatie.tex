@@ -156,8 +156,48 @@ Het uiteindelijke algoritme om de juiste hulptabel te identificeren op basis van
 
 \paragraph{Combineren subqueries}
 
-%recursive datatypes
-\texttt{query\_expression}s are ze weej toe goow
+Conceptueel:
+De subqueries zullen elk een verzameling rijen als resultaat opleveren. Het is dan zaak deze verzamelingen met set-operaties te combineren tot de finale verzameling rijen die aan de query voldoen. De nodige set-operatie hangt af van de oorspronkelijke query. Zo zal het eindresultaat van een conjunctie van subqueries de doorsnede van de resultaatverzamelingen van de subqueries zijn. In het geval van een disjunctie is dit de unie van de resultaatverzamelingen, en in het geval van een negatie van een subquery is dit het verschil tussen de oorspronkelijke verzameling (voor de query) en de resultaatverzameling van de query. Om bijvoorbeeld alle varianten te vinden die niet op een bepaald gen x liggen, moet het verschil bepaald worden tussen de verzameling van alle varianten en de verzameling van alle varianten die op gen x liggen. Onderstaande tabel vat dit samen voor 2 subqueries $p$ en $r$, hun respectievelijke resultaatverzamelingen $res(p)$ en $res(r)$ en een initi\"ele verzameling rijen $I$.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Query} & \textbf{Resultaat}    \\ \hline
+$p$ \texttt{AND} $r$ & $res(p) \cap res(r)$   \\ \hline
+$p$ \texttt{OR} $r$ & $res(p) \cup res(r)$    \\ \hline
+\texttt{NOT} $p$  & $I \setminus res(p)$ \\ \hline
+\end{tabular}
+\end{table}
+
+Praktisch:
+
+Uit performantie-overwegingen is het een logische keuze de resultaten van subqueries op de hulptabellen te bewaren in een set datatype. Zo kunnen de benodigde set-operaties gebruik maken van de in Python ingebouwde set-operaties en zo veel effici\"enter verlopen dan wanneer de resultaten in bijvoorbeeld lists bewaard worden. Het enige nadeel van sets t.o.v. lists is dat de implementatie geen garanties biedt over in welke volgorde rijen in het eindresultaat zullen voorkomen. Dit weegt niet op tegen de tijdswinst, en bovendien biedt Cassandra zelf in het algemeen geen enkele garantie over in welke volgorde het rijen opslaat.\\\\
+Bij het praktisch evalueren van \texttt{query\_expression}s komt uiteindelijk meer kijken dan enkel set-operaties. De belangrijkste reden hiervoor is dat, zoals in ?? %TODO
+reeds beschreven, om een \texttt{NOT\_expression} te kunnen evalueren, alle kandidaat-rijen gekend moet zijn, en dus meegegeven aan de \texttt{evaluate}-functie. Deze extra informatie kan ook bij het evalueren van andere types van \texttt{query\_expression} goed van pas komen.
+ 
+\begin{itemize}
+\item \texttt{Basic\_expression}
+Het evalueren van \texttt{Basic\_expression}s gebeurt niet zo rechtoe rechtaan als de naam doet vermoeden. De \texttt{evaluate}-functie bouwt een CQL-query op, op basis van een gegeven \texttt{WHERE}-clausule, de relevante tabel en de gevraagde kolom uit die tabel. Wanneer er een zinvolle verzameling kandidaatrijen (de \texttt{starting\_set} in onderstaand codefragment) meegegeven is, wordt deze als \texttt{IN}-clausule aan de \texttt{WHERE}-clausule toegevoegd. Zo zoekt Cassandra enkel in rijen die effectief in aanmerking komen om aan de globale query te voldoen. Een voorwaarde om deze optimalisatie te kunnen toepassen, is dat de \texttt{WHERE}-clausule geen ongelijkheidsbeperkingen mag bevatten (vandaar de \texttt{can\_prune}-functie).
+
+\lstinputlisting[language=Python,firstline=31,lastline=31]{../gemini/gemini/query_expressions.py}
+\lstinputlisting[language=Python,firstline=36,lastline=53]{../gemini/gemini/query_expressions.py}
+
+\item Om een \texttt{AND\_expression} te evalueren is het strikt genomen nodig beide leden van de uitdrukking te evalueren en vervolgens de doorsnede te nemen van de resultaten. Als \'e\'en van de twee leden van de uitdrukking echter in staat is om dankzij een CQL \texttt{IN}-clausule enkel naar rijen te zoeken die effectief in aanmerking komen om aan de globale query te voldoen, is het mogelijk om deze operatie aan Cassandra over te laten. Als het rechterlid kan \textit{prunen}, dan kan GEMINI de resultaatverzameling van het linkerlid als \texttt{starting\_set} meegeven bij de evaluatie van het rechterlid, en omgekeerd. Wanneer geen van beide kunnen \textit{prunen}, moet GEMINI uiteraard nog steeds zelf de doorsnede berekenen.
+
+\lstinputlisting[language=Python,firstline=64,lastline=64]{../gemini/gemini/query_expressions.py}
+\lstinputlisting[language=Python,firstline=69,lastline=77]{../gemini/gemini/query_expressions.py}
+
+\item In het geval van een \texttt{OR\_expression} is er geen andere mogelijkheid dan eenvoudigweg het linker- en rechterlid te evalueren, beide met als \texttt{starting\_set} de \texttt{starting\_set} van de \texttt{OR\_expression} zelf en vervolgens de unie van de resultaten te berekenen.
+
+\item Ook in het geval van een \texttt{NOT\_expression} is er geen andere optie dan de \texttt{body}-uitdrukking te evalueren en vervolgens het complement van de \texttt{starting\_set} en het resultaat te bepalen. Als de gegeven \texttt{starting\_set} gelijk is aan \texttt{"*"}, d.w.z. alle rijen in de oorspronkelijke tabel, zit er ook niets anders op dan deze nog eerst allemaal op te vragen.
+
+\lstinputlisting[language=Python,firstline=112,lastline=112]{../gemini/gemini/query_expressions.py}
+\lstinputlisting[language=Python,firstline=116,lastline=123]{../gemini/gemini/query_expressions.py}
+
+\end{itemize}
+
+Een optimalisatie die voor alle \texttt{query\_expressions} geldt is dat in het geval van een lege \texttt{starting\_set}, GEMINI de hele evaluatie kan overslaan. Dit bespaart een overtollige round-trip naar de Cassandra-databank. Voor alle soorten \texttt{query\_expressions} behalve \texttt{Basic\_expression} geldt ook dat ze kunnen \textit{prunen}, ongeacht de aard van hun subqueries. In het geval dat hun subqueries een \texttt{Basic\_expression} bevatten die niet kan \textit{prunen}, zal de subquery in kwestie dit zelf afhandelen bij de evaluatie.
 
 \paragraph{Genotype-filter wildcards}
 
@@ -165,7 +205,5 @@ Ter herinnering, de structuur van een dergelijke wildcard:\\\\
 \texttt{(column).(sample\_wildcard).(gt\_wildcard\_rule).(rule\_enforcement)}\\\\
 Gegeven het bovenstaande query-mechanisme is de meest voor de hand liggende manier om genotype-filter wildcards te implementeren, deze op te splitsen in subqueries voor elke sample die aan de voorwaarden in de \texttt{sample\_wildcard} voldoet, en deze subqueries te combineren met een keten van geneste \texttt{query\_expression}s afhankelijk van de gegeven \texttt{rule\_enforcement}. Zo wordt een \texttt{all}-wildcard een keten van geneste \texttt{AND\_expression}s en een \texttt{any}-wildcard een keten van geneste \texttt{OR\_expression}s. \texttt{none}-wildcards vereisen eerst dat de subqueries in \texttt{NOT\_expression}d ingebed worden, die vervolgens allemaal in een keten van geneste \texttt{AND\_expression}s gecombineerd worden. Het is moeilijker \texttt{count}-wildcards tot dergelijke \texttt{expressions} om te vormen. Deze vergen een aparte strategie, die later aan bod komt.\\
 Deze aanpak is vergelijkbaar met wat er in de SQLite- en PostgresQL-versies van GEMINI gebeurt: in SQLite vormt GEMINI de wildcards om tot lange Python-expressions die uiteindelijk voor elke variant met de Python \texttt{eval()}-functie ge\"evalueerd worden. Dit uiteraard omdat de genotype-kolommen bestaan uit binary blobs die voor de SQLite-databank geen enkele betekenis hebben. De PostgreSQL van GEMINI pakt het slimmer aan en vormt de wildcards om tot lange SQL \texttt{WHERE}-clausules en laat zo het evaluatiewerk over aan de databank.\\
-In dit opzicht lijkt de Cassandra-implementatie op de SQLite-implementatie, gezien de client het meeste werk verricht, in tegenstelling tot de databank. Waar Cassandra wel wint, is dat het minder variants zal opvragen dan SQLite
-%TODO argumenteren!
-, en niets meer hoeft te decomprimeren.
+In dit opzicht lijkt de Cassandra-implementatie op de SQLite-implementatie, gezien de client het meeste werk verricht, in tegenstelling tot de databank.
 
