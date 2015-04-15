@@ -265,7 +265,7 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
             query += " AND variant_id IN (%s)" % in_clause
             results = rows_as_set(session.execute(query))
         else:
-            results = rows_as_set(session.execute(query)) | results
+            results = rows_as_set(session.execute(query)) & results
         
     session.shutdown()   
     
