@@ -23,9 +23,9 @@ class Expression(object):
 
 class Basic_expression(Expression):
     
-    def __init__(self, from_table, select_column, where_clause):
+    def __init__(self, from_table, SELECT_column, where_clause):
         self.table = from_table
-        self.select_column = select_column
+        self.SELECT_column = SELECT_column
         self.where_clause = where_clause
   
     def evaluate(self, socket, starting_set):
@@ -34,18 +34,18 @@ class Basic_expression(Expression):
             return set()
         
         query = "SELECT %s FROM %s" % \
-            (self.select_column, self.table)
+            (self.SELECT_column, self.table)
         if self.where_clause != "":
             query += " WHERE %s" % self.where_clause            
         if self.can_prune() and not starting_set == "*":
             if self.table.startswith('samples'):
                 in_clause = "','".join(starting_set)            
                 query += " AND %s IN ('%s')" % \
-                    (self.select_column, in_clause)
+                    (self.SELECT_column, in_clause)
             else:
                 in_clause = ",".join(map(str, starting_set))            
                 query += " AND %s IN (%s)" % \
-                    (self.select_column, in_clause)     
+                    (self.SELECT_column, in_clause)     
         return rows_as_set(socket.execute(query))
     
     def can_prune(self):
@@ -104,10 +104,10 @@ class OR_expression(Expression):
     
 class NOT_expression(Expression):
     
-    def __init__(self, exp, table, select_column):
+    def __init__(self, exp, table, SELECT_column):
         self.body = exp
         self.table = table
-        self.select_column = select_column
+        self.SELECT_column = SELECT_column
  
     def evaluate(self, session, starting_set):
         
@@ -115,7 +115,7 @@ class NOT_expression(Expression):
             return set()        
         elif starting_set == '*':
             correct_starting_set = rows_as_set(session.execute(\
-                "SELECT %s FROM %s" % (self.select_column, self.table)))
+                "SELECT %s FROM %s" % (self.SELECT_column, self.table)))
         else:
             correct_starting_set = starting_set
         
@@ -186,19 +186,22 @@ class GT_wildcard_expression(Expression):
         for i in range(self.nr_cores):
             parent_conn, child_conn = Pipe()
             conns.append(parent_conn)
-            p = Process(target=eval(target_rule +'_query'), args=(child_conn, self.column, corrected_rule,\
-                                                                   correct_starting_set, self.db_contact_points, self.keyspace))
+            p = Process(target=eval(target_rule +'_query'),\
+                args=(child_conn, self.column, corrected_rule,\
+                    correct_starting_set, self.db_contact_points, self.keyspace))
             procs.append(p)
             p.start()
-            
+        
+        #Split names in chunks and communicate to procs
         for i in range(self.nr_cores):
             n = len(self.names)
-            begin = i*step + min(i, n % self.nr_cores) #If act_n % p != 0, first procs get 1 value more, so intervals of subsequent procs shift to the right.
+            begin = i*step + min(i, n % self.nr_cores)
             end = begin + step
             if i < n % self.nr_cores:
                 end += 1  
             conns[i].send(self.names[begin:end])                
         
+        #Collect results
         for i in range(self.nr_cores):
             results.append(conns[i].recv())
             conns[i].close()
@@ -221,15 +224,15 @@ class GT_wildcard_expression(Expression):
         
         if target_rule == 'count':
             res_dict = {x: 0 for x in correct_starting_set}
-            for d in results:
-                for var, count in d.iteritems():
+            for sub_result_dict in results:
+                for var, count in sub_result_dict.iteritems():
                     res_dict[var] += count     
             if invert_count:
-                #TODO: if starting_set == "*", retrieve nr of variants somewhere
                 total = len(self.names)
                 for variant, count in res_dict.iteritems():
                     res_dict[variant] = total - count
-            res = set([v for v, c in res_dict.iteritems() if eval(str(c) + self.count_comp)])
+            res = set([variant for variant, count in res_dict.iteritems() \
+                       if eval(str(count) + self.count_comp)])
         
         return res
     
@@ -256,7 +259,7 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         if len(results) == 0:
             break
         
-        query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
+        query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
                 
         if results == "*":
             results = rows_as_set(session.execute(query))
@@ -283,7 +286,7 @@ def any_query(conn, field, clause, initial_set, contact_points, keyspace):
     
     for name in names:
         
-        query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
+        query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
         if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
             in_clause = ",".join(map(str, initial_set))
@@ -308,7 +311,7 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
     
     for name in names:
         
-        query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
+        query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
         if not any (op in clause for op in ["<", ">"]):           
             in_clause = ",".join(map(str, results))
@@ -325,25 +328,22 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
 def count_query(conn, field, clause, initial_set, contact_points, keyspace):
     
     cluster = Cluster(contact_points)
-    session = cluster.connect(keyspace)
-    
-    names = conn.recv()
-    
+    session = cluster.connect(keyspace)    
+    names = conn.recv()    
     results = dict()
     
-    for name in names:
-        
-        query = "select variant_id from variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
+    for name in names:        
+        query = '''SELECT variant_id FROM variants_by_samples_%s \
+                WHERE sample_name = '%s' AND %s %s ''' % (field, name, field, clause)
         
         if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
             in_clause = ",".join(map(str, initial_set))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        row = rows_as_set(session.execute(query))
-        results = add_row_to_count_dict(results, row)
+        variants = rows_as_set(session.execute(query))
+        results = add_row_to_count_dict(results, variants)
         
-    session.shutdown()   
-    
+    session.shutdown()       
     conn.send(results)
     conn.close()
     
@@ -353,8 +353,7 @@ def add_row_to_count_dict(res_dict, variants):
         if not var in res_dict:
             res_dict[var] = 1
         else:
-            res_dict[var] += 1
-    
+            res_dict[var] += 1    
     return res_dict   
 
     
