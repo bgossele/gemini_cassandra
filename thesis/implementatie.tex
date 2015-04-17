@@ -23,14 +23,14 @@ Het datamodel van Apache Cassandra vertoont enkele sterke verschillen met het re
 \subsection{Datamodel Cassandra}
 
 Zoals eerder vermeld bewaart Cassandra de cellen in een tabel als een 2 dimensionele map van enerzijds een per rij gedefinieerde primary key, en de naam van een kolom. De inhoud van cellen die niet in de primary key van een rij liggen, heeft voor Cassandra geen enkele betekenis.\\
-Die primary key bestaat uit 2 delen: het eerste is de partition key, deze bestaat uit minstens 1 kolom en de waarde hiervan die via het consistent-hashing mechanisme bepaalt op welke knopen in het cluster de rij terechtkomt. Het tweede, optionele, deel is de clustering key, en bepaalt in welke volgorde rijen met dezelfde partition key op 1 node bewaard worden. Dit is standaard in oplopende volgorde.\\\\
+Die primary key bestaat uit 2 delen: het eerste is de partition key, deze bestaat uit minstens 1 kolom en de waarde hiervan die via het consistent-hashing mechanisme bepaalt op welke partitie in het cluster de rij terechtkomt. Het tweede, optionele, deel is de clustering key, en bepaalt in welke volgorde rijen met dezelfde partition key op 1 node bewaard worden. Dit is standaard in oplopende volgorde.\\\\
 
 %TODO: ALLOW FILTERING
 Omdat het inspecteren van cellen indruist tegen de principes van Cassandra, zijn de query-mogelijkheden eerder beperkt: zonder het defini\"eren van indices is het in \texttt{WHERE}-clausules enkel mogelijk beperkingen op te leggen aan kolommen in de primary key, en dan nog zo dat de bedoelde rijen binnen 1 partitie liggen, en opeenvolgend opgeslagen zijn. Daarom moet er een gelijkheidsbeperking opgelegd worden aan de volledige partition key, en mogen er zowel gelijk- als ongelijkheidsbeperkingen opgelegd worden aan de kolommen in de clustering key, maar enkel op voorwaarde dat de voorgaande kolom in de clustering key ook met een gelijkheidsbeperking gespecifieerd is. Op deze manier kan Cassandra queries zeer snel uitvoeren door ze a.d.h.v. de hash van de partition key naar een juiste node te routeren, en vervolgens via de overige opgegeven kolommen de locatie van de juiste rijen te berekenen (die omwille van de clustering allemaal opelkaar volgend opgeslagen zijn). Dit gebeurt zonder de waarden van individuele cellen te bekijken, maar dus enkel door het berekenen van een simpele hashfunctie. Range-queries zijn dus enkel mogelijk op kolommen in de clustering key en het is niet mogelijk \texttt{!=}-beperkingen te gebruiken in \texttt{WHERE}-clausules. Bovendien laat Cassandra enkel toe beperkingen met elkaar te combineren via conjuncties, dus niet via \texttt{OR}- of \texttt{NOT}-operatoren. Een uitzondering op dit laatste is de \texttt{IN}-operator: op deze manier kan de gebruiker meegeven in welke set van waarden een bepaalde kolom moet liggen, maar dit is ook enkel mogelijk op de laatste kolom in de partition key of de laatste kolom in de clustering key (maar weer op voorwaarde dat de voorgaande kolommen reeds beperkt zijn).\\
 Cassandra laat toe om indices op kolommen te defini\"eren, maar deze zijn niet bijzonder nuttig. Ze laten enkel gelijkheidsbeperkingen toe (dus geen range-queries) en bovendien raadt Datastax het gebruik van indices op kolommen met zowel een zeer lage als een zeer hoge kardinaliteit af, dit omdat in het eerste geval de index tabel zal bestaan uit zeer weinig zeer lange rijen voor elk van de ge\"indexeerde waarden en in het tweede geval Cassandra bij een query op de ge\"indexeerde kolom door zeer veel verscheidene waarden zal moeten zoeken om een klein aantal resultaten te vinden \cite{when_to_use_index}.
 
 \subsection{Databaseschema GEMINI}
-Zoals blijkt uit bovenstaande beschrijving van het datamodel van Cassandra, leent het systeem zich niet zomaar tot ad-hoc querying: het is niet mogelijk op een performante manier zomaar aan willekeurige kolommen in een tabel voorwaarden op te leggen en deze voorwaarden met elkaar te combineren. Dit betekent dat bij het ontwerpen van het database schema al rekening gehouden moet worden met de queries die achteraf op de data mogelijk moeten zijn. Omdat het soort queries dat een tabel ondersteunt sterk samenhangt met de keuze van de primary key van de tabel en GEMINI meerdere, uiteenlopende soorten queries op elke tabel vereist, zal dit onvermijdelijk leiden tot duplicatie van data.
+Zoals blijkt uit bovenstaande beschrijving van het datamodel van Cassandra, leent het systeem zich niet goed tot ad-hoc querying: het is niet mogelijk op een performante manier zomaar aan willekeurige kolommen in een tabel voorwaarden op te leggen en deze voorwaarden met elkaar te combineren. Dit betekent dat bij het ontwerpen van het database schema al rekening gehouden moet worden met de queries die achteraf op de data mogelijk moeten zijn. Omdat het soort queries dat een tabel ondersteunt sterk samenhangt met de keuze van de primary key van de tabel en GEMINI meerdere, uiteenlopende soorten queries op elke tabel vereist, zal dit onvermijdelijk leiden tot duplicatie van data.
 
 \paragraph{\texttt{variants}-tabel vs. genotype-informatie}
 
@@ -46,7 +46,7 @@ Het nadeel is echter dat het onmogelijk is ad-hoc queries te defini\"eren op gen
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|l|l|l|l|l|l|l|l|@{}}
 \toprule
-variant\_id & ref & alt & \ldots & gt\_type\_bob & gt\_type\_bruce & \ldots & gt\_depth\_bob & gt\_depth\_bruce & \ldots \\ \bottomrule
+\color{green} variant\_id & ref & alt & \ldots & gt\_type\_alex & gt\_type\_john & \ldots & gt\_depth\_alex & gt\_depth\_john & \ldots \\ \bottomrule
 \end{tabular}
 \end{table}
 
@@ -59,7 +59,7 @@ variant\_id & ref & alt & \ldots & gt\_type\_bob & gt\_type\_bruce & \ldots & gt
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|l|@{}}
 \toprule
-variant\_id & sample\_name & genotype \\ \bottomrule
+\color{green} sample\_name & \color{green} genotype & \color{red} variant\_id \\ \bottomrule
 \end{tabular}\\
 \end{table}
 
@@ -68,7 +68,7 @@ variant\_id & sample\_name & genotype \\ \bottomrule
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|l|@{}}
 \toprule
-variant\_id & sample\_name & gt\_depth \\ \bottomrule
+\color{green} sample\_name & \color{red} gt\_depth & \color{red} variant\_id \\ \bottomrule
 \end{tabular}
 \end{table}
 
@@ -97,7 +97,7 @@ Een aanpak die in beide gevallen op een voorspelbare en betrouwbare manier werkt
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|l|@{}}
 \toprule
- chrom & start & variant\_id \\ \bottomrule
+\color{green} chrom & \color{red} start & \color{red} variant\_id \\ \bottomrule
 \end{tabular}
 \end{table}
 
@@ -106,7 +106,7 @@ Een aanpak die in beide gevallen op een voorspelbare en betrouwbare manier werkt
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|@{}}
 \toprule
- gene & variant\_id \\ \bottomrule
+\color{green} gene & \color{red} variant\_id \\ \bottomrule
 \end{tabular}
 \end{table}
 
@@ -115,7 +115,7 @@ Een aanpak die in beide gevallen op een voorspelbare en betrouwbare manier werkt
 \begin{table}[!htbp]
 \begin{tabular}{@{}|l|l|@{}}
 \toprule
- sex & sample\_name \\ \bottomrule
+\color{green} sex & \color{red} sample\_name \\ \bottomrule
 \end{tabular}
 \end{table}
 \end{itemize}
@@ -231,6 +231,7 @@ Het parent-process kan vervolgens de telling voor alle variants van alle subproc
 
 \lstinputlisting[language=Python,firstline=225,lastline=235]{../gemini/gemini/query_expressions.py}
 
+\noindent De \texttt{correct\_starting\_set} in bovenstaande code is de traditionele \texttt{starting\_set}, maar ge\"evalueerd in het geval dit de volledige verzameling varianten (dus de wildcard \texttt{"*"}) is, en gegoten in een datatype geschikt voor shared-memory access.\\
 De \texttt{invert\_count}-flag geeft aan of de \texttt{gt\_wildcard\_rule} een negatie is. Gezien Cassandra geen \texttt{!=}-clausules ondersteunt, moet GEMINI in dit geval het complement van de \texttt{gt\_wildcard\_rule} in kwestie bepalen en vervolgens de resulterende telling aftrekken van het totaal aantal samples. \\ Een eenvoudig voorbeeld: bij het evalueren van volgende wildcard \\\\ 
 \texttt{(gt\_type).(*).(!=HET).(count > 100)}\\\\
-zal GEMINI eerst voor elke variant bepalen hoeveel samples w\'el heterozygoot zijn, alvorens dit getal af te trekken van het totaal aantal samples en op dit resultaat de \texttt{count > 100}-filter toe te passen.
+zal GEMINI eerst voor elke variant bepalen hoeveel samples w\'el heterozygoot zijn, alvorens dit getal af te trekken van het totaal aantal samples en op dit resultaat de \texttt{(count > 100)}-filter toe te passen.
