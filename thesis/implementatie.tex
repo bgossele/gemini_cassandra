@@ -7,13 +7,14 @@ Dit hoofdstuk belicht aan de hand van een case-study de praktische realisatie va
 
 \subsection{Vereisten}
 
-Zoals beschreven in \ref{gemini_beschrijving} bewaart GEMINI de data over genetische varianten en proefpersonen in enkele zeer grote tabellen. Een eerste vereiste voor een database is dus om deze tabulaire data goed te kunnen voorstellen en beheren. Omdat de nadruk van dit onderzoek specifiek ligt op het schaalbaar maken van de applicatie, gebeurt dit bij voorkeur d.m.v. automatische verspreiding over verschillende nodes in een cluster.\\
+Zoals beschreven in [\ref{gemini_beschrijving}] bewaart GEMINI de data over genetische varianten en proefpersonen in enkele zeer grote tabellen. Een eerste vereiste voor een database is dus om deze tabulaire data goed te kunnen voorstellen en beheren. Omdat de nadruk van dit onderzoek specifiek ligt op het schaalbaar maken van de applicatie, gebeurt dit bij voorkeur d.m.v. automatische verspreiding over verschillende nodes in een cluster.\\
 Omdat GEMINI meerdere processoren of zels computers kan gebruiken bij het inladen van de gegevens uit VCF-bestanden, is goede concurrency controle en hoge schrijf-throughput eveneens belangrijk. Na het inladen van de VCF bestanden voert GEMINI enkel nog lees-queries uit, dus zijn de belangrijkste verdere vereisten voor een database hoge lees-throughput, goede query-mogelijkheden en indexeringsmechanismes.
 \\Ten laatste is een Python-API ook nuttig, gezien GEMINI in Python ge\"implementeerd is.
 
 \subsection{Keuze}
 
-Denk denk denk: Cassandra niet beste optie, maar toch gekozen. Eerste prioriteit schaalbaarheid?
+De uiteindelijke keuze voor een databank viel op Apache Cassandra. Van de systemen besproken in [\ref{nosql_survey}] heeft Cassandra veruit de meest interessante architectuur qua schaalbaarheid en bovendien leent het columnaire model zich goed tot het modelleren van de tabellen in de oorspronkelijke versie van GEMINI. Vergeleken met het andere columnaire systeem, HBase, heeft Cassandra uitgebreidere query-mogelijkheden. Vergeleken met MongoDB, dat sterker staat op het gebied van querying en indexing heeft Cassandra het voordeel dat het flexibeler is voor concurrent schrijven naar de databank. Bovendien blijkt uit eerdere experimenten met MongoDB binnen het lab dat MongoDB niet space-effici\"ent BSON-documenten kan uitbreiden. In het geval van een incrementele versie van GEMINI, waar na verloop van tijd genoominformatie van extra proefpersonen ingeladen moet worden, leidt dit tot fragmentatie. Cassandra daarentegen kan eenvoudig het schema van tabellen aanpassen en naar behoefte extra kolommen en rijen toevoegen.\\
+Zoals later uitgebreid aan bod komt, heeft Cassandra ook nadelen. Vooral de eerder beperkte query-capaciteiten bemoeilijken het implementeren van de uitgebreide ad-hoc queryfunctionaliteiten van GEMINI.
 
 \section{Dataschema GEMINI in Cassandra}
 \label{cassandra_datamodel}
