@@ -10,8 +10,8 @@ import gemini.config
 def release(parser, args):
     """Update gemini to the latest release, along with associated data files.
     """
-    url = "https://raw.github.com/arq5x/gemini/master/requirements.txt"
-    repo = "https://github.com/arq5x/gemini.git"
+    url = "https://github.com/bgossele/gemini_cassandra/master/requirements.txt"
+    repo = "https://github.com/bgossele/gemini_cassandra"
     cbl_repo = "https://github.com/chapmanb/cloudbiolinux.git"
     # update locally isolated python
     base = os.path.dirname(os.path.realpath(sys.executable))
