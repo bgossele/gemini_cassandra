@@ -11,7 +11,7 @@ with open("requirements.txt", "r") as f:
     install_requires = [x.strip() for x in f.readlines() if not x.startswith("gemini_cassandra")]
 
 setup(
-        name="gemini_cassandra",
+        name="gemini-cassandra",
         version=version,
         install_requires=install_requires,
         requires=['python (>=2.5, <3.0)'],
@@ -21,7 +21,7 @@ setup(
         author="Aaron Quinlan and Uma Paila. Cassandra port by Brecht Gossele",
         description='A database framework for exploring genetic variation',
         long_description=long_description,
-        url="http://gemini_cassandra.readthedocs.org",
+        url="http://gemini.readthedocs.org",
         package_dir={'gemini_cassandra': "gemini_cassandra"},
         package_data={'gemini_cassandra': [
             'static/css/gemini_cassandra.css',
