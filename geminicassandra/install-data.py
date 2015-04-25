@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import time
 
-from gemini.config import read_gemini_config, write_gemini_config
+from geminicassandra.config import read_gemini_config, write_gemini_config
 
 """Install annotation data and update Gemini configuration with location.
 
