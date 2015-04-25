@@ -8,7 +8,7 @@ import sys
 import gemini.config
 
 def release(parser, args):
-    """Update gemini to the latest release, along with associated data files.
+    """Update gemini_cassandra to the latest release, along with associated data files.
     """
     url = "https://github.com/bgossele/gemini_cassandra/master/requirements.txt"
     repo = "https://github.com/bgossele/gemini_cassandra"

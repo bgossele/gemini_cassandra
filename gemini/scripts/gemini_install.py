@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Installer for gemini: a lightweight db framework for disease and population genetics.
 
-https://github.com/arq5x/gemini
+https://github.com/bgossele/gemini_cassandra
 
 Handles installation of:
 
@@ -56,7 +56,7 @@ def main(args):
     print "Installing isolated base python installation"
     make_dirs(args)
     anaconda = install_anaconda_python(args, remotes)
-    print "Installing gemini..."
+    print "Installing gemini_cassandra..."
     install_conda_pkgs(anaconda, remotes, args)
     gemini = install_gemini(anaconda, remotes, args.datadir, args.tooldir, args.sudo)
     if args.install_tools:
