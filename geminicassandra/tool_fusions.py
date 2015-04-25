@@ -5,9 +5,9 @@ import sys
 from collections import defaultdict
 
 import GeminiQuery
-import gemini_cassandra as util
+import geminicassandra as util
 from gemini_constants import *
-import gemini_cassandra as subjects
+import geminicassandra as subjects
 
 def report_fusion(event, subjects_dict, args):
     """
@@ -133,7 +133,7 @@ def get_fusions(args):
     idx_to_sample = gq.idx_to_sample
     subjects_dict = subjects.get_subjects(args)
 
-    # create strings for gemini_cassandra query of command line args
+    # create strings for geminicassandra query of command line args
     qual_string, ev_type_string, cosmic_string = ("", "", "")
     if args.min_qual:
         qual_string = " AND qual >= %s" % args.min_qual

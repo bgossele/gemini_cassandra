@@ -1,31 +1,31 @@
 import os
 from setuptools import setup
 
-version_py = os.path.join(os.path.dirname(__file__), 'gemini_cassandra', 'version.py')
+version_py = os.path.join(os.path.dirname(__file__), 'geminicassandra', 'version.py')
 version = open(version_py).read().strip().split('=')[-1].replace('"', '')
 long_description = """
-``gemini_cassandra`` is a database framework for exploring genetic variation'
+``gemini` is a database framework for exploring genetic variation'
 """
 
 with open("requirements.txt", "r") as f:
-    install_requires = [x.strip() for x in f.readlines() if not x.startswith("gemini_cassandra")]
+    install_requires = [x.strip() for x in f.readlines() if not x.startswith("geminicassandra")]
 
 setup(
         name="gemini-cassandra",
         version=version,
         install_requires=install_requires,
         requires=['python (>=2.5, <3.0)'],
-        packages=['gemini_cassandra',
-                  'gemini_cassandra.scripts',
-                  'gemini_cassandra.data'],
+        packages=['geminicassandra',
+                  'geminicassandra.scripts',
+                  'geminicassandra.data'],
         author="Aaron Quinlan and Uma Paila. Cassandra port by Brecht Gossele",
         description='A database framework for exploring genetic variation',
         long_description=long_description,
         url="http://gemini.readthedocs.org",
-        package_dir={'gemini_cassandra': "gemini_cassandra"},
-        package_data={'gemini_cassandra': [
-            'static/css/gemini_cassandra.css',
-            'static/img/gemini_cassandra.png',
+        package_dir={'geminicassandra': "geminicassandra"},
+        package_data={'geminicassandra': [
+            'static/css/geminicassandra.css',
+            'static/img/geminicassandra.png',
             'static/third_party/bootstrap/css/*',
             'static/third_party/bootstrap/img/*',
             'static/third_party/bootstrap/js/*',
@@ -35,7 +35,7 @@ setup(
             ]},
         zip_safe=False,
         include_package_data=True,
-        scripts=['gemini_cassandra/scripts/gemini_cassandra'],
+        scripts=['geminicassandra/scripts/geminicassandra'],
         author_email="brecht.gossele@student.kuleuven.be",
         classifiers=[
             'Development Status :: 4 - Beta',

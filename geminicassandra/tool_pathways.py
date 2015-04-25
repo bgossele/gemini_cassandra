@@ -7,8 +7,8 @@ import numpy as np
 import cPickle
 import zlib
 from collections import defaultdict
-from gemini_cassandra.config import read_gemini_config
-import gemini_cassandra as util
+from geminicassandra.config import read_gemini_config
+import geminicassandra as util
 from gemini_constants import *
 
 

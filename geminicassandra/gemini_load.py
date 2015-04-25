@@ -8,7 +8,7 @@ import annotations
 import subprocess
 #from cluster_helper.cluster import cluster_view
 from gemini_load_chunk import GeminiLoader
-import gemini_cassandra
+import geminicassandra
 import time
 from cluster_helper.cluster import cluster_view
 
@@ -25,7 +25,7 @@ def load(parser, args):
         if 'cadd_score' not in annos:
             sys.stderr.write("\nCADD scores are not being loaded because the"
             " annotation file could not be found.\n"
-            "`Run gemini_cassandra update --dataonly --extra cadd_score`"
+            "`Run geminicassandra update --dataonly --extra cadd_score`"
             " to install the annotation file.\n\n")
             args.skip_cadd = True
         else:
@@ -33,7 +33,7 @@ def load(parser, args):
     if args.skip_gerp_bp is False:
         if 'gerp_bp' not in annos:
             sys.stderr.write("\nGERP per bp is not being loaded because the annotation file"
-                        " could not be found.\n    Run `gemini_cassandra update --dataonly --extra gerp_bp`"
+                        " could not be found.\n    Run `geminicassandra update --dataonly --extra gerp_bp`"
                         " to install the annotation file.\n\n")
             args.skip_gerp_bp = True
         else:
@@ -62,8 +62,8 @@ def load(parser, args):
     print "Populating variants tables (parallelised) took %s s" % (end_time - time_3)
 
 def load_singlecore(args):
-    # create a new gemini_cassandra loader and populate
-    # the gemini_cassandra db and files from the VCF
+    # create a new geminicassandra loader and populate
+    # the geminicassandra db and files from the VCF
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
     gemini_loader.populate_from_vcf()
@@ -77,19 +77,19 @@ def load_singlecore(args):
     #TODO: nodig?
     '''if not args.no_genotypes and not args.no_load_genotypes:
         gemini_loader.store_sample_gt_counts()
-    gemini_cassandra.add_extras(args.db, [args.db])'''
+    geminicassandra.add_extras(args.db, [args.db])'''
 
 def load_multicore(args):
     grabix_file = bgzip(args.vcf)
     load_chunks_multicore(grabix_file, args)
-    # gemini_cassandra.add_extras(args.db, chunks)
+    # geminicassandra.add_extras(args.db, chunks)
 
 
 def load_ipython(args):
     grabix_file = bgzip(args.vcf)
     with cluster_view(*get_ipython_args(args)) as view:
         chunks = load_chunks_ipython(grabix_file, args, view)
-    # gemini_cassandra.add_extras(args.db, chunks)
+    # geminicassandra.add_extras(args.db, chunks)
 
 
 def get_chunk_name(chunk):
@@ -246,7 +246,7 @@ def wait_until_finished(procs):
 
 def gemini_pipe_load_cmd():
     grabix_cmd = "grabix grab {grabix_file} {start} {stop}"
-    gemini_load_cmd = ("gemini_cassandra load_chunk -v - {anno_type} {ped_file}"
+    gemini_load_cmd = ("geminicassandra load_chunk -v - {anno_type} {ped_file}"
                        " {no_genotypes} {no_load_genotypes} {no_genotypes}"
                        " {skip_gerp_bp} {skip_gene_tables} {skip_cadd}"
                        " {passonly} {skip_info_string} {test_mode}"

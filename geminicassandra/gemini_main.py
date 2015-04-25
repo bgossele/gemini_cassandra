@@ -2,45 +2,45 @@
 import os.path
 import sys
 import argparse
-import gemini_cassandra.version
+import geminicassandra.version
 
 
 def examples(parser, args):
 
     print
-    print "[load] - load a VCF file into a gemini_cassandra database:"
-    print "   gemini_cassandra load -v my.vcf my.db"
-    print "   gemini_cassandra load -v my.vcf -t snpEff my.db"
-    print "   gemini_cassandra load -v my.vcf -t VEP my.db"
+    print "[load] - load a VCF file into a geminicassandra database:"
+    print "   geminicassandra load -v my.vcf my.db"
+    print "   geminicassandra load -v my.vcf -t snpEff my.db"
+    print "   geminicassandra load -v my.vcf -t VEP my.db"
     print
 
     print "[stats] - report basic statistics about your variants:"
-    print "   gemini_cassandra stats --tstv my.db"
-    print "   gemini_cassandra stats --tstv-coding my.db"
-    print "   gemini_cassandra stats --sfs my.db"
-    print "   gemini_cassandra stats --snp-counts my.db"
+    print "   geminicassandra stats --tstv my.db"
+    print "   geminicassandra stats --tstv-coding my.db"
+    print "   geminicassandra stats --sfs my.db"
+    print "   geminicassandra stats --snp-counts my.db"
     print
 
     print "[query] - explore the database with ad hoc queries:"
-    print "   gemini_cassandra query -q \"select * from variants where is_lof = 1 and aaf <= 0.01\" my.db"
-    print "   gemini_cassandra query -q \"select chrom, pos, gt_bases.NA12878 from variants\" my.db"
-    print "   gemini_cassandra query -q \"select chrom, pos, in_omim, clin_sigs from variants\" my.db"
+    print "   geminicassandra query -q \"select * from variants where is_lof = 1 and aaf <= 0.01\" my.db"
+    print "   geminicassandra query -q \"select chrom, pos, gt_bases.NA12878 from variants\" my.db"
+    print "   geminicassandra query -q \"select chrom, pos, in_omim, clin_sigs from variants\" my.db"
     print
 
     print "[dump] - convenient \"data dumps\":"
-    print "   gemini_cassandra dump --variants my.db"
-    print "   gemini_cassandra dump --genotypes my.db"
-    print "   gemini_cassandra dump --samples my.db"
+    print "   geminicassandra dump --variants my.db"
+    print "   geminicassandra dump --genotypes my.db"
+    print "   geminicassandra dump --samples my.db"
     print
 
     print "[region] - access variants in specific genomic regions:"
-    print "   gemini_cassandra region --reg chr1:100-200 my.db"
-    print "   gemini_cassandra region --gene TP53 my.db"
+    print "   geminicassandra region --reg chr1:100-200 my.db"
+    print "   geminicassandra region --gene TP53 my.db"
     print
 
     print "[tools] - there are also many specific tools available"
     print "   1. Find compound heterozygotes."
-    print "     gemini_cassandra comp_hets my.db"
+    print "     geminicassandra comp_hets my.db"
     print
 
     exit()
@@ -49,27 +49,27 @@ def main():
     #########################################
     # create the top-level parser
     #########################################
-    parser = argparse.ArgumentParser(prog='gemini_cassandra', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-v", "--version", help="Installed gemini_cassandra version",
+    parser = argparse.ArgumentParser(prog='geminicassandra', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v", "--version", help="Installed geminicassandra version",
                         action="version",
-                        version="%(prog)s " + str(gemini_cassandra.version.__version__))
+                        version="%(prog)s " + str(geminicassandra.version.__version__))
     parser.add_argument('--annotation-dir', dest='annotation_dir',
                              help='Path to the annotation database.\n'
-                                'This argument is optional and if given will take precedence over the default location stored in the gemini_cassandra config file.')
+                                'This argument is optional and if given will take precedence over the default location stored in the geminicassandra config file.')
     subparsers = parser.add_subparsers(title='[sub-commands]', dest='command')
 
     #########################################
-    # $ gemini_cassandra examples
+    # $ geminicassandra examples
     #########################################
     parser_examples = subparsers.add_parser('examples',
                                             help='show usage examples')
     parser_examples.set_defaults(func=examples)
 
     #########################################
-    # $ gemini_cassandra load
+    # $ geminicassandra load
     #########################################
     parser_load = subparsers.add_parser('load',
-                                        help='load a VCF file in gemini_cassandra database')
+                                        help='load a VCF file in geminicassandra database')
     parser_load.add_argument('-db', dest='contact_points',
                              default = "127.0.0.1",
                              help='The IP adresses at which the Cassandra cluster is reachable.')
@@ -138,13 +138,13 @@ def main():
                          default=False)
 
     def load_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_load.load(parser, args)
 
     parser_load.set_defaults(func=load_fn)
 
     #########################################
-    # $ gemini_cassandra amend
+    # $ geminicassandra amend
     #########################################
     parser_amend = subparsers.add_parser('amend',
                                          help="Amend an already loaded GEMINI database.")
@@ -156,15 +156,15 @@ def main():
                               default=None,
                               help='New sample information file to load')
     def amend_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_amend.amend(parser, args)
     parser_amend.set_defaults(func=amend_fn)
 
     #########################################
-    # $ gemini_cassandra load_chunk
+    # $ geminicassandra load_chunk
     #########################################
     parser_loadchunk = subparsers.add_parser('load_chunk',
-                                             help='load a VCF file in gemini_cassandra database')
+                                             help='load a VCF file in geminicassandra database')
     parser_loadchunk.add_argument('-db', dest='contact_points',
                              default = "127.0.0.1",
                              help='The IP adresses at which the Cassandra cluster is reachable.')
@@ -233,12 +233,12 @@ def main():
                          help='Load in test mode (faster)',
                          default=False)
     def loadchunk_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_load_chunk.load(parser, args)
     parser_loadchunk.set_defaults(func=loadchunk_fn)
 
     #########################################
-    # $ gemini_cassandra query
+    # $ geminicassandra query
     #########################################
     parser_query = subparsers.add_parser('query',
             help='issue ad hoc SQL queries to the DB')
@@ -334,13 +334,13 @@ def main():
                               help='Sort variants by start, samples by sample_id. ONLY TO BE USED FOR UNIT TESTS',
                               default=False)
     def query_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_query.query(parser, args)
 
     parser_query.set_defaults(func=query_fn)
 
     #########################################
-    # $ gemini_cassandra dump
+    # $ geminicassandra dump
     #########################################
     parser_dump = subparsers.add_parser('dump',
             help='shortcuts for extracting data from the DB')
@@ -378,12 +378,12 @@ def main():
                              default=False,
                              help='Output sample information to TFAM format.')
     def dump_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_dump.dump(parser, args)
     parser_dump.set_defaults(func=dump_fn)
 
     #########################################
-    # $ gemini_cassandra region
+    # $ geminicassandra region
     #########################################
     parser_region = subparsers.add_parser('region',
             help='extract variants from specific genomic loci')
@@ -423,12 +423,12 @@ def main():
                               default='default',
                               help='Format of output (JSON, TPED or default)')
     def region_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_region.region(parser, args)
     parser_region.set_defaults(func=region_fn)
 
     #########################################
-    # $ gemini_cassandra stats
+    # $ geminicassandra stats
     #########################################
     parser_stats = subparsers.add_parser('stats',
             help='compute useful variant stastics')
@@ -485,12 +485,12 @@ def main():
             metavar='STRING',
             help='Restrictions to apply to genotype values')
     def stats_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_stats.stats(parser, args)
     parser_stats.set_defaults(func=stats_fn)
 
     #########################################
-    # gemini_cassandra annotate
+    # geminicassandra annotate
     #########################################
     parser_get = subparsers.add_parser('annotate',
             help='Add new columns for custom annotations')
@@ -523,12 +523,12 @@ def main():
                   'in your annotation file (-f).'
                   'Any of {mean, median, min, max, mode, list, uniq_list, first, last}')
     def annotate_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_annotate.annotate(parser, args)
     parser_get.set_defaults(func=annotate_fn)
 
     #########################################
-    # gemini_cassandra windower
+    # geminicassandra windower
     #########################################
     parser_get = subparsers.add_parser('windower',
             help='Compute statistics across genome \"windows\"')
@@ -556,12 +556,12 @@ def main():
             choices=['mean', 'median', 'min', 'max', 'collapse'],
             default='mean')
     def windower_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_windower.windower(parser, args)
     parser_get.set_defaults(func=windower_fn)
 
     #########################################
-    # gemini_cassandra db_info
+    # geminicassandra db_info
     #########################################
     parser_get = subparsers.add_parser('db_info',
             help='Get the names and types of cols. database tables')
@@ -569,12 +569,12 @@ def main():
             metavar='db',
             help='The name of the database to be updated.')
     def dbinfo_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_dbinfo.db_info(parser, args)
     parser_get.set_defaults(func=dbinfo_fn)
 
     #########################################
-    # $ gemini_cassandra comp_hets
+    # $ geminicassandra comp_hets
     #########################################
     parser_comp_hets = subparsers.add_parser('comp_hets',
             help='Identify compound heterozygotes')
@@ -612,7 +612,7 @@ def main():
     parser_comp_hets.set_defaults(func=comp_hets_fn)
 
     #########################################
-    # $ gemini_cassandra pathways
+    # $ geminicassandra pathways
     #########################################
     parser_pathway = subparsers.add_parser('pathways',
             help='Map genes and variants to KEGG pathways')
@@ -637,7 +637,7 @@ def main():
     parser_pathway.set_defaults(func=pathway_fn)
 
     #########################################
-    # $ gemini_cassandra lof_sieve
+    # $ geminicassandra lof_sieve
     #########################################
     parser_lof_sieve = subparsers.add_parser('lof_sieve',
             help='Prioritize LoF mutations')
@@ -650,7 +650,7 @@ def main():
     parser_lof_sieve.set_defaults(func=lof_sieve_fn)
 
     #########################################
-    # $ gemini_cassandra burden
+    # $ geminicassandra burden
     #########################################
     burden_help = ("Gene-level genetic burden tests. By default counts all "
                    "variants with high impact in coding regions "
@@ -706,7 +706,7 @@ def main():
     parser_burden.set_defaults(func=burden_fn)
 
     #########################################
-    # $ gemini_cassandra interactions
+    # $ geminicassandra interactions
     #########################################
     parser_interaction = subparsers.add_parser('interactions',
             help='Find interaction partners for a gene in sample variants(default mode)')
@@ -732,7 +732,7 @@ def main():
     parser_interaction.set_defaults(func=interactions_fn)
 
     #########################################
-    # gemini_cassandra lof_interactions
+    # geminicassandra lof_interactions
     #########################################
     parser_interaction = subparsers.add_parser('lof_interactions',
             help='Find interaction partners for a lof gene in sample variants(default mode)')
@@ -754,7 +754,7 @@ def main():
     parser_interaction.set_defaults(func=lof_interactions_fn)
 
     #########################################
-    # $ gemini_cassandra autosomal_recessive
+    # $ geminicassandra autosomal_recessive
     #########################################
     parser_auto_rec = subparsers.add_parser('autosomal_recessive',
             help='Identify variants meeting an autosomal \
@@ -793,7 +793,7 @@ def main():
     parser_auto_rec.set_defaults(func=autosomal_recessive_fn)
 
     #########################################
-    # $ gemini_cassandra autosomal_dominant
+    # $ geminicassandra autosomal_dominant
     #########################################
     parser_auto_dom = subparsers.add_parser('autosomal_dominant',
             help='Identify variants meeting an autosomal \
@@ -832,7 +832,7 @@ def main():
     parser_auto_dom.set_defaults(func=autosomal_dominant_fn)
 
     #########################################
-    # $ gemini_cassandra de_novo
+    # $ geminicassandra de_novo
     #########################################
     parser_de_novo = subparsers.add_parser('de_novo',
             help='Identify candidate de novo mutations')
@@ -879,7 +879,7 @@ def main():
 
 
     #########################################
-    # $ gemini_cassandra mendel violations
+    # $ geminicassandra mendel violations
     #########################################
     parser_mendel = subparsers.add_parser('mendel_errors',
             help='Identify candidate violations of Mendelian inheritance')
@@ -909,20 +909,20 @@ def main():
 
 
     #########################################
-    # $ gemini_cassandra browser
+    # $ geminicassandra browser
     #########################################
     parser_browser = subparsers.add_parser('browser',
-            help='Browser interface to gemini_cassandra')
+            help='Browser interface to geminicassandra')
     parser_browser.add_argument('db', metavar='db',
             help='The name of the database to be queried.')
     def browser_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_browser.browser_main(parser, args)
     parser_browser.set_defaults(func=browser_fn)
 
 
     #########################################
-    # $ gemini_cassandra set_somatic
+    # $ geminicassandra set_somatic
     #########################################
     parser_set_somatic = subparsers.add_parser("set_somatic",
                           help="Tag somatic mutations (is_somatic) by comparint tumor/normal pairs.")
@@ -997,27 +997,27 @@ def main():
             default=False)
 
     def set_somatic_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_set_somatic.set_somatic(parser, args)
     parser_set_somatic.set_defaults(func=set_somatic_fn)
 
     #########################################
-    # $ gemini_cassandra actionable_mutations
+    # $ geminicassandra actionable_mutations
     #########################################
     parser_actionable_mut = subparsers.add_parser("actionable_mutations",
                           help="Retrieve genes with actionable somatic mutations via COSMIC and DGIdb.")
     parser_actionable_mut.add_argument('db', metavar='db',
             help='The name of the database to be queried.')
     def get_actionable_mut_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_actionable_mutations.get_actionable_mutations(parser, args)
     parser_actionable_mut.set_defaults(func=get_actionable_mut_fn)
 
 
     #########################################
-    # $ gemini_cassandra update
+    # $ geminicassandra update
     #########################################
-    parser_update = subparsers.add_parser("update", help="Update gemini_cassandra software and data files.")
+    parser_update = subparsers.add_parser("update", help="Update geminicassandra software and data files.")
     parser_update.add_argument("--devel", help="Get the latest development version instead of the release",
                                action="store_true", default=False)
     parser_update.add_argument("--dataonly", help="Only update data, not the underlying libraries.",
@@ -1028,13 +1028,13 @@ def main():
     parser_update.add_argument("--sudo", help="Use sudo for tool installation commands",
                                dest="sudo", action="store_true", default=False)
     def update_fn(parser, args):
-        import gemini_cassandra
+        import geminicassandra
         gemini_update.release(parser, args)
     parser_update.set_defaults(func=update_fn)
 
 
     #########################################
-    # $ gemini_cassandra roh
+    # $ geminicassandra roh
     #########################################
     parser_hom_run = subparsers.add_parser('roh',
             help='Identify runs of homozygosity')
@@ -1090,7 +1090,7 @@ def main():
 
 
     #########################################
-    # $ gemini_cassandra fusions
+    # $ geminicassandra fusions
     #########################################
     parser_fusions = subparsers.add_parser('fusions',
                                          help="Identify somatic fusion genes from a GEMINI database.")

@@ -3,10 +3,10 @@
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
 
-answer = raw_input('Drop all gemini_cassandra tables (y | n)? ')
+answer = raw_input('Drop all geminicassandra tables (y | n)? ')
 
 if answer.lower().startswith(('j', 'y', 'oui', 'si')):
-	print 'Dropping gemini_cassandra tables...'
+	print 'Dropping geminicassandra tables...'
 	cluster = Cluster()
 	session = cluster.connect('gemini_keyspace')
 	tables = ["variants", "samples", "version", "resources", "variant_impacts",

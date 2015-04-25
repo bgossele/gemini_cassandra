@@ -14,14 +14,14 @@ from gemini_subjects import get_subjects
 from gemini_utils import (OrderedDict, itersubclasses, partition_by_fn)
 from sql_utils import ensure_columns
 from collections import namedtuple
-from gemini_cassandra.query_expressions import Basic_expression, AND_expression,\
+from geminicassandra.query_expressions import Basic_expression, AND_expression,\
     NOT_expression, OR_expression, rows_as_set, GT_wildcard_expression
-from gemini_cassandra.sql_utils import get_query_parts
+from geminicassandra.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
 
 
-# gemini_cassandra imports
+# geminicassandra imports
 class RowFormat:
     """A row formatter to output rows in a custom format.  To provide
     a new output format 'foo', implement the class methods and set the
@@ -370,7 +370,7 @@ class GeminiQuery(object):
 
     We create a GeminiQuery object by specifying database to which to
     connect::
-        from gemini_cassandra import GeminiQuery
+        from geminicassandra import GeminiQuery
         gq = GeminiQuery("my.db")
 
     We can then issue a query against the database and iterate through

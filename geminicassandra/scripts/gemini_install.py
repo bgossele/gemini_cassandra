@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Installer for gemini_cassandra: a lightweight db framework for disease and population genetics.
+"""Installer for geminicassandra: a lightweight db framework for disease and population genetics.
 
-https://github.com/bgossele/gemini_cassandra
+https://github.com/bgossele/geminicassandra
 
 Handles installation of:
 
@@ -30,7 +30,7 @@ remotes = {"requirements_pip":
             "https://raw.githubusercontent.com/bgossele/gemini_cassandra/master/versioning/",
            "cloudbiolinux":
            "https://github.com/chapmanb/cloudbiolinux.git",
-           "gemini_cassandra":
+           "geminicassandra":
            "https://github.com/bgossele/gemini_cassandra.git",
            "anaconda":
            "http://repo.continuum.io/miniconda/Miniconda-3.7.0-%s-x86_64.sh"}
@@ -56,7 +56,7 @@ def main(args):
     print "Installing isolated base python installation"
     make_dirs(args)
     anaconda = install_anaconda_python(args, remotes)
-    print "Installing gemini_cassandra..."
+    print "Installing geminicassandra..."
     install_conda_pkgs(anaconda, remotes, args)
     gemini = install_gemini(anaconda, remotes, args.datadir, args.tooldir, args.sudo)
     if args.install_tools:
@@ -67,8 +67,8 @@ def main(args):
     os.chdir(work_dir)
     install_data(gemini["python"], gemini["data_script"], args)
     os.chdir(work_dir)
-    test_script = install_testbase(args.datadir, remotes["gemini_cassandra"], gemini)
-    print "Finished: gemini_cassandra, tools and data installed"
+    test_script = install_testbase(args.datadir, remotes["geminicassandra"], gemini)
+    print "Finished: geminicassandra, tools and data installed"
     print " Tools installed in:\n  %s" % args.tooldir
     print " Data installed in:\n  %s" % args.datadir
     print " Run tests with:\n  cd %s && bash %s" % (os.path.dirname(test_script),
@@ -79,7 +79,7 @@ def main(args):
     shutil.rmtree(work_dir)
 
 def install_gemini(anaconda, remotes, datadir, tooldir, use_sudo):
-    """Install gemini_cassandra plus python dependencies inside isolated Anaconda environment.
+    """Install geminicassandra plus python dependencies inside isolated Anaconda environment.
     """
     # Work around issue with distribute where asks for 'distribute==0.0'
     # try:
@@ -99,13 +99,13 @@ def install_gemini(anaconda, remotes, datadir, tooldir, use_sudo):
         pip_version = ""
     pip_compat = []
     if pip_version >= "1.5":
-        for req in ["python-graph-core", "python-graph-dot", "gemini-cassandra"]:
+        for req in ["python-graph-core", "python-graph-dot", "geminicassandra"]:
             pip_compat += ["--allow-external", req, "--allow-unverified", req]
     subprocess.check_call([anaconda["pip"], "install"] + pip_compat + ["-r", remotes["requirements_pip"]])
     python_bin = os.path.join(anaconda["dir"], "bin", "python")
     _cleanup_problem_files(anaconda["dir"])
     _add_missing_inits(python_bin)
-    for final_name, ve_name in [("gemini_cassandra", "gemini_cassandra"), ("gemini_python", "python"),
+    for final_name, ve_name in [("geminicassandra", "geminicassandra"), ("gemini_python", "python"),
                                 ("gemini_pip", "pip")]:
         final_script = os.path.join(tooldir, "bin", final_name)
         ve_script = os.path.join(anaconda["dir"], "bin", ve_name)
@@ -116,12 +116,12 @@ def install_gemini(anaconda, remotes, datadir, tooldir, use_sudo):
             subprocess.check_call(sudo_cmd + ["mkdir", "-p", os.path.dirname(final_script)])
         cmd = ["ln", "-s", ve_script, final_script]
         subprocess.check_call(sudo_cmd + cmd)
-    library_loc = check_output("%s -c 'import gemini_cassandra; print gemini_cassandra.__file__'" % python_bin,
+    library_loc = check_output("%s -c 'import geminicassandra; print geminicassandra.__file__'" % python_bin,
                                shell=True)
     return {"fab": os.path.join(anaconda["dir"], "bin", "fab"),
             "data_script": os.path.join(os.path.dirname(library_loc.strip()), "install-data.py"),
             "python": python_bin,
-            "cmd": os.path.join(anaconda["dir"], "bin", "gemini_cassandra")}
+            "cmd": os.path.join(anaconda["dir"], "bin", "geminicassandra")}
 
 def install_conda_pkgs(anaconda, remotes, args):
     if args.gemini_version != 'latest':
@@ -182,7 +182,7 @@ def install_tools(fab_cmd, fabfile, fabricrc):
     """Install 3rd party tools used by Gemini using a custom CloudBioLinux flavor.
     """
     tools = ["tabix", "grabix", "samtools", "bedtools"]
-    flavor_dir = os.path.join(os.getcwd(), "gemini_cassandra-flavor")
+    flavor_dir = os.path.join(os.getcwd(), "geminicassandra-flavor")
     if not os.path.exists(flavor_dir):
         os.makedirs(flavor_dir)
     with open(os.path.join(flavor_dir, "main.yaml"), "w") as out_handle:
@@ -198,20 +198,20 @@ def install_tools(fab_cmd, fabfile, fabricrc):
     subprocess.check_call(cmd)
 
 def install_data(python_cmd, data_script, args):
-    """Install biological data used by gemini_cassandra.
+    """Install biological data used by geminicassandra.
     """
     data_dir = os.path.join(args.datadir, "gemini_data") if args.sharedpy else args.datadir
     cmd = [python_cmd, data_script, data_dir]
     if args.install_data:
-        print "Installing gemini_cassandra data..."
+        print "Installing geminicassandra data..."
     else:
         cmd.append("--nodata")
     subprocess.check_call(cmd)
 
 def install_testbase(datadir, repo, gemini):
-    """Clone or update gemini_cassandra code so we have the latest test suite.
+    """Clone or update geminicassandra code so we have the latest test suite.
     """
-    gemini_dir = os.path.join(datadir, "gemini_cassandra")
+    gemini_dir = os.path.join(datadir, "geminicassandra")
     cur_dir = os.getcwd()
     needs_git = True
     if os.path.exists(gemini_dir):
@@ -298,7 +298,7 @@ def check_dependencies():
         except OSError:
             retcode = 127
         if retcode == 127:
-            raise OSError("gemini_cassandra requires %s (%s)" % (cmd, url))
+            raise OSError("geminicassandra requires %s (%s)" % (cmd, url))
         else:
             print " %s found" % cmd
 
@@ -320,13 +320,13 @@ def check_output(*popenargs, **kwargs):
     return output
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Automated installer for gemini_cassandra framework.")
+    parser = argparse.ArgumentParser(description="Automated installer for geminicassandra framework.")
     parser.add_argument("tooldir", help="Directory to install 3rd party software tools",
                         type=os.path.abspath)
-    parser.add_argument("datadir", help="Directory to install gemini_cassandra data files",
+    parser.add_argument("datadir", help="Directory to install geminicassandra data files",
                         type=os.path.abspath)
-    parser.add_argument("--gemini_cassandra-version", dest="gemini_version", default="latest",
-                        help="Install one specific gemini_cassandra version with a fixed dependency chain.")
+    parser.add_argument("--geminicassandra-version", dest="gemini_version", default="latest",
+                        help="Install one specific geminicassandra version with a fixed dependency chain.")
     parser.add_argument("--nosudo", help="Specify we cannot use sudo for commands",
                         dest="sudo", action="store_false", default=True)
     parser.add_argument("--notools", help="Do not install tool dependencies",
@@ -334,7 +334,7 @@ if __name__ == "__main__":
     parser.add_argument("--nodata", help="Do not install data dependencies",
                         dest="install_data", action="store_false", default=True)
     parser.add_argument("--sharedpy", help=("Indicate we share an Anaconda Python directory with "
-                                            "another project. Creates unique gemini_cassandra data directory."),
+                                            "another project. Creates unique geminicassandra data directory."),
                         action="store_true", default=False)
     if len(sys.argv) == 1:
         parser.print_help()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from collections import defaultdict
 
-# gemini_cassandra imports
+# geminicassandra imports
 import GeminiQuery
 from GeminiQuery import select_formatter
 from gemini_region import add_region_to_query

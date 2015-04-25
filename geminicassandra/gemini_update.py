@@ -1,21 +1,21 @@
-"""Perform in-place updates of gemini_cassandra and databases when installed into virtualenv.
+"""Perform in-place updates of geminicassandra and databases when installed into virtualenv.
 """
 import os
 import shutil
 import subprocess
 import sys
 
-import gemini_cassandra.config
+import geminicassandra.config
 
 def release(parser, args):
-    """Update gemini_cassandra to the latest release, along with associated data files.
+    """Update geminicassandra to the latest release, along with associated data files.
     """
     url = "https://github.com/bgossele/gemini_cassandra/master/requirements.txt"
     repo = "https://github.com/bgossele/gemini_cassandra"
     cbl_repo = "https://github.com/chapmanb/cloudbiolinux.git"
     # update locally isolated python
     base = os.path.dirname(os.path.realpath(sys.executable))
-    gemini_cmd = os.path.join(base, "gemini_cassandra")
+    gemini_cmd = os.path.join(base, "geminicassandra")
     pip_bin = os.path.join(base, "pip")
     fab_cmd = os.path.join(base, "fab")
     activate_bin = os.path.join(base, "activate")
@@ -31,7 +31,7 @@ def release(parser, args):
         elif os.path.exists(activate_bin):
             pass
         else:
-            raise NotImplementedError("Can only upgrade gemini_cassandra installed in anaconda or virtualenv")
+            raise NotImplementedError("Can only upgrade geminicassandra installed in anaconda or virtualenv")
         # allow downloads excluded in recent pip (1.5 or greater) versions
         try:
             p = subprocess.Popen([pip_bin, "--version"], stdout=subprocess.PIPE)
@@ -55,14 +55,14 @@ def release(parser, args):
         fabricrc = write_fabricrc(cbl["fabricrc"], args.tooldir, args.sudo)
         install_tools(fab_cmd, cbl["tool_fabfile"], fabricrc)
     # update datafiles
-    config = gemini_cassandra.config.read_gemini_config(args=args)
+    config = geminicassandra.config.read_gemini_config(args=args)
     extra_args = ["--extra=%s" % x for x in args.extra]
     subprocess.check_call([sys.executable, _get_install_script(), config["annotation_dir"]] + extra_args)
     print "Gemini data files updated"
     # update tests
     if not args.dataonly:
         test_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(pip_bin))),
-                                "gemini_cassandra")
+                                "geminicassandra")
         if not os.path.exists(test_dir) or os.path.isdir(test_dir):
             _update_testbase(test_dir, repo, gemini_cmd)
             print "Run test suite with: cd %s && bash master-test.sh" % test_dir
@@ -142,7 +142,7 @@ def install_tools(fab_cmd, fabfile, fabricrc):
     """Install 3rd party tools used by Gemini using a custom CloudBioLinux flavor.
     """
     tools = ["tabix", "grabix", "samtools", "bedtools"]
-    flavor_dir = os.path.join(os.getcwd(), "gemini_cassandra-flavor")
+    flavor_dir = os.path.join(os.getcwd(), "geminicassandra-flavor")
     if not os.path.exists(flavor_dir):
         os.makedirs(flavor_dir)
     with open(os.path.join(flavor_dir, "main.yaml"), "w") as out_handle:
