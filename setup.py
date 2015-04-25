@@ -18,7 +18,7 @@ setup(
         packages=['gemini_cassandra',
                   'gemini_cassandra.scripts',
                   'gemini_cassandra.data'],
-        author="Aaron Quinlan and Uma Paila",
+        author="Aaron Quinlan and Uma Paila. Cassandra port by Brecht Gossele",
         description='A database framework for exploring genetic variation',
         long_description=long_description,
         url="http://gemini_cassandra.readthedocs.org",
@@ -36,7 +36,7 @@ setup(
         zip_safe=False,
         include_package_data=True,
         scripts=['gemini_cassandra/scripts/gemini_cassandra'],
-        author_email="arq5x@virginia.edu",
+        author_email="brecht.gossele@student.kuleuven.be",
         classifiers=[
             'Development Status :: 4 - Beta',
             'Intended Audience :: Science/Research',
