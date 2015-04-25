@@ -1,31 +1,31 @@
 import os
 from setuptools import setup
 
-version_py = os.path.join(os.path.dirname(__file__), 'gemini', 'version.py')
+version_py = os.path.join(os.path.dirname(__file__), 'gemini_cassandra', 'version.py')
 version = open(version_py).read().strip().split('=')[-1].replace('"', '')
 long_description = """
-``gemini`` is a database framework for exploring genetic variation'
+``gemini_cassandra`` is a database framework for exploring genetic variation'
 """
 
 with open("requirements.txt", "r") as f:
-    install_requires = [x.strip() for x in f.readlines() if not x.startswith("gemini")]
+    install_requires = [x.strip() for x in f.readlines() if not x.startswith("gemini_cassandra")]
 
 setup(
-        name="gemini",
+        name="gemini_cassandra",
         version=version,
         install_requires=install_requires,
         requires=['python (>=2.5, <3.0)'],
-        packages=['gemini',
-                  'gemini.scripts',
-                  'gemini.data'],
+        packages=['gemini_cassandra',
+                  'gemini_cassandra.scripts',
+                  'gemini_cassandra.data'],
         author="Aaron Quinlan and Uma Paila",
         description='A database framework for exploring genetic variation',
         long_description=long_description,
-        url="http://gemini.readthedocs.org",
-        package_dir={'gemini': "gemini"},
-        package_data={'gemini': [
-            'static/css/gemini.css',
-            'static/img/gemini.png',
+        url="http://gemini_cassandra.readthedocs.org",
+        package_dir={'gemini_cassandra': "gemini_cassandra"},
+        package_data={'gemini_cassandra': [
+            'static/css/gemini_cassandra.css',
+            'static/img/gemini_cassandra.png',
             'static/third_party/bootstrap/css/*',
             'static/third_party/bootstrap/img/*',
             'static/third_party/bootstrap/js/*',
@@ -35,7 +35,7 @@ setup(
             ]},
         zip_safe=False,
         include_package_data=True,
-        scripts=['gemini/scripts/gemini'],
+        scripts=['gemini_cassandra/scripts/gemini_cassandra'],
         author_email="arq5x@virginia.edu",
         classifiers=[
             'Development Status :: 4 - Beta',

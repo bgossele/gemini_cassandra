@@ -7,7 +7,7 @@ import collections
 import re
 from unidecode import unidecode
 from bx.bbi.bigwig_file import BigWigFile
-from gemini.config import read_gemini_config
+from gemini_cassandra.config import read_gemini_config
 
 # dictionary of anno_type -> open Tabix file handles
 annos = {}
@@ -197,7 +197,7 @@ def load_annos( args ):
                      "Have you installed the annotation files?  If so, "
                      "have they been moved or deleted? Exiting...\n\n"
                      "For more details:\n\t"
-                     "http://gemini.readthedocs.org/en/latest/content/"
+                     "http://gemini_cassandra.readthedocs.org/en/latest/content/"
                      "#installation.html\#installing-annotation-files\n"
                      % anno_files[anno])
 
@@ -370,7 +370,7 @@ def get_gerp_bp(var):
     """
     if "gerp_bp" not in annos:
         raise IOError("Need to download BigWig file with GERP scores per base pair. "
-                      "Run `gemini update --dataonly --extra gerp_bp")
+                      "Run `gemini_cassandra update --dataonly --extra gerp_bp")
     gerp = bigwig_summary(var, "gerp_bp")
     return gerp
 
@@ -416,7 +416,7 @@ def get_cadd_scores(var):
     """
     if "cadd_score" not in annos:
         raise IOError("Need to download the CADD data file for deleteriousness."
-                      "Run `gemini update --dataonly --extra cadd_score")
+                      "Run `gemini_cassandra update --dataonly --extra cadd_score")
 
     cadd_raw = cadd_scaled = None
     labels = {"A":"CGT", "C":"AGT", "G":"ACT", "T":"ACG", "R":"ACGT", "M":"ACGT"}
@@ -780,8 +780,8 @@ def get_conservation_info(var):
     http://www.broadinstitute.org/ftp/pub/assemblies/mammals/29mammals/ \
     29way_pi_lods_elements_12mers.chr_specific.fdr_0.1_with_scores.txt.gz
 
-    # Script to convert for gemini:
-    gemini/annotation_provenance/make-29way-conservation.sh
+    # Script to convert for gemini_cassandra:
+    gemini_cassandra/annotation_provenance/make-29way-conservation.sh
     """
     for hit in annotations_in_region(var, "conserved", "bed"):
         return True
@@ -935,7 +935,7 @@ def get_encode_chromhmm_segs(var):
 
 
 def get_resources( args ):
-    """Retrieve list of annotation resources loaded into gemini.
+    """Retrieve list of annotation resources loaded into gemini_cassandra.
     """
     anno_files = get_anno_files( args )
     return [(n, os.path.basename(anno_files[n])) for n in sorted(anno_files.keys())]

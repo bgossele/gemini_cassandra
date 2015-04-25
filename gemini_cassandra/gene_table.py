@@ -1,7 +1,7 @@
 import sys
 import os
 import database_cassandra
-from gemini.config import read_gemini_config
+from gemini_cassandra.config import read_gemini_config
 
 class gene_detailed:
 

@@ -11,7 +11,7 @@ import numpy as np
 from scipy.stats import mode
 import pysam
 
-from gemini.annotations import annotations_in_region, guess_contig_naming
+from gemini_cassandra.annotations import annotations_in_region, guess_contig_naming
 from database import database_transaction
 
 def add_requested_columns(args, update_cursor, col_names, col_types=None):
@@ -312,7 +312,7 @@ def annotate(parser, args):
 # ## Automate addition of extra fields to database
 
 def add_extras(gemini_db, chunk_dbs):
-    """Annotate gemini database with extra columns from processed chunks, if available.
+    """Annotate gemini_cassandra database with extra columns from processed chunks, if available.
     """
     extra_files = []
     header_files = []
@@ -383,7 +383,7 @@ def _merge_headers(header_files):
     return headers, types
 
 def get_extra_files(gemini_db):
-    """Retrieve extra file names associated with a gemini database, for flexible loading.
+    """Retrieve extra file names associated with a gemini_cassandra database, for flexible loading.
     """
     extra_file = "%s-extra.json" % os.path.splitext(gemini_db)[0]
     extraheader_file = "%s-extraheader.json" % os.path.splitext(gemini_db)[0]

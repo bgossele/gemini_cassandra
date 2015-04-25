@@ -9,7 +9,7 @@ import json
 # third-party imports
 import cyvcf as vcf
 
-# gemini modules
+# gemini_cassandra modules
 import version
 from ped import load_ped_file
 import gene_table
@@ -20,19 +20,19 @@ import func_impact
 import severe_impact
 import popgen
 import structural_variants as svs
-from gemini.gemini_constants import HET, HOM_ALT, HOM_REF, UNKNOWN
+from gemini_cassandra.gemini_constants import HET, HOM_ALT, HOM_REF, UNKNOWN
 from compression import pack_blob
-from gemini.config import read_gemini_config
+from gemini_cassandra.config import read_gemini_config
 from cassandra.cluster import Cluster
 from blist import blist
 from table_schemes import get_column_names
-from gemini.ped import get_ped_fields
+from gemini_cassandra.ped import get_ped_fields
 import time
 from string import strip
 
 class GeminiLoader(object):
     """
-    Object for creating and populating a gemini
+    Object for creating and populating a gemini_cassandra
     database and auxillary data files.
     """
     def __init__(self, args, buffer_size=1000):
@@ -87,12 +87,12 @@ class GeminiLoader(object):
         insert(self.session, 'vcf_header', get_column_names('vcf_header'), [self.vcf_reader.raw_header])
 
     def store_resources(self):
-        """Create table of annotation resources used in this gemini database.
+        """Create table of annotation resources used in this gemini_cassandra database.
         """
         batch_insert(self.session, 'resources', get_column_names('resources'), annotations.get_resources( self.args ))
 
     def store_version(self):
-        """Create table documenting which gemini version was used for this db.
+        """Create table documenting which gemini_cassandra version was used for this db.
         """
         insert(self.session, 'version', get_column_names('version'), [version.__version__])
     
@@ -122,7 +122,7 @@ class GeminiLoader(object):
     def populate_from_vcf(self):
         """
         """
-        import gemini_annotate  # avoid circular dependencies
+        import gemini_cassandra
         self.v_id = self._get_vid()
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
@@ -131,7 +131,7 @@ class GeminiLoader(object):
         self.var_chrom_start_buffer = blist([])
         buffer_count = 0
         self.skipped = 0
-        #extra_file, extraheader_file = gemini_annotate.get_extra_files(self.args.db)
+        #extra_file, extraheader_file = gemini_cassandra.get_extra_files(self.args.db)
         extra_headers = {}
         self.counter = 0
         start_time = time.time()
@@ -267,7 +267,7 @@ class GeminiLoader(object):
                 version_string = self.vcf_reader.metadata['SnpEffVersion']
             except KeyError:
                 error = ("\nWARNING: VCF is not annotated with snpEff, check documentation at:\n"\
-                "http://gemini.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-snpeff\n")
+                "http://gemini_cassandra.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-snpeff\n")
                 sys.exit(error)
 
             # e.g., "SnpEff 3.0a (build 2012-07-08), by Pablo Cingolani"
@@ -304,8 +304,8 @@ class GeminiLoader(object):
             if all_found:
                 return parts
         # Did not find expected fields
-        error = "\nERROR: Check gemini docs for the recommended VCF annotation with VEP"\
-                "\nhttp://gemini.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-vep"
+        error = "\nERROR: Check gemini_cassandra docs for the recommended VCF annotation with VEP"\
+                "\nhttp://gemini_cassandra.readthedocs.org/en/latest/content/functional_annotation.html#stepwise-installation-and-usage-of-vep"
         sys.exit(error)
 
     def setup_db(self):
@@ -317,7 +317,7 @@ class GeminiLoader(object):
         self.session.execute("""CREATE KEYSPACE IF NOT EXISTS %s
                                 WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""" % self.keyspace)
         self.session.set_keyspace(self.keyspace)
-        # create the gemini database tables for the new DB
+        # create the gemini_cassandra database tables for the new DB
         create_tables(self.session, self.typed_gt_column_names, self.extra_sample_columns)
         
     def connect_to_db(self):
@@ -353,7 +353,7 @@ class GeminiLoader(object):
             aaf = infotag.extract_aaf(var)
 
         ############################################################
-        # collect annotations from gemini's custom annotation files
+        # collect annotations from gemini_cassandra's custom annotation files
         # but only if the size of the variant is <= 50kb
         ############################################################
         if var.end - var.POS < 50000:
@@ -802,8 +802,8 @@ def load(parser, args):
     # collect of the the add'l annotation files
     annotations.load_annos( args )
 
-    # create a new gemini loader and populate
-    # the gemini db and files from the VCF
+    # create a new gemini_cassandra loader and populate
+    # the gemini_cassandra db and files from the VCF
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
 

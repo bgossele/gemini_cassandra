@@ -2,9 +2,9 @@
 
 Provide Gemini configuration files in alternative locations:
 
-- Installer based: gemini-virtualenv/../data or gemini-virtualenv/../gemini/data
-- Global:    /usr/local/share/gemini/gemini-config.yaml
-- User only: $HOME/.gemini/gemini-config.yaml
+- Installer based: gemini_cassandra-virtualenv/../data or gemini_cassandra-virtualenv/../gemini_cassandra/data
+- Global:    /usr/local/share/gemini_cassandra/gemini_cassandra-config.yaml
+- User only: $HOME/.gemini_cassandra/gemini_cassandra-config.yaml
 
 Prefer installer based or global if you have system level permissions for
 installation since it will work for all system users.
@@ -12,22 +12,22 @@ installation since it will work for all system users.
 import os
 import yaml
 
-CONFIG_FILE = "gemini-config.yaml"
+CONFIG_FILE = "gemini_cassandra-config.yaml"
 
 def get_config_dirs(use_globals=True):
-    virtualenv_loc = __file__.find("gemini-virtualenv")
+    virtualenv_loc = __file__.find("gemini_cassandra-virtualenv")
     anaconda_loc = __file__.find("anaconda")
     if anaconda_loc >= 0:
         base = __file__[:anaconda_loc]
-        dirs = [os.path.join(base), os.path.join(base, "gemini")]
+        dirs = [os.path.join(base), os.path.join(base, "gemini_cassandra")]
     elif virtualenv_loc >= 0:
         base = __file__[:virtualenv_loc]
-        dirs = [os.path.join(base), os.path.join(base, "gemini")]
+        dirs = [os.path.join(base), os.path.join(base, "gemini_cassandra")]
     else:
         dirs = []
     if use_globals:
-        dirs.append("/usr/local/share/gemini")
-        dirs.append(os.path.join(os.environ["HOME"], ".gemini"))
+        dirs.append("/usr/local/share/gemini_cassandra")
+        dirs.append(os.path.join(os.environ["HOME"], ".gemini_cassandra"))
     return dirs
 
 def _get_config_file(dirs=None, use_globals=True):
@@ -39,7 +39,7 @@ def _get_config_file(dirs=None, use_globals=True):
             return fname
     raise ValueError("GEMINI configuration file {0} not found in {1}.\n"
                      "Please ensure the GEMINI data is installed using the install-data.py script\n"
-                     "http://gemini.readthedocs.org/en/latest/content/installation.html"
+                     "http://gemini_cassandra.readthedocs.org/en/latest/content/installation.html"
                      .format(CONFIG_FILE, dnames))
 
 def read_gemini_config(dirs=None, allow_missing=False, use_globals=True, args=None):
