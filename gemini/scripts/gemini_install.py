@@ -23,15 +23,15 @@ import sys
 import urllib2
 
 remotes = {"requirements_pip":
-           "https://raw.github.com/arq5x/gemini/master/requirements.txt",
+           "https://raw.github.com/bgossele/gemini_cassandra/master/requirements.txt",
             "requirements_conda":
            "",
             "versioned_installations":
-            "https://raw.githubusercontent.com/arq5x/gemini/master/versioning/",
+            "https://raw.githubusercontent.com/bgossele/gemini_cassandra/master/versioning/",
            "cloudbiolinux":
            "https://github.com/chapmanb/cloudbiolinux.git",
            "gemini":
-           "https://github.com/arq5x/gemini.git",
+           "https://github.com/bgossele/gemini_cassandra.git",
            "anaconda":
            "http://repo.continuum.io/miniconda/Miniconda-3.7.0-%s-x86_64.sh"}
 
