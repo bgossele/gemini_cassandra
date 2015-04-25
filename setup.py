@@ -11,7 +11,7 @@ with open("requirements.txt", "r") as f:
     install_requires = [x.strip() for x in f.readlines() if not x.startswith("geminicassandra")]
 
 setup(
-        name="gemini-cassandra",
+        name="geminicassandra",
         version=version,
         install_requires=install_requires,
         requires=['python (>=2.5, <3.0)'],
@@ -38,7 +38,7 @@ setup(
         scripts=['geminicassandra/scripts/geminicassandra'],
         author_email="brecht.gossele@student.kuleuven.be",
         classifiers=[
-            'Development Status :: 4 - Beta',
+            'Development Status :: 3 - Alfa',
             'Intended Audience :: Science/Research',
             'License :: OSI Approved :: GNU General Public License (GPL)',
             'Topic :: Scientific/Engineering :: Bio-Informatics']
