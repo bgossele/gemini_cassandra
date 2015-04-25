@@ -211,7 +211,7 @@ def install_data(python_cmd, data_script, args):
 def install_testbase(datadir, repo, gemini):
     """Clone or update gemini code so we have the latest test suite.
     """
-    gemini_dir = os.path.join(datadir, "gemini")
+    gemini_dir = os.path.join(datadir, "gemini_cassandra")
     cur_dir = os.getcwd()
     needs_git = True
     if os.path.exists(gemini_dir):
