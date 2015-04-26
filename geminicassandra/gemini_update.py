@@ -40,7 +40,7 @@ def release(parser, args):
             pip_version = ""
         pip_compat = []
         if pip_version >= "1.5":
-            for req in ["python-graph-core", "python-graph-dot"]:
+            for req in ["python-graph-core", "python-graph-dot", "geminicassandra"]:
                 pip_compat += ["--allow-external", req, "--allow-unverified", req]
         # update libraries
         subprocess.check_call([pip_bin, "install"] + pip_compat + ["-r", url])
