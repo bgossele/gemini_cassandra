@@ -10,8 +10,8 @@ import geminicassandra.config
 def release(parser, args):
     """Update geminicassandra to the latest release, along with associated data files.
     """
-    url = "https://github.com/bgossele/gemini_cassandra/master/requirements.txt"
-    repo = "https://github.com/bgossele/gemini_cassandra"
+    url = "https://github.com/bgossele/geminicassandra/master/requirements.txt"
+    repo = "https://github.com/bgossele/geminicassandra"
     cbl_repo = "https://github.com/chapmanb/cloudbiolinux.git"
     # update locally isolated python
     base = os.path.dirname(os.path.realpath(sys.executable))
