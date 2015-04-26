@@ -99,7 +99,7 @@ def install_gemini(anaconda, remotes, datadir, tooldir, use_sudo):
         pip_version = ""
     pip_compat = []
     if pip_version >= "1.5":
-        for req in ["python-graph-core", "python-graph-dot", "geminicassandra"]:
+        for req in ["python-graph-core", "python-graph-dot"]:
             pip_compat += ["--allow-external", req, "--allow-unverified", req]
     subprocess.check_call([anaconda["pip"], "install"] + pip_compat + ["-r", remotes["requirements_pip"]])
     python_bin = os.path.join(anaconda["dir"], "bin", "python")

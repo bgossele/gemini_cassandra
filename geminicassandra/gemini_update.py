@@ -10,7 +10,7 @@ import geminicassandra.config
 def release(parser, args):
     """Update geminicassandra to the latest release, along with associated data files.
     """
-    url = "https://github.com/bgossele/geminicassandra/master/requirements.txt"
+    url = "https://raw.githubusercontent.com/bgossele/geminicassandra/master/requirements.txt"
     repo = "https://github.com/bgossele/geminicassandra"
     cbl_repo = "https://github.com/chapmanb/cloudbiolinux.git"
     # update locally isolated python
@@ -40,7 +40,7 @@ def release(parser, args):
             pip_version = ""
         pip_compat = []
         if pip_version >= "1.5":
-            for req in ["python-graph-core", "python-graph-dot", "geminicassandra"]:
+            for req in ["python-graph-core", "python-graph-dot"]:
                 pip_compat += ["--allow-external", req, "--allow-unverified", req]
         # update libraries
         subprocess.check_call([pip_bin, "install"] + pip_compat + ["-r", url])
