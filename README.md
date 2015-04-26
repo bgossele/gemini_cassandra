@@ -7,7 +7,7 @@ A first paper reviewing possible datastores can be found [here](http://www.gosse
 As a case study, I am currently working on porting GEMINI, a genome analysis tool from SQLite to Apache Cassandra.
 My thesis text (in Dutch), detailing design decisions, can be found here:
 
-[![PDF Status](https://www.sharelatex.com/github/repos/bgossele/thesis_tekst/builds/latest/badge.svg)](https://www.sharelatex.com/github/repos/bgossele/thesis_tekst/builds/latest/output.pdf)
+[![PDF Status](https://www.sharelatex.com/github/repos/bgossele/zesis/builds/latest/badge.svg)](https://www.sharelatex.com/github/repos/bgossele/zesis/builds/latest/output.pdf)
 
 Both source code and thesis text are still a work in progress.
 
