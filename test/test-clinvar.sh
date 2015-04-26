@@ -13,7 +13,7 @@ echo "1	pathogenic	MYASTHENIC_SYNDROME,_CONGENITAL,_WITH_PRE-_AND_POSTSYNAPTIC_D
 1	pathogenic	Chediak-Higashi_syndrome	ClinVar|GeneReviews	NM_000081.3:c.9107_9162del56|NBK5188	unknown	GeneReviews:MedGen:OMIM:Orphanet:SNOMED_CT	NBK5188:C0007965:214500:ORPHA167:111396008	RCV000033871.2	1	0	C
 1	untested	Familial_cold_urticaria	ClinVar|Unite_medicale_des_maladies_autoinflammatoires	NM_004895.4:c.404-56C>T|363	unknown	MedGen:OMIM:Orphanet:SNOMED_CT	C0343068:120100:ORPHA47045:238687000	RCV000084222.1	1	0	T" > exp
 
-gemini query -q "select in_omim,
+geminicassandra query -q "select in_omim,
                         clinvar_sig, 
                         clinvar_disease_name, 
                         clinvar_dbsource, 

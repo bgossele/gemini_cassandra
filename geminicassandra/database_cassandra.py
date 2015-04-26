@@ -83,23 +83,23 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                     mam_phenotype_id text,                          \
                     in_cosmic_census int)'''))
     
-    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_type ( \
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_types ( \
                         sample_name text, \
-                        gt_type int, \
+                        gt_types int, \
                         variant_id int, \
-                        primary key (sample_name, gt_type, variant_id))'''))
+                        primary key (sample_name, gt_types, variant_id))'''))
     
-    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_depth( \
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt_depths ( \
                         sample_name text, \
-                        gt_depth int, \
+                        gt_depths int, \
                         variant_id int, \
-                        primary key (sample_name, gt_depth, variant_id))''')) 
+                        primary key (sample_name, gt_depths, variant_id))''')) 
      
-    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gt( \
+    session.execute(SimpleStatement('''CREATE TABLE if not exists variants_by_samples_gts ( \
                         sample_name text, \
-                        gt text, \
+                        gts text, \
                         variant_id int, \
-                        primary key (sample_name, gt, variant_id))'''))
+                        primary key (sample_name, gts, variant_id))'''))
     
     
     session.execute(SimpleStatement('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \

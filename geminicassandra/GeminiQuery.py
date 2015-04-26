@@ -670,10 +670,10 @@ class GeminiQuery(object):
             return False
 
         # make sure a "gt" col is in the string
-        valid_cols = ["gt.", "gt_type.", "gt_phase.", "gt_qual.",
-                      "gt_depth.", "gt_ref_depth.", "gt_alt_depth.", "gt_copy_number.",
-                      "[gt].", "[gt_type].", "[gt_phase].", "[gt_qual].", "[gt_copy_number].",
-                      "[gt_depth].", "[gt_ref_depth].", "[gt_alt_depth]."]
+        valid_cols = ["gts.", "gt_types.", "gt_phases.", "gt_quals.",
+                      "gt_depths.", "gt_ref_depths.", "gt_alt_depths.", "gt_copy_numbers.",
+                      "[gts].", "[gt_types].", "[gt_phases].", "[gt_quals].", "[gt_copy_numbers].",
+                      "[gt_depths].", "[gt_ref_depths].", "[gt_alt_depths]."]
         if any(s in self.gt_filter for s in valid_cols):
             return True
 

@@ -138,7 +138,7 @@ def main():
                          default=False)
 
     def load_fn(parser, args):
-        import geminicassandra
+        import gemini_load
         gemini_load.load(parser, args)
 
     parser_load.set_defaults(func=load_fn)
@@ -156,7 +156,7 @@ def main():
                               default=None,
                               help='New sample information file to load')
     def amend_fn(parser, args):
-        import geminicassandra
+        import gemini_amend
         gemini_amend.amend(parser, args)
     parser_amend.set_defaults(func=amend_fn)
 
@@ -233,7 +233,7 @@ def main():
                          help='Load in test mode (faster)',
                          default=False)
     def loadchunk_fn(parser, args):
-        import geminicassandra
+        import gemini_load_chunk
         gemini_load_chunk.load(parser, args)
     parser_loadchunk.set_defaults(func=loadchunk_fn)
 
@@ -334,53 +334,12 @@ def main():
                               help='Sort variants by start, samples by sample_id. ONLY TO BE USED FOR UNIT TESTS',
                               default=False)
     def query_fn(parser, args):
-        import geminicassandra
+        import gemini_query
         gemini_query.query(parser, args)
 
     parser_query.set_defaults(func=query_fn)
 
-    #########################################
-    # $ geminicassandra dump
-    #########################################
-    parser_dump = subparsers.add_parser('dump',
-            help='shortcuts for extracting data from the DB')
-    parser_dump.add_argument('-db', dest='contact_points',
-                             default = "127.0.0.1",
-                             help='The IP adresses at which the Cassandra cluster is reachable.')
-    parser_dump.add_argument('--variants',
-            dest='variants',
-            action='store_true',
-            help='Report all rows/columns from the variants table.',
-            default=False)
-    parser_dump.add_argument('--genotypes',
-            dest='genotypes',
-            action='store_true',
-            help='Report all rows/columns from the variants table \nwith one line per sample/genotype.',
-            default=False)
-    parser_dump.add_argument('--samples',
-            dest='samples',
-            action='store_true',
-            help='Report all rows/columns from the samples table.',
-            default=False)
-    parser_dump.add_argument('--header',
-            dest='use_header',
-            action='store_true',
-            help='Add a header of column names to the output.',
-            default=False)
-    parser_dump.add_argument('--sep',
-            dest='separator',
-            metavar='STRING',
-            help='Output column separator',
-            default="\t")
-    parser_dump.add_argument('--tfam',
-                             dest='tfam',
-                             action='store_true',
-                             default=False,
-                             help='Output sample information to TFAM format.')
-    def dump_fn(parser, args):
-        import geminicassandra
-        gemini_dump.dump(parser, args)
-    parser_dump.set_defaults(func=dump_fn)
+    
 
     #########################################
     # $ geminicassandra region
@@ -423,7 +382,7 @@ def main():
                               default='default',
                               help='Format of output (JSON, TPED or default)')
     def region_fn(parser, args):
-        import geminicassandra
+        import gemini_region
         gemini_region.region(parser, args)
     parser_region.set_defaults(func=region_fn)
 
@@ -485,7 +444,7 @@ def main():
             metavar='STRING',
             help='Restrictions to apply to genotype values')
     def stats_fn(parser, args):
-        import geminicassandra
+        import gemini_stats
         gemini_stats.stats(parser, args)
     parser_stats.set_defaults(func=stats_fn)
 
@@ -523,42 +482,11 @@ def main():
                   'in your annotation file (-f).'
                   'Any of {mean, median, min, max, mode, list, uniq_list, first, last}')
     def annotate_fn(parser, args):
-        import geminicassandra
+        import gemini_annotate
         gemini_annotate.annotate(parser, args)
     parser_get.set_defaults(func=annotate_fn)
 
-    #########################################
-    # geminicassandra windower
-    #########################################
-    parser_get = subparsers.add_parser('windower',
-            help='Compute statistics across genome \"windows\"')
-    parser_get.add_argument('db',
-            metavar='db',
-            help='The name of the database to be updated.')
-    parser_get.add_argument('-w',
-            dest='window_size',
-            type=int,
-            default=1000000,
-            help='The name of the column to be added to the variant table.')
-    parser_get.add_argument('-s',
-            dest='step_size',
-            type=int,
-            default=0,
-            help="The step size for the windows in bp.\n")
-    parser_get.add_argument('-t',
-            dest='analysis_type',
-            help='The type of windowed analysis requested.',
-            choices=['nucl_div', 'hwe'],
-            default='hwe')
-    parser_get.add_argument('-o',
-            dest='op_type',
-            help='The operation that should be applied to the -t values.',
-            choices=['mean', 'median', 'min', 'max', 'collapse'],
-            default='mean')
-    def windower_fn(parser, args):
-        import geminicassandra
-        gemini_windower.windower(parser, args)
-    parser_get.set_defaults(func=windower_fn)
+    
 
     #########################################
     # geminicassandra db_info
@@ -569,7 +497,7 @@ def main():
             metavar='db',
             help='The name of the database to be updated.')
     def dbinfo_fn(parser, args):
-        import geminicassandra
+        import gemini_dbinfo
         gemini_dbinfo.db_info(parser, args)
     parser_get.set_defaults(func=dbinfo_fn)
 
@@ -611,301 +539,6 @@ def main():
         tool_compound_hets.run(parser, args)
     parser_comp_hets.set_defaults(func=comp_hets_fn)
 
-    #########################################
-    # $ geminicassandra pathways
-    #########################################
-    parser_pathway = subparsers.add_parser('pathways',
-            help='Map genes and variants to KEGG pathways')
-    parser_pathway.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried')
-    parser_pathway.add_argument('-v',
-            dest='version',
-            default='68',
-            metavar='STRING',
-            help="Version of ensembl genes to use. "
-                 "Supported versions: 66 to 71\n"
-            )
-    parser_pathway.add_argument('--lof',
-            dest='lof',
-            action='store_true',
-            help='Report pathways for indivs/genes/sites with LoF variants',
-            default=False)
-    def pathway_fn(parser, args):
-        import tool_pathways
-        tool_pathways.pathways(parser, args)
-    parser_pathway.set_defaults(func=pathway_fn)
-
-    #########################################
-    # $ geminicassandra lof_sieve
-    #########################################
-    parser_lof_sieve = subparsers.add_parser('lof_sieve',
-            help='Prioritize LoF mutations')
-    parser_lof_sieve.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried')
-    def lof_sieve_fn(parser, args):
-        import tool_lof_sieve
-        tool_lof_sieve.lof_sieve(parser, args)
-    parser_lof_sieve.set_defaults(func=lof_sieve_fn)
-
-    #########################################
-    # $ geminicassandra burden
-    #########################################
-    burden_help = ("Gene-level genetic burden tests. By default counts all "
-                   "variants with high impact in coding regions "
-                   "as contributing to burden.")
-
-    parser_burden = subparsers.add_parser('burden',
-                                          help=burden_help)
-    parser_burden.add_argument('--nonsynonymous', action='store_true',
-                               default=False,
-                               help=("Count all nonsynonymous variants as "
-                                     "contributing burden."))
-    parser_burden.add_argument('--cases',
-                               dest='cases',
-                               nargs='*',
-                               help=('Space separated list of cases for '
-                                     'association testing.'))
-    parser_burden.add_argument('--controls',
-                               nargs='*',
-                               dest='controls',
-                               help=('Space separated list of controls for '
-                                     'association testing.'))
-    parser_burden.add_argument('--calpha',
-                               action='store_true',
-                               default=False,
-                               help="Run the C-alpha association test.")
-    parser_burden.add_argument('--permutations',
-                               default=0,
-                               type=int,
-                               help=("Number of permutations to run for the "
-                                     "C-alpha test (try 1000 to start)."))
-    parser_burden.add_argument('--min-aaf',
-                               dest='min_aaf',
-                               type=float,
-                               default=0.0,
-                               help='The min. alt. allele frequency for a '
-                                     'variant to be included.')
-    parser_burden.add_argument('--max-aaf',
-                               dest='max_aaf',
-                               type=float,
-                               default=1.0,
-                               help='The max. alt. allele frequency for a '
-                                     'variant to be included.')
-    parser_burden.add_argument('--save_tscores', default=False,
-                               action='store_true',
-                               help='Save the permuted T-scores to a file.')
-    parser_burden.add_argument('db',
-                               metavar='db',
-                               help='The name of the database to be queried.')
-
-    def burden_fn(parser, args):
-        import tool_burden_tests
-        tool_burden_tests.burden(parser, args)
-    parser_burden.set_defaults(func=burden_fn)
-
-    #########################################
-    # $ geminicassandra interactions
-    #########################################
-    parser_interaction = subparsers.add_parser('interactions',
-            help='Find interaction partners for a gene in sample variants(default mode)')
-    parser_interaction.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried')
-    parser_interaction.add_argument('-g',
-            dest='gene',
-            help='Gene to be used as a root in BFS/shortest_path')
-    parser_interaction.add_argument('-r',
-            dest='radius',
-            type=int,
-            help="Set filter for BFS:\n"
-                 "valid numbers starting from 0")
-    parser_interaction.add_argument('--var',
-            dest='var_mode',
-            help='var mode: Returns variant info (e.g. impact, biotype) for interacting genes',
-            action='store_true',
-            default=False)
-    def interactions_fn(parser, args):
-        import tool_interactions
-        tool_interactions.genequery(parser, args)
-    parser_interaction.set_defaults(func=interactions_fn)
-
-    #########################################
-    # geminicassandra lof_interactions
-    #########################################
-    parser_interaction = subparsers.add_parser('lof_interactions',
-            help='Find interaction partners for a lof gene in sample variants(default mode)')
-    parser_interaction.add_argument('db',
-            metavar='db',
-            help='The name of the database to be queried')
-    parser_interaction.add_argument('-r',
-            dest='radius',
-            type=int,
-            help="set filter for BFS:\n")
-    parser_interaction.add_argument('--var',
-            dest='var_mode',
-            help='var mode: Returns variant info (e.g. impact, biotype) for interacting genes',
-            action='store_true',
-            default=False)
-    def lof_interactions_fn(parser, args):
-        import tool_interactions
-        tool_interactions.lofgenequery(parser, args)
-    parser_interaction.set_defaults(func=lof_interactions_fn)
-
-    #########################################
-    # $ geminicassandra autosomal_recessive
-    #########################################
-    parser_auto_rec = subparsers.add_parser('autosomal_recessive',
-            help='Identify variants meeting an autosomal \
-                  recessive inheritance model')
-    parser_auto_rec.add_argument('-db', dest='contact_points',
-                             default = "127.0.0.1",
-                             help='The IP adresses at which the Cassandra cluster is reachable.')
-    parser_auto_rec.add_argument('--columns',
-            dest='columns',
-            metavar='STRING',
-            help='A list of columns that you would like returned. Def. = "*"',
-            )
-    parser_auto_rec.add_argument('--filter',
-            dest='filter',
-            metavar='STRING',
-            help='Restrictions to apply to variants (SQL syntax)')
-    parser_auto_rec.add_argument('--min-kindreds',
-            dest='min_kindreds',
-            type=int,
-            default=1,
-            help='The min. number of kindreds that must have a candidate variant in a gene.')
-    parser_auto_rec.add_argument('--families',
-            dest='families',
-            help='Restrict analysis to a specific set of 1 or more (comma) separated) families',
-            default=None)
-    parser_auto_rec.add_argument('-d',
-            dest='min_sample_depth',
-            type=int,
-            help="The minimum aligned\
-              sequence depth (genotype DP) req'd for\
-              each sample (def. = 0)",
-            default=0)
-    def autosomal_recessive_fn(parser, args):
-        import tool_autosomal_recessive
-        tool_autosomal_recessive.run(parser, args)
-    parser_auto_rec.set_defaults(func=autosomal_recessive_fn)
-
-    #########################################
-    # $ geminicassandra autosomal_dominant
-    #########################################
-    parser_auto_dom = subparsers.add_parser('autosomal_dominant',
-            help='Identify variants meeting an autosomal \
-                  dominant inheritance model')
-    parser_auto_dom.add_argument('-db', dest='contact_points',
-                             default = "127.0.0.1",
-                             help='The IP adresses at which the Cassandra cluster is reachable.')
-    parser_auto_dom.add_argument('--columns',
-            dest='columns',
-            metavar='STRING',
-            help='A list of columns that you would like returned. Def. = "*"',
-            )
-    parser_auto_dom.add_argument('--filter',
-            dest='filter',
-            metavar='STRING',
-            help='Restrictions to apply to variants (SQL syntax)')
-    parser_auto_dom.add_argument('--min-kindreds',
-            dest='min_kindreds',
-            type=int,
-            default=1,
-            help='The min. number of kindreds that must have a candidate variant in a gene.')
-    parser_auto_dom.add_argument('--families',
-            dest='families',
-            help='Restrict analysis to a specific set of 1 or more (comma) separated) families',
-            default=None)
-    parser_auto_dom.add_argument('-d',
-            dest='min_sample_depth',
-            type=int,
-            help="The minimum aligned\
-              sequence depth (genotype DP) req'd for\
-              each sample (def. = 0)",
-            default=0)
-    def autosomal_dominant_fn(parser, args):
-        import tool_autosomal_dominant
-        tool_autosomal_dominant.run(parser, args)
-    parser_auto_dom.set_defaults(func=autosomal_dominant_fn)
-
-    #########################################
-    # $ geminicassandra de_novo
-    #########################################
-    parser_de_novo = subparsers.add_parser('de_novo',
-            help='Identify candidate de novo mutations')
-    parser_de_novo.add_argument('-db', dest='contact_points',
-                             default = "127.0.0.1",
-                             help='The IP adresses at which the Cassandra cluster is reachable.')
-    parser_de_novo.add_argument('--columns',
-            dest='columns',
-            metavar='STRING',
-            help='A list of columns that you would like returned. Def. = "*"',
-            )
-    parser_de_novo.add_argument('--filter',
-            dest='filter',
-            metavar='STRING',
-            help='Restrictions to apply to variants (SQL syntax)')
-    parser_de_novo.add_argument('--min-kindreds',
-            dest='min_kindreds',
-            type=int,
-            default=None,
-            help='The min. number of kindreds that must have a \
-                  de novo mutation in a gene. This option restricts \
-                  the reported variants to those affectting genes.')
-    parser_de_novo.add_argument('--only-affected',
-            dest='only_affected',
-            action='store_true',
-            help='Report solely those de novos that impact a sample \
-                  labeled as affected.',
-            default=False)
-    parser_de_novo.add_argument('--families',
-            dest='families',
-            help='Restrict analysis to a specific set of 1 or more (comma) separated) families',
-            default=None)
-    parser_de_novo.add_argument('-d',
-            dest='min_sample_depth',
-            type=int,
-            help="The minimum aligned\
-                  sequence depth (genotype DP) req'd for\
-                  each sample (def. = 0)",
-            default=0)
-    def de_novo_fn(parser, args):
-        import tool_de_novo_mutations
-        tool_de_novo_mutations.run(parser, args)
-    parser_de_novo.set_defaults(func=de_novo_fn)
-
-
-    #########################################
-    # $ geminicassandra mendel violations
-    #########################################
-    parser_mendel = subparsers.add_parser('mendel_errors',
-            help='Identify candidate violations of Mendelian inheritance')
-    parser_mendel.add_argument('-db', dest='contact_points',
-                             default = "127.0.0.1",
-                             help='The IP adresses at which the Cassandra cluster is reachable.')
-    parser_mendel.add_argument('--columns',
-            dest='columns',
-            metavar='STRING',
-            help='A list of columns that you would like returned. Def. = "*"',
-            )
-    parser_mendel.add_argument('--filter',
-            dest='filter',
-            metavar='STRING',
-            help='Restrictions to apply to variants (SQL syntax)')
-    parser_mendel.add_argument('-d',
-            dest='min_sample_depth',
-            type=int,
-            help="The minimum aligned\
-                  sequence depth (genotype DP) req'd for\
-                  each sample (def. = 0)",
-            default=0)
-    def mendel_fn(parser, args):
-        import tool_mendel_errors
-        tool_mendel_errors.run(parser, args)
-    parser_mendel.set_defaults(func=mendel_fn)
 
 
     #########################################
@@ -916,103 +549,9 @@ def main():
     parser_browser.add_argument('db', metavar='db',
             help='The name of the database to be queried.')
     def browser_fn(parser, args):
-        import geminicassandra
+        import gemini_browser
         gemini_browser.browser_main(parser, args)
     parser_browser.set_defaults(func=browser_fn)
-
-
-    #########################################
-    # $ geminicassandra set_somatic
-    #########################################
-    parser_set_somatic = subparsers.add_parser("set_somatic",
-                          help="Tag somatic mutations (is_somatic) by comparint tumor/normal pairs.")
-    parser_set_somatic.add_argument('db', metavar='db',
-            help='The name of the database to be updated.')
-
-    parser_set_somatic.add_argument('--min-depth',
-            dest='min_depth',
-            type=float,
-            default=None,
-            help='The min combined depth for tumor + normal (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--min-qual',
-            dest='min_qual',
-            type=float,
-            default=None,
-            help='The min variant quality (VCF QUAL) (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--min-somatic-score',
-            dest='min_somatic_score',
-            type=float,
-            default=None,
-            help='The min somatic score (SSC) (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--max-norm-alt-freq',
-            dest='max_norm_alt_freq',
-            type=float,
-            default=None,
-            help='The max freq. of the alt. allele in the normal sample (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--max-norm-alt-count',
-            dest='max_norm_alt_count',
-            type=int,
-            default=None,
-            help='The max count. of the alt. allele in the normal sample (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--min-norm-depth',
-            dest='min_norm_depth',
-            type=int,
-            default=None,
-            help='The minimum depth allowed in the normal sample to believe somatic (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--min-tumor-alt-freq',
-            dest='min_tumor_alt_freq',
-            type=float,
-            default=None,
-            help='The min freq. of the alt. allele in the tumor sample (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--min-tumor-alt-count',
-            dest='min_tumor_alt_count',
-            type=int,
-            default=None,
-            help='The min count. of the alt. allele in the tumor sample (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--min-tumor-depth',
-            dest='min_tumor_depth',
-            type=int,
-            default=None,
-            help='The minimum depth allowed in the tumor sample to believe somatic (def: %(default)s).')
-
-    parser_set_somatic.add_argument('--chrom',
-            dest='chrom',
-            metavar='STRING',
-            help='A specific chromosome on which to tag somatic mutations. (def: %(default)s).',
-            default=None,
-            )
-
-    parser_set_somatic.add_argument('--dry-run',
-            dest='dry_run',
-            action='store_true',
-            help='Don\'t set the is_somatic flag, just report what _would_ be set. For testing parameters.',
-            default=False)
-
-    def set_somatic_fn(parser, args):
-        import geminicassandra
-        gemini_set_somatic.set_somatic(parser, args)
-    parser_set_somatic.set_defaults(func=set_somatic_fn)
-
-    #########################################
-    # $ geminicassandra actionable_mutations
-    #########################################
-    parser_actionable_mut = subparsers.add_parser("actionable_mutations",
-                          help="Retrieve genes with actionable somatic mutations via COSMIC and DGIdb.")
-    parser_actionable_mut.add_argument('db', metavar='db',
-            help='The name of the database to be queried.')
-    def get_actionable_mut_fn(parser, args):
-        import geminicassandra
-        gemini_actionable_mutations.get_actionable_mutations(parser, args)
-    parser_actionable_mut.set_defaults(func=get_actionable_mut_fn)
-
 
     #########################################
     # $ geminicassandra update
@@ -1028,96 +567,9 @@ def main():
     parser_update.add_argument("--sudo", help="Use sudo for tool installation commands",
                                dest="sudo", action="store_true", default=False)
     def update_fn(parser, args):
-        import geminicassandra
+        import gemini_update
         gemini_update.release(parser, args)
     parser_update.set_defaults(func=update_fn)
-
-
-    #########################################
-    # $ geminicassandra roh
-    #########################################
-    parser_hom_run = subparsers.add_parser('roh',
-            help='Identify runs of homozygosity')
-    parser_hom_run.add_argument('-db', dest='contact_points',
-                             default = "127.0.0.1",
-                             help='The IP adresses at which the Cassandra cluster is reachable.')
-    parser_hom_run.add_argument('--min-snps',
-            dest='min_snps',
-            metavar="INTEGER",
-            type=int,
-            default=25,
-            help='Minimum number of homozygous snps expected in a run (def. 25)')
-    parser_hom_run.add_argument('--min-total-depth',
-            dest='min_total_depth',
-            metavar="INTEGER",
-            type=int,
-            default=20,
-            help="""The minimum overall sequencing depth required"""
-                 """for a SNP to be considered (def = 20).""")
-    parser_hom_run.add_argument('--min-gt-depth',
-            dest='min_genotype_depth',
-            metavar="INTEGER",
-            type=int,
-            default=0,
-            help="""The minimum required sequencing depth underlying a given sample's genotype"""
-                 """for a SNP to be considered (def = 0).""")
-    parser_hom_run.add_argument('--min-size',
-            metavar="INTEGER",
-            dest='min_size',
-            type=int,
-            default=100000,
-            help='Minimum run size in base pairs (def. 100000)')
-    parser_hom_run.add_argument('--max-hets',
-            metavar="INTEGER",
-            dest='max_hets',
-            type=int,
-            default=1,
-            help='Maximum number of allowed hets in the run (def. 1)')
-    parser_hom_run.add_argument('--max-unknowns',
-            metavar="INTEGER",
-            type=int,
-            dest='max_unknowns',
-            default=3,
-            help='Maximum number of allowed unknowns in the run (def. 3)')
-    parser_hom_run.add_argument('-s',
-            dest='samples',
-            default=None,
-            help='Comma separated list of samples to screen for ROHs. e.g S120,S450')
-    def homozygosity_runs_fn(parser, args):
-        from tool_homozygosity_runs import run
-        run(parser, args)
-    parser_hom_run.set_defaults(func=homozygosity_runs_fn)
-
-
-    #########################################
-    # $ geminicassandra fusions
-    #########################################
-    parser_fusions = subparsers.add_parser('fusions',
-                                         help="Identify somatic fusion genes from a GEMINI database.")
-    parser_fusions.add_argument('db',
-                              metavar='db',
-                              help='The name of the database to be queried.')
-    parser_fusions.add_argument('--in_cosmic_census',
-                                action='store_true',
-                                help='One or both genes in fusion is in COSMIC cancer census')
-    parser_fusions.add_argument('--min_qual',
-                                dest='min_qual',
-                                metavar='FLOAT',
-                                type=float,
-                                default=None,
-                                help='The min variant quality (VCF QUAL) (def: %(default)s).')
-    parser_fusions.add_argument('--evidence_type',
-                                metavar='STR',
-                                dest='evidence_type',
-                                type=str,
-                                default=None,
-                                help='The supporting evidence types for the variant ("PE", "SR", or "PE,SR").')
-
-    def fusions_fn(parser, args):
-        from tool_fusions import run
-        run(parser, args)
-    parser_fusions.set_defaults(func=fusions_fn)
-
 
 
     #######################################################

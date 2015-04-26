@@ -163,10 +163,10 @@ class GeminiLoader(object):
                 var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
                 var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
                                     
-            batch_insert(self.session, 'variants_by_samples_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
+            batch_insert(self.session, 'variants_by_samples_gt_types', ["variant_id", "sample_name", "gt_types"], var_sample_gt_types_buffer)
             batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
-            batch_insert(self.session, 'variants_by_samples_gt_depth', ["variant_id", "sample_name", "gt_depth"], var_sample_gt_depths_buffer)
-            batch_insert(self.session, 'variants_by_samples_gt', ["variant_id", "sample_name", "gt"], var_sample_gt_buffer)
+            batch_insert(self.session, 'variants_by_samples_gt_depths', ["variant_id", "sample_name", "gt_depths"], var_sample_gt_depths_buffer)
+            batch_insert(self.session, 'variants_by_samples_gts', ["variant_id", "sample_name", "gts"], var_sample_gt_buffer)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
                 self.var_impacts_buffer.append(var_impact)

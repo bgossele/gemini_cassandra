@@ -11,7 +11,7 @@ None
 None
 None
 None" > exp
-gemini query -q "select rmsk from variants" --test-mode -ks test3_snpeff_db \
+geminicassandra query -q "select rmsk from variants" --test-mode -ks test3_snpeff_db \
  > obs
 check obs exp
 rm obs exp
@@ -29,7 +29,7 @@ False
 True
 False
 False" > exp
-gemini query -q "select in_cpg_island from variants" --test-mode -ks test3_snpeff_db \
+geminicassandra query -q "select in_cpg_island from variants" --test-mode -ks test3_snpeff_db \
 > obs
 check obs exp
 rm obs exp
@@ -46,7 +46,7 @@ False
 False
 False
 False" > exp
-gemini query -q "select in_segdup from variants" --test-mode -ks test3_snpeff_db \
+geminicassandra query -q "select in_segdup from variants" --test-mode -ks test3_snpeff_db \
  > obs
 check obs exp
 rm obs exp
@@ -64,7 +64,7 @@ False
 False
 True
 True" > exp
-gemini query -q "select is_conserved from variants" --test-mode -ks test3_snpeff_db \
+geminicassandra query -q "select is_conserved from variants" --test-mode -ks test3_snpeff_db \
 > obs
 check obs exp
 rm obs exp
@@ -82,7 +82,7 @@ chr1p36.33
 chr1p36.33
 chr1p36.33
 chr1p35.2" > exp
-gemini query -q "select cyto_band from variants" --test-mode -ks test3_snpeff_db \
+geminicassandra query -q "select cyto_band from variants" --test-mode -ks test3_snpeff_db \
 > obs
 check obs exp
 rm obs exp
@@ -99,7 +99,7 @@ echo "2.98182201385
 0.952857971191
 1.84493994713
 0.225399002433" > exp
-gemini query -q "select recomb_rate from variants" --test-mode -ks test3_snpeff_db \
+geminicassandra query -q "select recomb_rate from variants" --test-mode -ks test3_snpeff_db \
 > obs
 check obs exp
 rm obs exp

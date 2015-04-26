@@ -13,7 +13,7 @@ T/T	T/T	T/T	T/T
 ./.	./.	A/G	A/G
 A/A	A/T	A/A	A/A
 ./.	G/G	G/G	G/G" > exp
-gemini query -q "select gts_1094pc0005, gts_1094pc0009, \
+geminicassandra query -q "select gts_1094pc0005, gts_1094pc0009, \
 				gts_1094PC0012, gts_1094PC0013 \
 				from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
@@ -35,7 +35,7 @@ echo "2	2	2	2
 2	2	1	1
 0	1	0	0
 2	0	0	0" > exp
-gemini query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
+geminicassandra query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
 	                    gt_types_1094pc0012, gt_types_1094pc0013 \
 	             from variants" --test-mode -ks test_snpeff_vcf_db \
        > obs
@@ -49,10 +49,10 @@ rm obs exp
 echo "    genotypes.t03...\c"
 echo "0	0	1	0
 2	2	1	1" > exp
-gemini query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
+geminicassandra query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
 	                    gt_types_1094pc0012, gt_types_1094pc0013 \
 	             from variants" \
-			 --gt-filter "gt_type.1094PC0012 == HET" \
+			 --gt-filter "gt_types.1094PC0012 == HET" \
 			 --test-mode -ks test_snpeff_vcf_db \
        > obs
 check obs exp
@@ -67,12 +67,12 @@ echo "chrom	end	ref	alt	gt_types_1094pc0005	gt_types_1094pc0009	gt_types_1094pc0
 chr1	30869	CCT	C	0	0	1	0
 chr1	30895	T	C	1	1	0	0
 chr1	69511	A	G	2	2	1	1" > exp
-gemini query -q "select chrom, end, ref, alt, \
+geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_types_1094pc0005, gt_types_1094pc0009, \
 	                    gt_types_1094pc0012, gt_types_1094pc0013 \
 	             from variants" \
-			 --gt-filter "(gt_type.1094PC0012 == HET || \
-						   gt_type.1094PC0005 == HET)" \
+			 --gt-filter "(gt_types.1094PC0012 == HET || \
+						   gt_types.1094PC0005 == HET)" \
 			 --header --test-mode \
 			 -ks test_snpeff_vcf_db \
        > obs
@@ -94,7 +94,7 @@ chr1	69428	T	G	2	79	87	107
 chr1	69511	A	G	-1	-1	6	4
 chr1	69761	A	T	1	7	12	9
 chr1	69871	G	A	-1	4	2	2" > exp
-gemini query -q "select chrom, end, ref, alt, \
+geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_depths_1094pc0005, gt_depths_1094pc0009, \
 	                    gt_depths_1094pc0012, gt_depths_1094pc0013 \
 	             from variants" \
@@ -129,7 +129,7 @@ chr1	69428	T	G	2	79	87	107
 chr1	69511	A	G	-1	-1	2	2
 chr1	69761	A	T	1	6	12	9
 chr1	69871	G	A	-1	4	2	2" > exp
-gemini query -q "select chrom, end, ref, alt, \
+geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_ref_depths_1094pc0005, gt_ref_depths_1094pc0009, \
 	                    gt_ref_depths_1094pc0012, gt_ref_depths_1094pc0013 \
 	             from variants" \
@@ -164,7 +164,7 @@ chr1	69428	T	G	0	0	0	0
 chr1	69511	A	G	-1	-1	4	2
 chr1	69761	A	T	0	1	0	0
 chr1	69871	G	A	-1	0	0	0" > exp
-gemini query -q "select chrom, end, ref, alt, \
+geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_alt_depths_1094pc0005, gt_alt_depths_1094pc0009, \
 	                    gt_alt_depths_1094pc0012, gt_alt_depths_1094pc0013 \
 	             from variants" \
@@ -200,7 +200,7 @@ chr1	69428	T	G	6.01000022888	99.0	99.0	99.0
 chr1	69511	A	G	-1.0	-1.0	15.6999998093	21.5900001526
 chr1	69761	A	T	3.00999999046	12.3900003433	36.1100006104	27.0799999237
 chr1	69871	G	A	-1.0	12.0200004578	6.01999998093	6.01999998093" > exp
-gemini query -q "select chrom, end, ref, alt, \
+geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_quals_1094pc0005, gt_quals_1094pc0009, \
 	                    gt_quals_1094pc0012, gt_quals_1094pc0013 \
 	             from variants" \

@@ -12,7 +12,6 @@ from scipy.stats import mode
 import pysam
 
 from geminicassandra.annotations import annotations_in_region, guess_contig_naming
-from database import database_transaction
 
 def add_requested_columns(args, update_cursor, col_names, col_types=None):
     """

@@ -13,7 +13,7 @@ echo "1094PC0005	1	0	0	0	-9	-9
 1094PC0019	8	0	0	0	-9	-9
 1094PC0020	9	0	0	0	-9	-9
 1094PC0021	10	0	0	0	-9	-9" > exp
-gemini query -q "select * from samples" --test-mode -ks test_query_db | head > obs
+geminicassandra query -q "select * from samples" --test-mode -ks test_query_db | head > obs
 check obs exp
 rm obs exp
 
@@ -31,7 +31,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-gemini query -q "select chrom, start, end, ref, alt from variants" --test-mode -ks test_query_db | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 rm obs exp
@@ -50,7 +50,7 @@ chr1	1219507	1219511	GTGA	G	SCNN1D
 chr1	1219521	1219524	GTC	G	SCNN1D
 chr1	1219533	1219536	GTT	G	SCNN1D
 chr1	1219555	1219558	GTT	G	SCNN1D" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants \
                  where gene == 'SCNN1D'" --test-mode -ks test_query_db | head \
 	> obs
@@ -72,7 +72,7 @@ chr1	1219507	1219511	GTGA	G	SCNN1D	./.
 chr1	1219521	1219524	GTC	G	SCNN1D	./.
 chr1	1219533	1219536	GTT	G	SCNN1D	./.
 chr1	1219555	1219558	GTT	G	SCNN1D	./." > exp
-gemini query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018 \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018 \
                  from variants \
                  where gene == 'SCNN1D'" --test-mode -ks test_query_db | head > obs
 check obs exp
@@ -88,7 +88,7 @@ chr1	1219476	1219477	T	G	SCNN1D	T/T	0
 chr1	1219486	1219487	T	G	SCNN1D	T/T	0
 chr1	1219488	1219489	A	G	SCNN1D	A/A	0
 chr1	1219494	1219496	GT	G	SCNN1D	GT/GT	0" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
                  from variants \
                  where gene == 'SCNN1D'" --test-mode -ks test_query_db | head -5 > obs
 check obs exp
@@ -104,10 +104,10 @@ chr1	1219476	1219477	T	G	SCNN1D	T/T	0
 chr1	1219486	1219487	T	G	SCNN1D	T/T	0
 chr1	1219488	1219489	A	G	SCNN1D	A/A	0
 chr1	1219494	1219496	GT	G	SCNN1D	GT/GT	0" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
                  from variants \
                  where gene == 'SCNN1D'" \
-             --gt-filter "gt_type.1094PC0018 != HET" --test-mode -ks test_query_db | head -5 \
+             --gt-filter "gt_types.1094PC0018 != HET" --test-mode -ks test_query_db | head -5 \
        > obs
 check obs exp
 rm obs exp
@@ -121,10 +121,9 @@ echo "chr1      1219381 1219382 C       G       SCNN1D  C/C     C/C
 chr1    1219476 1219477 T       G       SCNN1D  T/T     T/T
 chr1    1219486 1219487 T       G       SCNN1D  T/T     T/T
 chr1    1219488 1219489 A       G       SCNN1D  A/A     A/A" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
                  from variants \
                  where gene == 'SCNN1D'" \
-             --gt-filter "gt_type.1094PC0018 == HET || gt_type.1094PC0019 == HOM_REF" --test-mode -ks test_query_db | head -5 \
        > obs
 check obs exp
 rm obs exp
@@ -172,9 +171,9 @@ chr1	1163803	1163804	C	T	SDF4	C/T	C/C
 chr1	1179415	1179416	A	C	FAM132A	A/C	A/A
 chr1	1181371	1181372	C	T	FAM132A	C/T	C/C
 chr1	1192771	1192773	CA	C	UBE2J2	CA/C	CA/CA" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
                  from variants" \
-             --gt-filter "gt_type.1094PC0018 == HET && gt_type.1094PC0019 == HOM_REF" --test-mode -ks test_query_db > obs
+             --gt-filter "gt_types.1094PC0018 == HET && gt_types.1094PC0019 == HOM_REF" --test-mode -ks test_query_db > obs
 check obs exp
 rm obs exp
 
@@ -189,7 +188,7 @@ chr1	30866	30869	CCT	C	1478PC0011,1719PC0005,1478PC0014B,1094PC0012,1094PC0021	1
 chr1	30894	30895	T	C	1094PC0005,1094PC0009,1478PC0017B	1094PC0005,1094PC0009	1478PC0017B
 chr1	30922	30923	G	T	1719PC0007,1478PC0014B,1478PC0015B,1478PC0016,1478PC0008B,1719PC0001,1478PC0006B,1478PC0020,1719PC0010,1478PC0025,1478PC0013B,1719PC0015,1719PC0016,1478PC0018,1719PC0009		1719PC0010,1478PC0014B,1478PC0015B,1478PC0008B,1478PC0016,1478PC0006B,1719PC0016,1478PC0025,1478PC0020,1719PC0007,1478PC0018,1478PC0013B,1719PC0015,1719PC0001,1719PC0009" > exp
 
-gemini query --header --show-samples -q "select chrom, start, end, ref, alt \
+geminicassandra query --header --show-samples -q "select chrom, start, end, ref, alt \
                                         from variants" --test-mode -ks test_query_db | head -6 > obs
 check obs exp
 rm obs exp
@@ -209,7 +208,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-gemini query -q "select chrom, start, end, ref, alt from variants" --test-mode -ks test_query_db | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 rm obs exp
@@ -228,7 +227,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-gemini query -q "select chrom,start,end,ref,alt from variants" --test-mode -ks test_query_db | head \
+geminicassandra query -q "select chrom,start,end,ref,alt from variants" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 
@@ -246,7 +245,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-gemini query -q "select chrom, start,end, ref,alt from variants" --test-mode -ks test_query_db | head \
+geminicassandra query -q "select chrom, start,end, ref,alt from variants" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 rm obs exp
@@ -265,7 +264,7 @@ chr1	69427	69428	T	G	T/T
 chr1	69510	69511	A	G	A/G
 chr1	69760	69761	A	T	A/A
 chr1	69870	69871	G	A	G/G" > exp
-gemini query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" --test-mode -ks test_query_db | head \
+geminicassandra query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 rm obs exp
@@ -276,7 +275,7 @@ rm obs exp
 echo "    query.t23...\c"
 echo "C/T	C/C	C/C	C/C	1	0	0	0
 G/G	G/A	G/G	G/G	0	1	0	0" > exp
-gemini query --sample-filter "NOT phenotype='2'" --in only -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test4_snpeff_ped_db > obs
+geminicassandra query --sample-filter "NOT phenotype='2'" --in only -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test4_snpeff_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -287,7 +286,7 @@ echo "    query.t24...\c"
 echo "./.	./.	C/C	C/C	2	2	3	3
 T/T	T/T	C/C	C/C	0	0	3	3
 T/T	T/T	T/C	T/C	0	0	1	1" > exp
-gemini query --sample-filter "phenotype='2'" --in only all -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test4_snpeff_ped_db > obs
+geminicassandra query --sample-filter "phenotype='2'" --in only all -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test4_snpeff_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -300,7 +299,7 @@ C/T	C/T	C/T	C/T	T/T	C/C	C/T	C/C	C/T	1	1	1	1	3	0	1	0	1
 C/T	C/T	C/C	T/T	C/T	C/T	C/T	C/T	C/C	1	1	0	3	1	1	1	1	0
 G/G	G/A	G/A	G/A	G/A	G/G	G/G	G/G	G/A	0	1	1	1	1	0	0	0	1
 T/T	T/C	T/T	T/C	T/C	T/T	T/T	T/T	T/T	0	1	0	1	1	0	0	0	0" > exp
-gemini query  --min-kindreds 2 --family-wise --sample-filter "phenotype='2'" --in all -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test_family_db > obs
+geminicassandra query  --min-kindreds 2 --family-wise --sample-filter "phenotype='2'" --in all -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test_family_db > obs
 check obs exp
 rm obs exp
 
@@ -311,7 +310,7 @@ echo "    query.t27...\c"
 echo "T/T	C/C	T/T	T/T	T/C	T/T	T/T	T/T	T/T	0	3	0	0	1	0	0	0	0
 T/T	T/C	T/T	T/T	T/T	T/T	T/T	T/T	T/T	0	1	0	0	0	0	0	0	0
 T/T	T/C	T/T	T/C	T/C	T/T	T/T	T/T	T/T	0	1	0	1	1	0	0	0	0" > exp
-gemini query  --in none --sample-filter "phenotype='1'" -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test_family_db > obs
+geminicassandra query  --in none --sample-filter "phenotype='1'" -q "select (gts).(*), (gt_types).(*) from variants" --test-mode -ks test_family_db > obs
 check obs exp
 rm obs exp
 
@@ -330,9 +329,9 @@ chr1	866510	866511	C	CCCCT	SAMD11	3
 chr1	866892	866893	T	C	SAMD11	3
 chr1	866919	866920	A	G	SAMD11	3
 chr1	870902	870903	T	C	SAMD11	3" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene, gt_types_1094PC0019 \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene, gt_types_1094PC0019 \
                  from variants" \
-             --gt-filter "gt_type.1094PC0019 == HOM_ALT" --test-mode -ks test_query_db | head \
+             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 rm obs exp
@@ -352,9 +351,9 @@ chr1	866510	866511	C	CCCCT	SAMD11
 chr1	866892	866893	T	C	SAMD11
 chr1	866919	866920	A	G	SAMD11
 chr1	870902	870903	T	C	SAMD11" > exp
-gemini query -q "select chrom, start, end, ref, alt, gene \
+geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants" \
-             --gt-filter "gt_type.1094PC0019 == HOM_ALT" --test-mode -ks test_query_db | head \
+             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -ks test_query_db | head \
        > obs
 check obs exp
 rm obs exp
@@ -374,7 +373,7 @@ chr1	69269	69270	A	G	305	OR4F5
 chr1	69427	69428	T	G	305	OR4F5
 chr1	69510	69511	A	G	305	OR4F5
 chr1	69760	69761	A	T	305	OR4F5" > exp
-gemini query --header -q "select chrom, start, end, ref, alt, aa_length, gene \
+geminicassandra query --header -q "select chrom, start, end, ref, alt, aa_length, gene \
                  from variants" --test-mode -ks test_query_db | head > obs
 check obs exp
 rm obs exp

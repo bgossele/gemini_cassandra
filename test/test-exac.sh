@@ -13,7 +13,7 @@ chr12	121432116	121432118	GC	G	True	0.00022839999292	0.000234270410147	0.0005393
 chr1	161276552	161276553	G	T	False	None	None	None	None	None	None	None	None	None
 chr1	247587092	247587093	C	T	False	None	None	None	None	None	None	None	None	None" > exp
 
-gemini query --header -q "select chrom, start, end, ref, alt, in_exac, aaf_exac_all, aaf_adj_exac_all, \
+geminicassandra query --header -q "select chrom, start, end, ref, alt, in_exac, aaf_exac_all, aaf_adj_exac_all, \
 	                        aaf_adj_exac_afr, aaf_adj_exac_amr, aaf_adj_exac_eas, aaf_adj_exac_fin, \
 		                        aaf_adj_exac_nfe, aaf_adj_exac_oth, aaf_adj_exac_sas from variants" --test-mode -ks test_exac_db > obs
 
