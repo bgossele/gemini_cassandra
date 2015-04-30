@@ -14,7 +14,7 @@ chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt from variants" \
-	   --test-mode -ks test_snpeff_vcf_db \
+	   --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -35,7 +35,7 @@ snp	ts
 snp	tv
 snp	ts" > exp
 geminicassandra query -q "select type, sub_type from variants" \
-	   --test-mode -ks test_snpeff_vcf_db \
+	   --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -56,7 +56,7 @@ echo "7
 574
 154" > exp
 geminicassandra query -q "select depth from variants" \
-	   --test-mode -ks test_snpeff_vcf_db \
+	   --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -77,7 +77,7 @@ echo "50.0900001526
 1026.70996094
 82.9700012207" > exp
 geminicassandra query -q "select qual from variants" \
-	   --test-mode -ks test_snpeff_vcf_db \
+	   --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -97,7 +97,7 @@ ABFilter;LowQual;QDFilter;QUALFilter;SBFilter
 ABFilter;LowQual;QUALFilter
 None" > exp
 geminicassandra query -q "select filter from variants" \
-	   --test-mode -ks test2_snpeff_db \
+	   --test-mode -db "127.0.0.1" -ks test2_snpeff_db \
        > obs
 check obs exp
 rm obs exp
@@ -118,7 +118,7 @@ echo "0	0	0	4
 3	1	0	0
 3	0	0	1" > exp
 geminicassandra query -q "select num_hom_ref, num_het, num_hom_alt, num_unknown \
-	             from variants" --test-mode -ks test_snpeff_vcf_db \
+	             from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -139,7 +139,7 @@ echo "0.0
 1.0
 0.75" > exp
 geminicassandra query -q "select call_rate \
-	             from variants" --test-mode -ks test_snpeff_vcf_db \
+	             from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -160,7 +160,7 @@ echo "0.0
 0.125
 0.0" > exp
 geminicassandra query -q "select aaf \
-	             from variants" --test-mode -ks test_snpeff_vcf_db \
+	             from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -179,7 +179,7 @@ echo "6
 79
 8
 2" > exp
-geminicassandra query -q "select allele_count from variants" --test-mode -ks test_snpeff_vcf_db \
+geminicassandra query -q "select allele_count from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
     > obs
     
 check obs exp
@@ -199,7 +199,7 @@ echo "14
 90
 88
 80" > exp
-geminicassandra query -q "select num_alleles from variants" --test-mode -ks test_snpeff_vcf_db \
+geminicassandra query -q "select num_alleles from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
     > obs
 check obs exp
 rm obs exp
@@ -218,7 +218,7 @@ echo "16.7000007629
 26.5100002289
 21.3899993896
 20.7399997711" > exp
-geminicassandra query -q "select qual_depth from variants" --test-mode -ks test_snpeff_vcf_db \
+geminicassandra query -q "select qual_depth from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
     > obs
 check obs exp
 rm obs exp
@@ -237,7 +237,7 @@ echo "29.0
 33.2400016785
 32.1800003052
 31.1000003815" > exp
-geminicassandra query -q "select rms_map_qual from variants" --test-mode -ks test_snpeff_vcf_db \
+geminicassandra query -q "select rms_map_qual from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
     > obs
 check obs exp
 rm obs exp
@@ -256,7 +256,7 @@ echo "0
 0
 0
 0" > exp
-geminicassandra query -q "select num_mapq_zero from variants" --test-mode -ks test_snpeff_vcf_db \
+geminicassandra query -q "select num_mapq_zero from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
  > obs
 check obs exp
 rm obs exp
@@ -272,7 +272,7 @@ rs567,rs89
 None
 foo
 777" > exp
-geminicassandra query -q "select vcf_id from variants" --test-mode -ks test_vcf_id_snpeff_vcf_db \
+geminicassandra query -q "select vcf_id from variants" --test-mode -db "127.0.0.1" -ks test_vcf_id_snpeff_vcf_db \
  > obs
 check obs exp
 rm obs exp

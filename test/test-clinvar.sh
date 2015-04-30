@@ -24,6 +24,6 @@ geminicassandra query -q "select in_omim,
                         clinvar_disease_acc, 
                         clinvar_in_locus_spec_db, 
                         clinvar_on_diag_assay,
-                        clinvar_causal_allele from variants" --test-mode -ks test_clinvar_db > obs
+                        clinvar_causal_allele from variants" --test-mode -db "127.0.0.1" -ks test_clinvar_db > obs
 check obs exp
 rm obs exp

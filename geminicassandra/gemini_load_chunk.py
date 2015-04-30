@@ -29,7 +29,6 @@ from table_schemes import get_column_names
 from geminicassandra.ped import get_ped_fields
 import time
 from string import strip
-import Queue
 
 class GeminiLoader(object):
     """
