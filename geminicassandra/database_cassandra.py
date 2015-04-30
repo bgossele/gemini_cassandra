@@ -127,6 +127,15 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                         gene text,
                         PRIMARY KEY (gene, variant_id))'''))
     
+    session.execute(SimpleStatement('''CREATE TABLE if not exists sample_genotype_counts ( \
+                     sample_id int PRIMARY KEY, \
+                     version int,                                   \
+                     num_hom_ref int,                                 \
+                     num_het int,                                     \
+                     num_hom_alt int,                                 \
+                     num_unknown int)'''))
+     
+    
     session.execute(create_variants_table(gt_column_names))
     
     for stmt in create_samples_tables(extra_sample_columns):

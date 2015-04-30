@@ -8,7 +8,6 @@ import annotations
 import subprocess
 #from cluster_helper.cluster import cluster_view
 from gemini_load_chunk import GeminiLoader
-import geminicassandra
 import time
 from cluster_helper.cluster import cluster_view
 
@@ -18,7 +17,8 @@ def load(parser, args):
     if args.vcf is None:
         parser.print_help()
         exit("ERROR: load needs both a VCF file\n")
-
+    
+    start_time = time.time()
     annos = annotations.get_anno_files( args )
     # force skipping CADD and GERP if the data files have not been installed
     if args.skip_cadd is False:
@@ -42,7 +42,6 @@ def load(parser, args):
     annotations.load_annos( args )
     
     gemini_loader = GeminiLoader(args)
-    start_time = time.time()
     gemini_loader.setup_db()
     time_2 = time.time()
     gemini_loader.single_core_stuff()
@@ -66,18 +65,21 @@ def load_singlecore(args):
     # the geminicassandra db and files from the VCF
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
+    if not args.no_genotypes and not args.no_load_genotypes:
+        gemini_loader._init_sample_gt_counts()
+        
     gemini_loader.populate_from_vcf()
 
 
-    if not args.skip_gene_tables and not args.test_mode:
-        '''gemini_loader.update_gene_table()'''
+    '''if not args.skip_gene_tables and not args.test_mode:
+        gemini_loader.update_gene_table()'''
+    
+    if not args.no_genotypes and not args.no_load_genotypes:
+        gemini_loader.store_sample_gt_counts()
     if not args.test_mode:
         gemini_loader.disconnect()
         
-    #TODO: nodig?
-    '''if not args.no_genotypes and not args.no_load_genotypes:
-        gemini_loader.store_sample_gt_counts()
-    geminicassandra.add_extras(args.db, [args.db])'''
+    #geminicassandra.add_extras(args.db, [args.db])
 
 def load_multicore(args):
     grabix_file = bgzip(args.vcf)

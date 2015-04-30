@@ -29,6 +29,7 @@ from table_schemes import get_column_names
 from geminicassandra.ped import get_ped_fields
 import time
 from string import strip
+import Queue
 
 class GeminiLoader(object):
     """
@@ -76,7 +77,6 @@ class GeminiLoader(object):
                 # load the sample info from the VCF file.
             self._prepare_samples()
                 # initialize genotype counts for each sample
-            self._init_sample_gt_counts()
             self.num_samples = len(self.samples)
         else:
             self.num_samples = 0
@@ -122,7 +122,6 @@ class GeminiLoader(object):
     def populate_from_vcf(self):
         """
         """
-        import geminicassandra
         self.v_id = self._get_vid()
         self.var_buffer = blist([])
         self.var_impacts_buffer = blist([])
@@ -469,8 +468,6 @@ class GeminiLoader(object):
             vcf_id = var.ID
 
         # build up numpy arrays for the genotype information.
-        # these arrays will be pickled-to-binary, compressed,
-        # and loaded as SqlLite BLOB values (see compression.pack_blob)
         sample_info = blist([])
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
             gt_bases = var.gt_bases  # 'A/G', './.'
@@ -486,11 +483,9 @@ class GeminiLoader(object):
             for entry in var.samples:
                 sample_info.append((entry.sample, entry.gt_type, entry.gt_depth, entry.gt_bases))
 
-            # tally the genotypes
-            #TODO: perhapds uncomment? Don't understand the use just yet.
-            '''
-            self._update_sample_gt_counts(gt_types)
-            '''
+            # tally the genotypes            
+            self._update_sample_gt_counts(np.array(var.gt_types, np.int8))
+            
         else:
             gt_columns= []            
         
@@ -755,18 +750,68 @@ class GeminiLoader(object):
         """
         Update the count of each gt type for each sample
         """
-        self.session.execute("BEGIN TRANSACTION")
+        samples_buffer = blist([])
+        buffer_count = 0
         for idx, gt_counts in enumerate(self.sample_gt_counts):
-            self.session.execute("""insert into sample_genotype_counts values \
-                            (?,?,?,?,?)""",
-                           [idx,
-                            int(gt_counts[HOM_REF]),  # hom_ref
-                            int(gt_counts[HET]),  # het
-                            int(gt_counts[HOM_ALT]),  # hom_alt
-                            int(gt_counts[UNKNOWN])])  # missing
-        self.session.execute("END")
-   
-              
+            if buffer_count < 10000:
+                samples_buffer.append([int(gt_counts[HOM_REF]),  # hom_ref
+                                int(gt_counts[HET]),  # het
+                                int(gt_counts[HOM_ALT]),  # hom_alt
+                                int(gt_counts[UNKNOWN]), #missing
+                                idx])
+                buffer_count += 1
+            else:
+                self.batch_insert_gt_counts(samples_buffer)
+                samples_buffer = blist([])
+                buffer_count = 0
+        self.batch_insert_gt_counts(samples_buffer)   
+            
+    def batch_insert_gt_counts(self, contents):
+        
+        update_query = self.session.prepare('''UPDATE sample_genotype_counts    \
+                                               SET num_hom_ref = ?,\
+                                               num_het = ?,            \
+                                               num_hom_alt = ?,    \
+                                               num_unknown = ?,    \
+                                               version = ?   \
+                                               WHERE sample_id = ? \
+                                               IF version = ?''')
+        
+        create_query = self.session.prepare('''INSERT INTO sample_genotype_counts \
+                                               (num_hom_ref,\
+                                               num_het,            \
+                                               num_hom_alt,    \
+                                               num_unknown,    \
+                                               sample_id, \
+                                               version)    \
+                                               VALUES (?,?,?,?,?,?) IF NOT EXISTS''')
+        
+        get_query = self.session.prepare("SELECT * FROM sample_genotype_counts WHERE sample_id = ?")
+        
+        def get_version(sample_id):
+            res = self.session.execute(get_query, [sample_id])
+            if len(res) > 0:
+                return res[0]
+            else:
+                return []
+        
+        retries = []
+        for entry in contents:
+            vals = get_version(entry[4])
+            versioned_entry = entry
+            if vals == []:
+                versioned_entry.append(0)
+                res = self.session.execute(create_query, versioned_entry)
+            else:
+                updated_contents = [entry[0]+vals.num_hom_ref, entry[1]+vals.num_het, entry[2]+vals.num_hom_alt,\
+                                    entry[3]+vals.num_unknown, vals.version + 1, entry[4],  vals.version]
+                res = self.session.execute(update_query, updated_contents)
+            if not res[0].applied:
+                retries.append(entry)  
+                
+        if len(retries) > 0:
+            self.batch_insert_gt_counts(retries)   
+            
 def concat(l):
         return reduce(lambda x, y: x + y, l, [])
     
@@ -777,7 +822,6 @@ def parse_float(s):
     try:
         return float(s)
     except ValueError:
-        #TODO: sensible value?
         return None
     except TypeError:
         return None
@@ -786,7 +830,6 @@ def parse_int(s):
     try:
         return int(s)
     except ValueError:
-        #TODO: sensible value?
         return -42
     except TypeError:
         return -43
@@ -806,11 +849,13 @@ def load(parser, args):
     # the geminicassandra db and files from the VCF
     gemini_loader = GeminiLoader(args)
     gemini_loader.connect_to_db()
+    if not args.no_genotypes and not args.no_load_genotypes:
+        gemini_loader._init_sample_gt_counts()
 
     gemini_loader.populate_from_vcf()
     #gemini_loader.update_gene_table()
-    gemini_loader.disconnect()
     
-    #TODO: nodig?
-    '''if not args.no_genotypes and not args.no_load_genotypes:
-        gemini_loader.store_sample_gt_counts()'''
+    if not args.no_genotypes and not args.no_load_genotypes:
+        gemini_loader.store_sample_gt_counts()
+        
+    gemini_loader.disconnect()
