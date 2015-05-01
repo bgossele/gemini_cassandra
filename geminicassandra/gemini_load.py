@@ -62,7 +62,7 @@ def load(parser, args):
     print "Finished loading in %s s" % total_time
     if args.timing_log != None:
         with open(args.timing_log, "a") as myfile:
-            myfile.write(",".join([total_time, db_creation_time, single_core_time, parallel_time]) + "\n")        
+            myfile.write(",".join([args.exp_id, total_time, db_creation_time, single_core_time, parallel_time]) + "\n")        
 
 def load_singlecore(args):
     # create a new geminicassandra loader and populate

@@ -140,6 +140,10 @@ def main():
                              dest = "timing_log",
                              default = None,
                              help = "File to log time taken for loading")
+    parser_load.add_argument('--exp-id',
+                             dest = "exp_id",
+                             default = "",
+                             help = "Identifier for the test run")
 
     def load_fn(parser, args):
         import gemini_load
