@@ -136,6 +136,10 @@ def main():
                          action='store_true',
                          help='Load in test mode (faster)',
                          default=False)
+    parser_load.add_argument('--timing-log',
+                             dest = "timing_log",
+                             default = None,
+                             help = "File to log time taken for loading")
 
     def load_fn(parser, args):
         import gemini_load

@@ -167,6 +167,8 @@ gemini/test/my.db
 test/exp
 test/obs
 test/measurements
+benchmarking/res
+
 
 # emacs temporary file
 .#*

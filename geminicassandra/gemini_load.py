@@ -55,10 +55,14 @@ def load(parser, args):
     else:
         load_singlecore(args)
     end_time = time.time()
-    print "Finished loading in %s s" % (end_time - start_time)
-    print "Creating db tables took %s s" % (time_2 - start_time)
-    print "Populating samples tables (single-core) took %s s" % (time_3 - time_2)
-    print "Populating variants tables (parallelised) took %s s" % (end_time - time_3)
+    total_time = str(end_time - start_time)
+    db_creation_time = str(time_2 - start_time)
+    single_core_time = str(time_3 - time_2)
+    parallel_time = str(end_time - time_3)
+    print "Finished loading in %s s" % total_time
+    if args.timing_log != None:
+        with open(args.timing_log, "a") as myfile:
+            myfile.write(",".join([total_time, db_creation_time, single_core_time, parallel_time]) + "\n")        
 
 def load_singlecore(args):
     # create a new geminicassandra loader and populate
