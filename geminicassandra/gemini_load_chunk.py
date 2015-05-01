@@ -315,7 +315,7 @@ class GeminiLoader(object):
         """
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
-        self.session.execute("""CREATE KEYSPACE IF NOT EXISTS %s
+        self.session.execute("""CREATE KEYSPACE IF NOT EXISTS %s \
                                 WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""" % self.keyspace)
         self.session.set_keyspace(self.keyspace)
         # create the geminicassandra database tables for the new DB
@@ -339,13 +339,16 @@ class GeminiLoader(object):
         inbreeding_coeff = None
         hom_ref = het = hom_alt = unknown = None
 
-        # only compute certain metrics if genoypes are available
+        # only compute certain metrics if genotypes are available
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
             hom_ref = var.num_hom_ref
             hom_alt = var.num_hom_alt
             het = var.num_het
             unknown = var.num_unknown
+            
             call_rate = var.call_rate
+            #TODO: catch error instead of bogus value
+            #call_rate = -43.0
             aaf = var.aaf
             hwe_p_value, inbreeding_coeff = \
                 popgen.get_hwe_likelihood(hom_ref, het, hom_alt, aaf)
@@ -480,6 +483,14 @@ class GeminiLoader(object):
             gt_alt_depths = var.gt_alt_depths  # 8 16 0 -1
             gt_quals = var.gt_quals  # 10.78 22 99 -1
             gt_copy_numbers = var.gt_copy_numbers  # 1.0 2.0 2.1 -1
+            '''print "type gt_bases: %s" % str(type(gt_bases))
+            print "type gt_types: %s" % str(type(gt_types))
+            print "type gt_phases: %s" % str(type(gt_phases))
+            print "type gt_depths: %s" % str(type(gt_depths))
+            print "type gt_ref_depths: %s" % str(type(gt_ref_depths))
+            print "type gt_alt_depths: %s" % str(type(gt_alt_depths))
+            print "type gt_quals: %s" % str(type(gt_quals))
+            print "type gt_copy_numbers: %s" % str(type(gt_copy_numbers))'''
             gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
 
             for entry in var.samples:
