@@ -135,6 +135,7 @@ class GeminiLoader(object):
         start_time = time.time()
         #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
+        vars_inserted = 0
         for var in self.vcf_reader:
             if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
                 self.skipped += 1
@@ -186,6 +187,8 @@ class GeminiLoader(object):
                 self.var_impacts_buffer = blist([])
                 self.var_gene_buffer = blist([])
                 self.var_chrom_start_buffer = blist([])
+                vars_inserted += self.buffer_size
+                print "pid " + str(os.getpid()) + ": Already inserted %s variants. Almost there!" % vars_inserted
                 buffer_count = 0
             self.v_id += 1
             self.counter += 1
