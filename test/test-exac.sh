@@ -15,7 +15,7 @@ chr1	247587092	247587093	C	T	False	None	None	None	None	None	None	None	None	None"
 
 geminicassandra query --header -q "select chrom, start, end, ref, alt, in_exac, aaf_exac_all, aaf_adj_exac_all, \
 	                        aaf_adj_exac_afr, aaf_adj_exac_amr, aaf_adj_exac_eas, aaf_adj_exac_fin, \
-		                        aaf_adj_exac_nfe, aaf_adj_exac_oth, aaf_adj_exac_sas from variants" --test-mode -db "127.0.0.1" -ks test_exac_db > obs
+		                        aaf_adj_exac_nfe, aaf_adj_exac_oth, aaf_adj_exac_sas from variants" --test-mode -db $cassandra_ips -ks test_exac_db > obs
 
 check obs exp
 rm obs exp

@@ -10,6 +10,8 @@ check()
 }
 export -f check
 
+export cassandra_ips="127.0.0.1"
+
 cd test
 
 #bash cassandra-test-setup.sh

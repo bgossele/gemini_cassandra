@@ -12,7 +12,7 @@ echo "1094PC0005	1	0	0	0	-9	-9
 1094PC0019	8	0	0	0	-9	-9
 1094PC0020	9	0	0	0	-9	-9
 1094PC0021	10	0	0	0	-9	-9" > exp
-geminicassandra query -q "select * from samples" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head > obs
+geminicassandra query -q "select * from samples" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head > obs
 check obs exp
 rm obs exp
 
@@ -30,7 +30,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -51,7 +51,7 @@ chr1	1219533	1219536	GTT	G	SCNN1D
 chr1	1219555	1219558	GTT	G	SCNN1D" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
 	> obs
 check obs exp
 rm obs exp
@@ -73,7 +73,7 @@ chr1	1219533	1219536	GTT	G	SCNN1D	./.
 chr1	1219555	1219558	GTT	G	SCNN1D	./." > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018 \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head > obs
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head > obs
 check obs exp
 rm obs exp
 
@@ -89,7 +89,7 @@ chr1	1219488	1219489	A	G	SCNN1D	A/A	0
 chr1	1219494	1219496	GT	G	SCNN1D	GT/GT	0" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head -5 > obs
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head -5 > obs
 check obs exp
 rm obs exp
 
@@ -106,7 +106,7 @@ chr1	1219494	1219496	GT	G	SCNN1D	GT/GT	0" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
                  from variants \
                  where gene == 'SCNN1D'" \
-             --gt-filter "gt_types.1094PC0018 != HET" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head -5 \
+             --gt-filter "gt_types.1094PC0018 != HET" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head -5 \
        > obs
 check obs exp
 rm obs exp
@@ -123,7 +123,7 @@ chr1    1219488 1219489 A       G       SCNN1D  A/A     A/A" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
                  from variants \
                  where gene == 'SCNN1D'" \
-             --gt-filter "gt_types.1094PC0018 == HET || gt_types.1094PC0019 == HOM_REF" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head -5 \
+             --gt-filter "gt_types.1094PC0018 == HET || gt_types.1094PC0019 == HOM_REF" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head -5 \
        > obs
 check obs exp
 rm obs exp
@@ -173,7 +173,7 @@ chr1	1181371	1181372	C	T	FAM132A	C/T	C/C
 chr1	1192771	1192773	CA	C	UBE2J2	CA/C	CA/CA" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
                  from variants" \
-             --gt-filter "gt_types.1094PC0018 == HET && gt_types.1094PC0019 == HOM_REF" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 > obs
+             --gt-filter "gt_types.1094PC0018 == HET && gt_types.1094PC0019 == HOM_REF" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 > obs
 check obs exp
 rm obs exp
 
@@ -189,7 +189,7 @@ chr1	30894	30895	T	C	1094PC0005,1094PC0009,1478PC0017B	1094PC0005,1094PC0009	147
 chr1	30922	30923	G	T	1719PC0007,1478PC0014B,1478PC0015B,1478PC0016,1478PC0008B,1719PC0001,1478PC0006B,1478PC0020,1719PC0010,1478PC0025,1478PC0013B,1719PC0015,1719PC0016,1478PC0018,1719PC0009		1719PC0010,1478PC0014B,1478PC0015B,1478PC0008B,1478PC0016,1478PC0006B,1719PC0016,1478PC0025,1478PC0020,1719PC0007,1478PC0018,1478PC0013B,1719PC0015,1719PC0001,1719PC0009" > exp
 
 geminicassandra query --header --show-samples -q "select chrom, start, end, ref, alt \
-                                        from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head -6 > obs
+                                        from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head -6 > obs
 check obs exp
 rm obs exp
 
@@ -208,7 +208,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -227,7 +227,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom,start,end,ref,alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+geminicassandra query -q "select chrom,start,end,ref,alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 
@@ -245,7 +245,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start,end, ref,alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+geminicassandra query -q "select chrom, start,end, ref,alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -264,7 +264,7 @@ chr1	69427	69428	T	G	T/T
 chr1	69510	69511	A	G	A/G
 chr1	69760	69761	A	T	A/A
 chr1	69870	69871	G	A	G/G" > exp
-geminicassandra query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+geminicassandra query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -286,7 +286,7 @@ chr1	866919	866920	A	G	SAMD11	3
 chr1	870902	870903	T	C	SAMD11	3" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gt_types_1094PC0019 \
                  from variants" \
-             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -308,7 +308,7 @@ chr1	866919	866920	A	G	SAMD11
 chr1	870902	870903	T	C	SAMD11" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants" \
-             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head \
+             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -329,7 +329,7 @@ chr1	69427	69428	T	G	305	OR4F5
 chr1	69510	69511	A	G	305	OR4F5
 chr1	69760	69761	A	T	305	OR4F5" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, aa_length, gene \
-                 from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 2 | head > obs
+                 from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 2 | head > obs
 check obs exp
 rm obs exp
 
@@ -348,7 +348,7 @@ echo "1094PC0005	1	0	0	0	-9	-9
 1094PC0019	8	0	0	0	-9	-9
 1094PC0020	9	0	0	0	-9	-9
 1094PC0021	10	0	0	0	-9	-9" > exp
-geminicassandra query -q "select * from samples" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head > obs
+geminicassandra query -q "select * from samples" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head > obs
 check obs exp
 rm obs exp
 
@@ -366,7 +366,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 rm obs exp
@@ -387,7 +387,7 @@ chr1	1219533	1219536	GTT	G	SCNN1D
 chr1	1219555	1219558	GTT	G	SCNN1D" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
 	> obs
 check obs exp
 rm obs exp
@@ -409,7 +409,7 @@ chr1	1219533	1219536	GTT	G	SCNN1D	./.
 chr1	1219555	1219558	GTT	G	SCNN1D	./." > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018 \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head > obs
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head > obs
 check obs exp
 rm obs exp
 
@@ -425,7 +425,7 @@ chr1	1219488	1219489	A	G	SCNN1D	A/A	0
 chr1	1219494	1219496	GT	G	SCNN1D	GT/GT	0" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head -5 > obs
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head -5 > obs
 check obs exp
 rm obs exp
 
@@ -442,7 +442,7 @@ chr1	1219494	1219496	GT	G	SCNN1D	GT/GT	0" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gt_types_1094PC0018 \
                  from variants \
                  where gene == 'SCNN1D'" \
-             --gt-filter "gt_types.1094PC0018 != HET" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head -5 \
+             --gt-filter "gt_types.1094PC0018 != HET" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head -5 \
        > obs
 check obs exp
 rm obs exp
@@ -459,7 +459,7 @@ chr1    1219488 1219489 A       G       SCNN1D  A/A     A/A" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
                  from variants \
                  where gene == 'SCNN1D'" \
-             --gt-filter "gt_types.1094PC0018 == HET || gt_types.1094PC0019 == HOM_REF" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head -5 \
+             --gt-filter "gt_types.1094PC0018 == HET || gt_types.1094PC0019 == HOM_REF" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head -5 \
        > obs
 check obs exp
 rm obs exp
@@ -509,7 +509,7 @@ chr1	1181371	1181372	C	T	FAM132A	C/T	C/C
 chr1	1192771	1192773	CA	C	UBE2J2	CA/C	CA/CA" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 \
                  from variants" \
-             --gt-filter "gt_types.1094PC0018 == HET && gt_types.1094PC0019 == HOM_REF" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 > obs
+             --gt-filter "gt_types.1094PC0018 == HET && gt_types.1094PC0019 == HOM_REF" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 > obs
 check obs exp
 rm obs exp
 
@@ -525,7 +525,7 @@ chr1	30894	30895	T	C	1094PC0005,1094PC0009,1478PC0017B	1094PC0005,1094PC0009	147
 chr1	30922	30923	G	T	1719PC0007,1478PC0014B,1478PC0015B,1478PC0016,1478PC0008B,1719PC0001,1478PC0006B,1478PC0020,1719PC0010,1478PC0025,1478PC0013B,1719PC0015,1719PC0016,1478PC0018,1719PC0009		1719PC0010,1478PC0014B,1478PC0015B,1478PC0008B,1478PC0016,1478PC0006B,1719PC0016,1478PC0025,1478PC0020,1719PC0007,1478PC0018,1478PC0013B,1719PC0015,1719PC0001,1719PC0009" > exp
 
 geminicassandra query --header --show-samples -q "select chrom, start, end, ref, alt \
-                                        from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head -6 > obs
+                                        from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head -6 > obs
 check obs exp
 rm obs exp
 
@@ -544,7 +544,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 rm obs exp
@@ -563,7 +563,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom,start,end,ref,alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+geminicassandra query -q "select chrom,start,end,ref,alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 
@@ -581,7 +581,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start,end, ref,alt from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+geminicassandra query -q "select chrom, start,end, ref,alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 rm obs exp
@@ -600,7 +600,7 @@ chr1	69427	69428	T	G	T/T
 chr1	69510	69511	A	G	A/G
 chr1	69760	69761	A	T	A/A
 chr1	69870	69871	G	A	G/G" > exp
-geminicassandra query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+geminicassandra query -q "select chrom, start,end, ref,alt,gts_1094PC0018 from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 rm obs exp
@@ -622,7 +622,7 @@ chr1	866919	866920	A	G	SAMD11	3
 chr1	870902	870903	T	C	SAMD11	3" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gt_types_1094PC0019 \
                  from variants" \
-             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 rm obs exp
@@ -644,7 +644,7 @@ chr1	866919	866920	A	G	SAMD11
 chr1	870902	870903	T	C	SAMD11" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants" \
-             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head \
+             --gt-filter "gt_types.1094PC0019 == HOM_ALT" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head \
        > obs
 check obs exp
 rm obs exp
@@ -665,7 +665,7 @@ chr1	69427	69428	T	G	305	OR4F5
 chr1	69510	69511	A	G	305	OR4F5
 chr1	69760	69761	A	T	305	OR4F5" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, aa_length, gene \
-                 from variants" --test-mode -db "127.0.0.1" -ks test_query_db --cores 3 | head > obs
+                 from variants" --test-mode -db $cassandra_ips -ks test_query_db --cores 3 | head > obs
 check obs exp
 rm obs exp
 

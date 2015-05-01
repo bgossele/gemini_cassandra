@@ -12,7 +12,7 @@ T/T	C/C	C/T	C/T
 T/T	T/T	C/C	C/C
 C/T	C/C	C/C	C/C
 ./.	C/C	C/C	./." > exp
-geminicassandra query -q "select (gts).(*)from variants" -db "127.0.0.1" -ks extended_ped_db > obs
+geminicassandra query -q "select (gts).(*)from variants" -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -31,7 +31,7 @@ chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G
 chr10	135210790	135210791	T	C	T/T	T/T	C/C	C/C
 chr10	135336655	135336656	G	A	./.	A/A	./.	A/A
 chr10	135369531	135369532	T	C	T/T	T/T	T/C	T/C" > exp
-geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*)from variants" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*)from variants" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -49,7 +49,7 @@ chr10	126678091	126678092	G	A	G/G	G/A
 chr10	135210790	135210791	T	C	T/T	T/T
 chr10	135336655	135336656	G	A	./.	A/A
 chr10	135369531	135369532	T	C	T/T	T/T" > exp
-geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='1') from variants" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='1') from variants" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -61,7 +61,7 @@ echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215
 chr10	135210790	135210791	T	C	T/T	T/T
 chr10	135369531	135369532	T	C	T/T	T/T" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='1') from variants" \
-             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[all]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[all]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -74,7 +74,7 @@ echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215	gt_types_m10475	gt_types_m1
 chr10	135210790	135210791	T	C	T/T	T/T	0	0
 chr10	135369531	135369532	T	C	T/T	T/T	0	0" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='1'), (gt_types).(phenotype=='1') from variants" \
-             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[all]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[all]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -86,7 +86,7 @@ echo "    wildcard.t6...\c"
 echo "chrom	start	end	ref	alt	gts_m10478	gts_m10500
 chr10	135336655	135336656	G	A	A/A	./." > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='2') from variants" \
-             --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && gts.M10478 =='A/A'" -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && gts.M10478 =='A/A'" -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -101,7 +101,7 @@ chr10	126678091	126678092	G	A	G/G	G/A
 chr10	135210790	135210791	T	C	T/T	T/T
 chr10	135369531	135369532	T	C	T/T	T/T" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='1') from variants" \
-             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[any]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[any]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -115,7 +115,7 @@ chr10	52004314	52004315	T	C	./.	C/C
 chr10	52497528	52497529	G	C	./.	./.
 chr10	135336655	135336656	G	A	./.	A/A" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='1') from variants" \
-             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[none]" --test-mode -db "127.0.0.1" -ks  extended_ped_db > obs
+             --gt-filter "[gt_types].[phenotype=='1'].[==HOM_REF].[none]" --test-mode -db $cassandra_ips -ks  extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -129,7 +129,7 @@ chr16	72057434	72057435	C	T	C/T	C/C	C/C	C/C
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G
 chr10	135369531	135369532	T	C	T/T	T/T	T/C	T/C" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HET].[any]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==HET].[any]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -143,7 +143,7 @@ chr16	72057434	72057435	C	T	C/T	C/C	C/C	C/C
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G
 chr10	135369531	135369532	T	C	T/T	T/T	T/C	T/C" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HET].[count>0]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==HET].[count>0]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -155,7 +155,7 @@ echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215	gts_m10500	gts_m10478
 chr10	48003991	48003992	C	T	T/T	C/C	C/T	C/T
 chr10	135369531	135369532	T	C	T/T	T/T	T/C	T/C" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HET].[count>=2]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==HET].[count>=2]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -170,7 +170,7 @@ chr10	52497528	52497529	G	C	./.	./.	C/C	C/C
 chr10	135210790	135210791	T	C	T/T	T/T	C/C	C/C
 chr10	135336655	135336656	G	A	./.	A/A	./.	A/A" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HET].[count==0]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==HET].[count==0]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -186,7 +186,7 @@ chr16	72057434	72057435	C	T	C/T	C/C	C/C	C/C
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G
 chr10	135369531	135369532	T	C	T/T	T/T	T/C	T/C" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HOM_ALT].[count!=2]" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==HOM_ALT].[count!=2]" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -198,7 +198,7 @@ echo "    wildcard.t14...\c"
 echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215	gts_m10500	gts_m10478
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HOM_ALT].[count!=2] && gts.M10478 =='G/G'" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==HOM_ALT].[count!=2] && gts.M10478 =='G/G'" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -209,7 +209,7 @@ echo "    wildcard.t15...\c"
 echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215	gts_m10500	gts_m10478
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==    HOM_ALT].[  count   !=2] && gts.M10478 =='G/G'" -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "[gt_types].[*].[==    HOM_ALT].[  count   !=2] && gts.M10478 =='G/G'" -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -219,7 +219,7 @@ rm obs exp
 echo "    wildcard.t16...\c"
 echo "Unsupported wildcard operation: (). Exiting." > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HOM_ALT].[]" -db "127.0.0.1" -ks extended_ped_db 2> obs
+             --gt-filter "[gt_types].[*].[==HOM_ALT].[]" -db $cassandra_ips -ks extended_ped_db 2> obs
 check obs exp
 rm obs exp
 
@@ -229,7 +229,7 @@ rm obs exp
 echo "    wildcard.t17...\c"
 echo "Unsupported wildcard operation: (amy). Exiting." > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HOM_ALT].[amy]" -db "127.0.0.1" -ks extended_ped_db 2> obs
+             --gt-filter "[gt_types].[*].[==HOM_ALT].[amy]" -db $cassandra_ips -ks extended_ped_db 2> obs
 check obs exp
 rm obs exp
 
@@ -239,7 +239,7 @@ rm obs exp
 echo "    wildcard.t18...\c"
 echo "Wildcard filter should consist of 4 elements. Exiting." > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==HOM_ALT]" -db "127.0.0.1" -ks extended_ped_db 2> obs
+             --gt-filter "[gt_types].[*].[==HOM_ALT]" -db $cassandra_ips -ks extended_ped_db 2> obs
 check obs exp
 rm obs exp
 
@@ -254,7 +254,7 @@ chr10	52004314	52004315	T	C	ASAH2	./.	C/C	C/C	./.
 chr10	52497528	52497529	G	C	ASAH2B	./.	./.	C/C	C/C
 chr10	135336655	135336656	G	A	SPRN	./.	A/A	./.	A/A" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, gene, (gts).(*) from variants" \
-             --gt-filter "([gt_types].[phenotype=='1'].[!=HOM_REF].[count>=1] && [gt_types].[phenotype=='2'].[!=HOM_REF].[count>=1])" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "([gt_types].[phenotype=='1'].[!=HOM_REF].[count>=1] && [gt_types].[phenotype=='2'].[!=HOM_REF].[count>=1])" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -264,7 +264,7 @@ rm obs exp
 echo "    wildcard.t20...\c"
 echo "No results!" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, gene, (gts).(*) from variants" \
-             --gt-filter "([gt_types].[phenotype=='1'].[!=HOM_REF].[all] && [gt_types].[phenotype=='2'].[==HOM_REF].[all])" -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "([gt_types].[phenotype=='1'].[!=HOM_REF].[all] && [gt_types].[phenotype=='2'].[==HOM_REF].[all])" -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 
@@ -276,7 +276,7 @@ echo "chrom	start	end	ref	alt	gene	gts_m10475	gts_m128215	gts_m10500	gts_m10478
 chr16	72057434	72057435	C	T	DHODH	C/T	C/C	C/C	C/C
 chr10	126678091	126678092	G	A	CTBP2	G/G	G/A	G/G	G/G" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, gene, (gts).(*) from variants" \
-             --gt-filter "([gt_types].[phenotype=='1'].[!=HOM_REF].[count>=1] && [gt_types].[phenotype=='2'].[==HOM_REF].[all])" --test-mode -db "127.0.0.1" -ks extended_ped_db > obs
+             --gt-filter "([gt_types].[phenotype=='1'].[!=HOM_REF].[count>=1] && [gt_types].[phenotype=='2'].[==HOM_REF].[all])" --test-mode -db $cassandra_ips -ks extended_ped_db > obs
 check obs exp
 rm obs exp
 

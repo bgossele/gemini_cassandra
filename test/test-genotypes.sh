@@ -15,7 +15,7 @@ A/A	A/T	A/A	A/A
 ./.	G/G	G/G	G/G" > exp
 geminicassandra query -q "select gts_1094pc0005, gts_1094pc0009, \
 				gts_1094PC0012, gts_1094PC0013 \
-				from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
+				from variants" --test-mode -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -37,7 +37,7 @@ echo "2	2	2	2
 2	0	0	0" > exp
 geminicassandra query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
 	                    gt_types_1094pc0012, gt_types_1094pc0013 \
-	             from variants" --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
+	             from variants" --test-mode -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -53,7 +53,7 @@ geminicassandra query -q "select gt_types_1094pc0005, gt_types_1094pc0009, \
 	                    gt_types_1094pc0012, gt_types_1094pc0013 \
 	             from variants" \
 			 --gt-filter "gt_types.1094PC0012 == HET" \
-			 --test-mode -db "127.0.0.1" -ks test_snpeff_vcf_db \
+			 --test-mode -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -74,7 +74,7 @@ geminicassandra query -q "select chrom, end, ref, alt, \
 			 --gt-filter "(gt_types.1094PC0012 == HET || \
 						   gt_types.1094PC0005 == HET)" \
 			 --header --test-mode \
-			 -db "127.0.0.1" -ks test_snpeff_vcf_db \
+			 -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -99,7 +99,7 @@ geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_depths_1094pc0012, gt_depths_1094pc0013 \
 	             from variants" \
 			 --header --test-mode \
-			 -db "127.0.0.1" -ks test_snpeff_vcf_db \
+			 -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -134,7 +134,7 @@ geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_ref_depths_1094pc0012, gt_ref_depths_1094pc0013 \
 	             from variants" \
 			 --header --test-mode \
-			 -db "127.0.0.1" -ks test_snpeff_vcf_db \
+			 -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -169,7 +169,7 @@ geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_alt_depths_1094pc0012, gt_alt_depths_1094pc0013 \
 	             from variants" \
 			 --header --test-mode \
-			 -db "127.0.0.1" -ks test_snpeff_vcf_db \
+			 -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
@@ -205,7 +205,7 @@ geminicassandra query -q "select chrom, end, ref, alt, \
 	                    gt_quals_1094pc0012, gt_quals_1094pc0013 \
 	             from variants" \
 			 --header --test-mode \
-			 -db "127.0.0.1" -ks test_snpeff_vcf_db \
+			 -db $cassandra_ips -ks test_snpeff_vcf_db \
        > obs
 check obs exp
 rm obs exp
