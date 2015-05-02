@@ -149,6 +149,11 @@ def main():
                              default = 333,
                              type=int,
                              help = "buffer size when loading")
+    parser_load.add_argument('--replication',
+                             dest= "replication",
+                             default = 1,
+                             type=int,
+                             help="replication factor for the Cassandra cluster")
 
     def load_fn(parser, args):
         import gemini_load
@@ -250,6 +255,11 @@ def main():
                              default = 333,
                              type=int,
                              help = "buffer size when loading")
+    parser_loadchunk.add_argument('--replication',
+                             dest= "replication",
+                             default = 1,
+                             type=int,
+                             help="replication factor for the Cassandra cluster")
     
     def loadchunk_fn(parser, args):
         import gemini_load_chunk
