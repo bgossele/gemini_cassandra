@@ -35,13 +35,13 @@ class GeminiLoader(object):
     Object for creating and populating a geminicassandra
     database and auxillary data files.
     """
-    def __init__(self, args, buffer_size=1000):
+    def __init__(self, args):
         self.args = args
         
         # create a reader for the VCF file
         self.vcf_reader = self._get_vcf_reader()
         
-        self.buffer_size = buffer_size
+        self.buffer_size = args.buffer_size
         self._get_anno_version()
         self.contact_points = map(strip, args.contact_points.split(','))
         self.keyspace = args.keyspace

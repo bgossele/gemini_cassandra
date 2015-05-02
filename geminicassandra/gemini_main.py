@@ -144,6 +144,11 @@ def main():
                              dest = "exp_id",
                              default = "",
                              help = "Identifier for the test run")
+    parser_load.add_argument('--buffer-size',
+                             dest = "buffer_size",
+                             default = 333,
+                             type=int,
+                             help = "buffer size when loading")
 
     def load_fn(parser, args):
         import gemini_load
@@ -240,6 +245,12 @@ def main():
                          action='store_true',
                          help='Load in test mode (faster)',
                          default=False)
+    parser_loadchunk.add_argument('--buffer-size',
+                             dest = "buffer_size",
+                             default = 333,
+                             type=int,
+                             help = "buffer size when loading")
+    
     def loadchunk_fn(parser, args):
         import gemini_load_chunk
         gemini_load_chunk.load(parser, args)
