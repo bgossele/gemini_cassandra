@@ -51,6 +51,7 @@ class GeminiLoader(object):
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
+            print "Importing %s samples." % len(self.samples)
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
             
         NUM_BUILT_IN = 6
@@ -316,7 +317,6 @@ class GeminiLoader(object):
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
         query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}" % self.keyspace
-        print query
         self.session.execute(query)
         self.session.set_keyspace(self.keyspace)
         # create the geminicassandra database tables for the new DB
@@ -347,9 +347,10 @@ class GeminiLoader(object):
             het = var.num_het
             unknown = var.num_unknown
             
-            call_rate = var.call_rate
-            #TODO: catch error instead of bogus value
-            #call_rate = -43.0
+            try:
+                call_rate = var.call_rate
+            except ValueError:  #TODO: catch error instead of bogus value
+                call_rate = -43.0
             aaf = var.aaf
             hwe_p_value, inbreeding_coeff = \
                 popgen.get_hwe_likelihood(hom_ref, het, hom_alt, aaf)
