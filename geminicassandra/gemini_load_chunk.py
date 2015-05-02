@@ -134,12 +134,14 @@ class GeminiLoader(object):
         buffer_count = 0
         self.skipped = 0
         #extra_file, extraheader_file = geminicassandra.get_extra_files(self.args.db)
-        extra_headers = {}
+        #extra_headers = {}
         self.counter = 0
         start_time = time.time()
+        interval_start = time.time()
+        variants_gts_timer = 0
         #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
-        vars_inserted = 0
+        #vars_inserted = 0
         for var in self.vcf_reader:
             if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
                 self.skipped += 1
@@ -161,11 +163,13 @@ class GeminiLoader(object):
                     var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
                     var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
                     var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
-                                    
+                    
+            stime = time.time()                       
             batch_insert(self.session, 'variants_by_samples_gt_types', ["variant_id", "sample_name", "gt_types"], var_sample_gt_types_buffer, 10*self.queue_length)
             batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer, 10*self.queue_length)
             batch_insert(self.session, 'variants_by_samples_gt_depths', ["variant_id", "sample_name", "gt_depths"], var_sample_gt_depths_buffer, 10*self.queue_length)
             batch_insert(self.session, 'variants_by_samples_gts', ["variant_id", "sample_name", "gts"], var_sample_gt_buffer, 10*self.queue_length)
+            variants_gts_timer += (time.time() - stime)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
                 self.var_impacts_buffer.append(var_impact)
@@ -174,14 +178,14 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                #batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
-                endt = time.time()
+                batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
                 batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                   self.var_impacts_buffer,self.queue_length)
                 batch_insert(self.session, 'variants_by_sub_type_call_rate',\
                                                  get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer,self.queue_length)
                 batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer,self.queue_length)
                 batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer,self.queue_length)
+                endt = time.time()
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                 self.var_buffer = blist([])
@@ -189,13 +193,15 @@ class GeminiLoader(object):
                 self.var_impacts_buffer = blist([])
                 self.var_gene_buffer = blist([])
                 self.var_chrom_start_buffer = blist([])
-                vars_inserted += self.buffer_size
-                avg_speed = vars_inserted / (time.time() - start_time)   
+                #vars_inserted += self.buffer_size
+                #avg_speed = vars_inserted / (time.time() - start_time)   
                 if(self.args.offset == '1'):                   
-                    print "variants insert took %s s." % (endt - startt)
-                    print "pid " + str(os.getpid()) + ": Already inserted %s variants. Avg: %s vars/s." % (vars_inserted, avg_speed)
+                    print "%s vars %.2f s; var tables %.2f s, var_gt_tables %.2f s" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
+                    #print "pid " + str(os.getpid()) + ": Already inserted %s variants. Avg: %.2f vars/s." % (vars_inserted, avg_speed)
                          
                 buffer_count = 0
+                interval_start = time.time()
+                variants_gts_timer = 0
             self.v_id += 1
             self.counter += 1
         '''if extra_headers:
