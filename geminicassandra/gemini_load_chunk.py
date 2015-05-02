@@ -174,7 +174,10 @@ class GeminiLoader(object):
             buffer_count += 1
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
+                startt = time.time()
                 batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+                endt = time.time()
+                print "variants insert took %s s." % (endt - startt)
                 batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                   self.var_impacts_buffer)
                 batch_insert(self.session, 'variants_by_sub_type_call_rate',\
@@ -189,7 +192,8 @@ class GeminiLoader(object):
                 self.var_gene_buffer = blist([])
                 self.var_chrom_start_buffer = blist([])
                 vars_inserted += self.buffer_size
-                print "pid " + str(os.getpid()) + ": Already inserted %s variants. Almost there!" % vars_inserted
+                avg_speed = vars_inserted / (time.time() - start_time)
+                print "pid " + str(os.getpid()) + ": Already inserted %s variants. Avg: %s vars/s." % (vars_inserted, avg_speed)
                 buffer_count = 0
             self.v_id += 1
             self.counter += 1
