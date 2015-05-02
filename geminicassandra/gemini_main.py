@@ -154,6 +154,11 @@ def main():
                              default = 1,
                              type=int,
                              help="replication factor for the Cassandra cluster")
+    parser_load.add_argument('--max_queue',
+                             dest= "max_queue",
+                             default = 120,
+                             type=int,
+                             help="queue length (per core) for batched inserts to Cassandra")
 
     def load_fn(parser, args):
         import gemini_load
@@ -260,6 +265,11 @@ def main():
                              default = 1,
                              type=int,
                              help="replication factor for the Cassandra cluster")
+    parser_loadchunk.add_argument('--max_queue',
+                             dest= "max_queue",
+                             default = 120,
+                             type=int,
+                             help="queue length (per core) for batched inserts to Cassandra")
     
     def loadchunk_fn(parser, args):
         import gemini_load_chunk

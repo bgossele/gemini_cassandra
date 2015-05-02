@@ -300,7 +300,7 @@ def create_samples_tables(extra_columns):
     
     return [SimpleStatement(creation_samples), SimpleStatement(creation_samples_by_phenotype), SimpleStatement(creation_samples_by_sex)]
     
-def batch_insert(session, table, columns, contents):
+def batch_insert(session, table, columns, contents, queue_length=120):
     """
     Populate the given table with the given values
     """
@@ -308,9 +308,9 @@ def batch_insert(session, table, columns, contents):
     question_marks = ','.join(list(repeat("?",len(columns))))
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
     
-    futures = Queue.Queue(maxsize=121)
+    futures = Queue.Queue(maxsize=queue_length+1)
     for i in range(len(contents)):
-        if i >= 120:
+        if i >= queue_length:
             old_future = futures.get_nowait()
             old_future.result()
     

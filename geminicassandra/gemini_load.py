@@ -149,6 +149,7 @@ def load_chunks_multicore(grabix_file, args):
     contact_points = "-db " + args.contact_points 
     keyspace = "-ks " + args.keyspace
     buffer_size = "--buffer-size " + str(args.buffer_size)
+    max_queue = "--max_queue " + str(args.max_queue)
     
     submit_command = "{cmd}"
     vcf, _ = os.path.splitext(grabix_file)
@@ -258,7 +259,7 @@ def gemini_pipe_load_cmd():
                        " {no_genotypes} {no_load_genotypes} {no_genotypes}"
                        " {skip_gerp_bp} {skip_gene_tables} {skip_cadd}"
                        " {passonly} {skip_info_string} {test_mode}"
-                       " -o {start} {contact_points} {keyspace} {buffer_size}")
+                       " -o {start} {contact_points} {keyspace} {buffer_size} {max_queue}")
     return " | ".join([grabix_cmd, gemini_load_cmd])
 
 def get_chunk_steps(grabix_file, args):

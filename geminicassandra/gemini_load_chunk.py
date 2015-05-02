@@ -43,6 +43,7 @@ class GeminiLoader(object):
         self.vcf_reader = self._get_vcf_reader()
         
         self.buffer_size = args.buffer_size
+        self.queue_length = args.max_queue
         self._get_anno_version()
         self.contact_points = map(strip, args.contact_points.split(','))
         self.keyspace = args.keyspace
@@ -156,15 +157,15 @@ class GeminiLoader(object):
             var_sample_gt_buffer = blist([])
                 
             for sample in sample_info:
-                #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
-                var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
-                var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
-                var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
+                if sample[1] != None:
+                    var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
+                    var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
+                    var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
                                     
-            batch_insert(self.session, 'variants_by_samples_gt_types', ["variant_id", "sample_name", "gt_types"], var_sample_gt_types_buffer)
-            batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer)
-            batch_insert(self.session, 'variants_by_samples_gt_depths', ["variant_id", "sample_name", "gt_depths"], var_sample_gt_depths_buffer)
-            batch_insert(self.session, 'variants_by_samples_gts', ["variant_id", "sample_name", "gts"], var_sample_gt_buffer)
+            batch_insert(self.session, 'variants_by_samples_gt_types', ["variant_id", "sample_name", "gt_types"], var_sample_gt_types_buffer, self.queue_length)
+            batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer, self.queue_length)
+            batch_insert(self.session, 'variants_by_samples_gt_depths', ["variant_id", "sample_name", "gt_depths"], var_sample_gt_depths_buffer, self.queue_length)
+            batch_insert(self.session, 'variants_by_samples_gts', ["variant_id", "sample_name", "gts"], var_sample_gt_buffer, self.queue_length)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
                 self.var_impacts_buffer.append(var_impact)
@@ -173,15 +174,14 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
+                batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
                 endt = time.time()
-                print "variants insert took %s s." % (endt - startt)
                 batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
-                                                  self.var_impacts_buffer)
+                                                  self.var_impacts_buffer,self.queue_length)
                 batch_insert(self.session, 'variants_by_sub_type_call_rate',\
-                                                 get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
-                batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer)
-                batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer)
+                                                 get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer,self.queue_length)
+                batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer,self.queue_length)
+                batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer,self.queue_length)
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
                 self.var_buffer = blist([])
@@ -191,7 +191,11 @@ class GeminiLoader(object):
                 self.var_chrom_start_buffer = blist([])
                 vars_inserted += self.buffer_size
                 avg_speed = vars_inserted / (time.time() - start_time)
-                print "pid " + str(os.getpid()) + ": Already inserted %s variants. Avg: %s vars/s." % (vars_inserted, avg_speed)
+                if hasattr(self.args, 'offset'):
+                    if(self.args.offset == 1):                        
+                        print "variants insert took %s s." % (endt - startt)
+                        print "pid " + str(os.getpid()) + ": Already inserted %s variants. Avg: %s vars/s." % (vars_inserted, avg_speed)
+                         
                 buffer_count = 0
             self.v_id += 1
             self.counter += 1
@@ -202,12 +206,12 @@ class GeminiLoader(object):
             os.remove(extra_file)'''
         # final load to the database
         self.v_id -= 1
-        batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer)
-        batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer)
+        batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
+        batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer,self.queue_length)
         batch_insert(self.session, 'variants_by_sub_type_call_rate',\
-                                            get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer)
-        batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer)
-        batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer)
+                                            get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer,self.queue_length)
+        batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer,self.queue_length)
+        batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer,self.queue_length)
         
         end_time = time.time()
         elapsed_time = end_time - start_time            
@@ -319,13 +323,7 @@ class GeminiLoader(object):
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
         query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : %d}" % (self.keyspace, self.replication_factor)
-        print query
-        try:
-            self.session.execute(query)
-        except cassandra.protocol.ServerError:
-            sys.stderr.write("FOUTJEUH\n")
-            query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}" % self.keyspace
-            self.session.execute(query)
+        self.session.execute(query)
         self.session.set_keyspace(self.keyspace)
         # create the geminicassandra database tables for the new DB
         create_tables(self.session, self.typed_gt_column_names, self.extra_sample_columns)
