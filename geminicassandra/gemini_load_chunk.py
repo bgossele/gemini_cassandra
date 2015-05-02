@@ -143,10 +143,6 @@ class GeminiLoader(object):
                 self.skipped += 1
                 continue
             (variant, variant_impacts, sample_info, extra_fields) = self._prepare_variation(var)
-            #TODO: bekijken
-            '''if extra_fields:
-                extra_handle.write("%s\n" % json.dumps(extra_fields))
-                extra_headers = self._update_extra_headers(extra_headers, extra_fields)'''
             # add the core variant info to the variant buffer
             self.var_buffer.append(variant)
             self.var_subtypes_buffer.append([self.v_id, variant[11], variant[12]])
@@ -159,7 +155,7 @@ class GeminiLoader(object):
             var_sample_gt_buffer = blist([])
                 
             for sample in sample_info:
-                    #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
+                #TODO: check if gt_type is None. Compare if faster to check client side i.s.o. Cassandra - side
                 var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
                 var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
                 var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
@@ -322,6 +318,7 @@ class GeminiLoader(object):
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
         query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : %s}" % (self.keyspace, self.replication_factor)
+        print query
         self.session.execute(query)
         self.session.set_keyspace(self.keyspace)
         # create the geminicassandra database tables for the new DB
