@@ -174,7 +174,7 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
+                #batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
                 endt = time.time()
                 batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
                                                   self.var_impacts_buffer,self.queue_length)
