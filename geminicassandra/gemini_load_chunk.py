@@ -315,8 +315,9 @@ class GeminiLoader(object):
         """
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
-        self.session.execute("""CREATE KEYSPACE IF NOT EXISTS %s \
-                                WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}""" % self.keyspace)
+        query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}" % self.keyspace
+        print query
+        self.session.execute(query)
         self.session.set_keyspace(self.keyspace)
         # create the geminicassandra database tables for the new DB
         create_tables(self.session, self.typed_gt_column_names, self.extra_sample_columns)
