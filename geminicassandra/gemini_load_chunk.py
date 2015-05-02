@@ -29,6 +29,7 @@ from table_schemes import get_column_names
 from geminicassandra.ped import get_ped_fields
 import time
 from string import strip
+import cassandra.protocol
 
 class GeminiLoader(object):
     """
@@ -317,9 +318,14 @@ class GeminiLoader(object):
         """
         self.cluster = Cluster(self.contact_points)
         self.session = self.cluster.connect()
-        query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : %s}" % (self.keyspace, self.replication_factor)
+        query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : %d}" % (self.keyspace, self.replication_factor)
         print query
-        self.session.execute(query)
+        try:
+            self.session.execute(query)
+        except cassandra.protocol.ServerError:
+            sys.stderr.write("FOUTJEUH\n")
+            query = "CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}" % self.keyspace
+            self.session.execute(query)
         self.session.set_keyspace(self.keyspace)
         # create the geminicassandra database tables for the new DB
         create_tables(self.session, self.typed_gt_column_names, self.extra_sample_columns)
