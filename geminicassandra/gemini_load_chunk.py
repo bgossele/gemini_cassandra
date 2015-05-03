@@ -226,7 +226,8 @@ class GeminiLoader(object):
                 vars_inserted += self.buffer_size   
                 if(self.args.offset == '1'):                   
                     print "%s vars done; last %s took %.2f s; var tables %.2f s, var_gt_tables %.2f s" % (vars_inserted, self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
-                log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer))        
+                log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer)) 
+                log_file.flush()       
                 buffer_count = 0
                 interval_start = time.time()
                 variants_gts_timer = 0
