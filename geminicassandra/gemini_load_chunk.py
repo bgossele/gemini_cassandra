@@ -132,7 +132,7 @@ class GeminiLoader(object):
         self.insert_variants_samples_gt_types_query = self.session.prepare(basic_query % \
                              ('variants_by_samples_gt_types', "variant_id, sample_name, gt_types", ','.join(list(repeat("?",3)))))
         self.insert_samples_variants_gt_types_query = self.session.prepare(basic_query % \
-                             ('samples_by_variants_gt_type', "variant_id, sample_name, gt_types", ','.join(list(repeat("?",3)))))
+                             ('samples_by_variants_gt_type', "variant_id, sample_name, gt_type", ','.join(list(repeat("?",3)))))
         self.insert_variants_samples_gt_depths_query = self.session.prepare(basic_query % \
                              ('variants_by_samples_gt_depths', "variant_id, sample_name, gt_depths", ','.join(list(repeat("?",3)))))
         self.insert_variants_samples_gts_query = self.session.prepare(basic_query % \
@@ -140,11 +140,11 @@ class GeminiLoader(object):
         self.insert_variant_impacts_query = self.session.prepare(basic_query % \
                              ('variant_impacts', ','.join(get_column_names('variant_impacts')), ','.join(list(repeat("?", len(get_column_names('variant_impacts')))))))
         self.insert_variant_stcr_query = self.session.prepare(basic_query % \
-                             ('variants_by_sub_type_call_rate', ','.join(get_column_names('variants_by_sub_type_call_rate')), ','.join(list(repeat("?", len(get_column_names('variants_by_sub_type_call_rate')))))))
+                             ('variants_by_sub_type_call_rate', ','.join(get_column_names('variants_by_sub_type_call_rate')), ','.join(list(repeat("?", 3)))))
         self.insert_variant_gene_query = self.session.prepare(basic_query % \
                              ('variants_by_gene', 'variant_id, gene', ','.join(list(repeat("?", 2)))))
         self.insert_variant_chrom_start_query = self.session.prepare(basic_query % \
-                             ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 2)))))
+                             ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 3)))))
                                                  
     def populate_from_vcf(self):
         """

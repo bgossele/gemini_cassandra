@@ -141,7 +141,6 @@ def create_tables(session, gt_column_names, extra_sample_columns):
     for stmt in create_samples_tables(extra_sample_columns):
         session.execute(stmt)
 
-
 def create_variants_table(gt_column_names):
 
     #TODO: line 230 was hwe decimal(9,7) in sqlite and info was BYTEA
