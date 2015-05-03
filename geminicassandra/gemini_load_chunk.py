@@ -14,7 +14,7 @@ import version
 from ped import load_ped_file
 import gene_table
 import infotag
-from database_cassandra import insert, batch_insert, create_tables
+from database_cassandra import insert, batch_insert, batch_insert_query_prepared, create_tables
 import annotations
 import func_impact
 import severe_impact
@@ -25,11 +25,13 @@ from compression import pack_blob
 from geminicassandra.config import read_gemini_config
 from cassandra.cluster import Cluster
 from blist import blist
+from itertools import repeat
 from table_schemes import get_column_names
 from geminicassandra.ped import get_ped_fields
 import time
 from string import strip
 import cassandra.protocol
+from geminicassandra.table_schemes import get_column_names
 
 class GeminiLoader(object):
     """
@@ -121,7 +123,29 @@ class GeminiLoader(object):
         else:
             v_id = 1
         return v_id
-
+    
+    def prepare_insert_queries(self):
+        basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
+        
+        self.insert_variants_query = self.session.prepare(basic_query % \
+                             ('variants', ','.join(get_column_names('variants') + self.gt_column_names), ','.join(list(repeat("?",len(get_column_names('variants') + self.gt_column_names))))))
+        self.insert_variants_samples_gt_types_query = self.session.prepare(basic_query % \
+                             ('variants_by_samples_gt_types', "variant_id, sample_name, gt_types", ','.join(list(repeat("?",3)))))
+        self.insert_samples_variants_gt_types_query = self.session.prepare(basic_query % \
+                             ('samples_by_variants_gt_type', "variant_id, sample_name, gt_types", ','.join(list(repeat("?",3)))))
+        self.insert_variants_samples_gt_depths_query = self.session.prepare(basic_query % \
+                             ('variants_by_samples_gt_depths', "variant_id, sample_name, gt_depths", ','.join(list(repeat("?",3)))))
+        self.insert_variants_samples_gts_query = self.session.prepare(basic_query % \
+                             ('variants_by_samples_gts', "variant_id, sample_name, gts", ','.join(list(repeat("?",3))))) 
+        self.insert_variant_impacts_query = self.session.prepare(basic_query % \
+                             ('variant_impacts', ','.join(get_column_names('variant_impacts')), ','.join(list(repeat("?", len(get_column_names('variant_impacts')))))))
+        self.insert_variant_stcr_query = self.session.prepare(basic_query % \
+                             ('variants_by_sub_type_call_rate', ','.join(get_column_names('variants_by_sub_type_call_rate')), ','.join(list(repeat("?", len(get_column_names('variants_by_sub_type_call_rate')))))))
+        self.insert_variant_gene_query = self.session.prepare(basic_query % \
+                             ('variants_by_gene', 'variant_id, gene', ','.join(list(repeat("?", 2)))))
+        self.insert_variant_chrom_start_query = self.session.prepare(basic_query % \
+                             ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 2)))))
+                                                 
     def populate_from_vcf(self):
         """
         """
@@ -131,6 +155,7 @@ class GeminiLoader(object):
         self.var_subtypes_buffer = blist([])
         self.var_gene_buffer = blist([])
         self.var_chrom_start_buffer = blist([])
+        self.prepare_insert_queries()
         buffer_count = 0
         self.skipped = 0
         #extra_file, extraheader_file = geminicassandra.get_extra_files(self.args.db)
@@ -165,10 +190,10 @@ class GeminiLoader(object):
                     var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
                     
             stime = time.time()                       
-            batch_insert(self.session, 'variants_by_samples_gt_types', ["variant_id", "sample_name", "gt_types"], var_sample_gt_types_buffer, 10*self.queue_length)
-            batch_insert(self.session, 'samples_by_variants_gt_type', ["variant_id", "sample_name", "gt_type"], var_sample_gt_types_buffer, 10*self.queue_length)
-            batch_insert(self.session, 'variants_by_samples_gt_depths', ["variant_id", "sample_name", "gt_depths"], var_sample_gt_depths_buffer, 10*self.queue_length)
-            batch_insert(self.session, 'variants_by_samples_gts', ["variant_id", "sample_name", "gts"], var_sample_gt_buffer, 10*self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_types_query, var_sample_gt_types_buffer, 10*self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_samples_variants_gt_types_query, var_sample_gt_types_buffer, 10*self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_depths_query, var_sample_gt_depths_buffer, 10*self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_variants_samples_gts_query, var_sample_gt_buffer, 10*self.queue_length)
             variants_gts_timer += (time.time() - stime)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
@@ -178,13 +203,11 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
-                batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'),
-                                                  self.var_impacts_buffer,self.queue_length)
-                batch_insert(self.session, 'variants_by_sub_type_call_rate',\
-                                                 get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer,self.queue_length)
-                batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer,self.queue_length)
-                batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer,self.queue_length)
+                batch_insert_query_prepared(self.session, self.insert_variants_query, self.var_buffer,self.queue_length)
+                batch_insert_query_prepared(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer,self.queue_length)
+                batch_insert_query_prepared(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer,self.queue_length)
+                batch_insert_query_prepared(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self.queue_length)
+                batch_insert_query_prepared(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer,self.queue_length)
                 endt = time.time()
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -211,12 +234,11 @@ class GeminiLoader(object):
             os.remove(extra_file)'''
         # final load to the database
         self.v_id -= 1
-        batch_insert(self.session, 'variants', get_column_names('variants') + self.gt_column_names, self.var_buffer,self.queue_length)
-        batch_insert(self.session, 'variant_impacts', get_column_names('variant_impacts'), self.var_impacts_buffer,self.queue_length)
-        batch_insert(self.session, 'variants_by_sub_type_call_rate',\
-                                            get_column_names('variants_by_sub_type_call_rate'), self.var_subtypes_buffer,self.queue_length)
-        batch_insert(self.session, 'variants_by_gene', ['variant_id', 'gene'], self.var_gene_buffer,self.queue_length)
-        batch_insert(self.session, 'variants_by_chrom_start', ['variant_id', 'chrom', 'start'], self.var_chrom_start_buffer,self.queue_length)
+        batch_insert_query_prepared(self.session, self.insert_variants_query, self.var_buffer,self.queue_length)
+        batch_insert_query_prepared(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer,self.queue_length)
+        batch_insert_query_prepared(self.session, self.insert_variant_stcr_querye, self.var_subtypes_buffer,self.queue_length)
+        batch_insert_query_prepared(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self.queue_length)
+        batch_insert_query_prepared(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer,self.queue_length)
         
         end_time = time.time()
         elapsed_time = end_time - start_time            

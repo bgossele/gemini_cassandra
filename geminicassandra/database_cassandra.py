@@ -308,13 +308,20 @@ def batch_insert(session, table, columns, contents, queue_length=120):
     question_marks = ','.join(list(repeat("?",len(columns))))
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
     
+    batch_insert_query_prepared(session, insert_query, contents, queue_length)
+        
+def batch_insert_query_prepared(session, prepared_query, contents, queue_length=120):
+    """
+    Populate the given table with the given values
+    """
+    
     futures = Queue.Queue(maxsize=queue_length+1)
     for i in range(len(contents)):
         if i >= queue_length:
             old_future = futures.get_nowait()
             old_future.result()
     
-        future = session.execute_async(insert_query, contents[i])
+        future = session.execute_async(prepared_query, contents[i])
         futures.put_nowait(future)
     
 def insert(session, table, columns, contents):
