@@ -26,11 +26,10 @@ from geminicassandra.config import read_gemini_config
 from cassandra.cluster import Cluster
 from blist import blist
 from itertools import repeat
-from table_schemes import get_column_names
 from geminicassandra.ped import get_ped_fields
 import time
 from string import strip
-import cassandra.protocol
+from random import randint
 from geminicassandra.table_schemes import get_column_names
 
 class GeminiLoader(object):
@@ -56,17 +55,14 @@ class GeminiLoader(object):
         
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
-            print "Importing %s samples." % len(self.samples)
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
             
         NUM_BUILT_IN = 6
         self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]
-        # load sample information
         
-        
-        '''if not args.skip_gene_tables:
+        if not args.skip_gene_tables:
             self._get_gene_detailed()
-            self._get_gene_summary()'''
+            self._get_gene_summary()
 
         if self.args.anno_type == "VEP":
             self._effect_fields = self._get_vep_csq(self.vcf_reader)
@@ -125,12 +121,13 @@ class GeminiLoader(object):
         return v_id
     
     def prepare_insert_queries(self):
+        
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
         
         from time import sleep
-        from random import randint
         
-        sleep(20*randint(0,6))
+        nap = 15*randint(0,6)
+        sleep(nap)
         
         start_time = time.time()        
         self.insert_variants_query = self.session.prepare(basic_query % \
@@ -173,9 +170,10 @@ class GeminiLoader(object):
         start_time = time.time()
         interval_start = time.time()
         variants_gts_timer = 0
+        log_file = open("loading_logs/%s.csv" % str(os.getpid()), "a")
         #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
-        #vars_inserted = 0
+        vars_inserted = 0
         for var in self.vcf_reader:
             if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
                 self.skipped += 1
@@ -225,12 +223,10 @@ class GeminiLoader(object):
                 self.var_impacts_buffer = blist([])
                 self.var_gene_buffer = blist([])
                 self.var_chrom_start_buffer = blist([])
-                #vars_inserted += self.buffer_size
-                #avg_speed = vars_inserted / (time.time() - start_time)   
+                vars_inserted += self.buffer_size   
                 if(self.args.offset == '1'):                   
-                    print "%s vars %.2f s; var tables %.2f s, var_gt_tables %.2f s" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
-                    #print "pid " + str(os.getpid()) + ": Already inserted %s variants. Avg: %.2f vars/s." % (vars_inserted, avg_speed)
-                         
+                    print "%s vars done; last %s took %.2f s; var tables %.2f s, var_gt_tables %.2f s" % (vars_inserted, self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
+                log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer))        
                 buffer_count = 0
                 interval_start = time.time()
                 variants_gts_timer = 0
@@ -243,6 +239,8 @@ class GeminiLoader(object):
             os.remove(extra_file)'''
         # final load to the database
         self.v_id -= 1
+        
+        startt = time.time()
         batch_insert_query_prepared(self.session, self.insert_variants_query, self.var_buffer,self.queue_length)
         batch_insert_query_prepared(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer,self.queue_length)
         batch_insert_query_prepared(self.session, self.insert_variant_stcr_querye, self.var_subtypes_buffer,self.queue_length)
@@ -250,6 +248,9 @@ class GeminiLoader(object):
         batch_insert_query_prepared(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer,self.queue_length)
         
         end_time = time.time()
+        vars_inserted += self.buffer_size   
+        log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, end_time - interval_start, end_time - startt, variants_gts_timer))        
+        log_file.close()        
         elapsed_time = end_time - start_time            
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
@@ -527,14 +528,6 @@ class GeminiLoader(object):
             gt_alt_depths = var.gt_alt_depths  # 8 16 0 -1
             gt_quals = var.gt_quals  # 10.78 22 99 -1
             gt_copy_numbers = var.gt_copy_numbers  # 1.0 2.0 2.1 -1
-            '''print "type gt_bases: %s" % str(type(gt_bases))
-            print "type gt_types: %s" % str(type(gt_types))
-            print "type gt_phases: %s" % str(type(gt_phases))
-            print "type gt_depths: %s" % str(type(gt_depths))
-            print "type gt_ref_depths: %s" % str(type(gt_ref_depths))
-            print "type gt_alt_depths: %s" % str(type(gt_alt_depths))
-            print "type gt_quals: %s" % str(type(gt_quals))
-            print "type gt_copy_numbers: %s" % str(type(gt_copy_numbers))'''
             gt_columns = concat([gt_bases, gt_types, gt_phases, gt_depths, gt_ref_depths, gt_alt_depths, gt_quals, gt_copy_numbers])
 
             for entry in var.samples:
@@ -689,8 +682,8 @@ class GeminiLoader(object):
                                  "not in the PED file.\n" % (sample))
             else:
                 # if there is no ped file given, just fill in the name and
-                # sample_id and set the other required fields to None
-                sample_list = [i, '0', sample, '0', '0', '-9', '-9']
+                # sample_id and set random value for sex & phenotype
+                sample_list = [i, '0', sample, '0', '0', str(randint(1,2)), str(randint(1,2))]
                 
             samples_buffer.append(sample_list)
             buffer_counter += 1
