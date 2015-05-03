@@ -101,7 +101,6 @@ def create_tables(session, gt_column_names, extra_sample_columns):
                         variant_id int, \
                         primary key (sample_name, gts, variant_id))'''))
     
-    
     session.execute(SimpleStatement('''CREATE TABLE IF NOT EXISTS samples_by_variants_gt_type ( \
                     variant_id int, \
                     gt_type int, \

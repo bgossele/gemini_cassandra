@@ -126,6 +126,7 @@ class GeminiLoader(object):
     
     def prepare_insert_queries(self):
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
+        start_time = time.time()
         
         self.insert_variants_query = self.session.prepare(basic_query % \
                              ('variants', ','.join(get_column_names('variants') + self.gt_column_names), ','.join(list(repeat("?",len(get_column_names('variants') + self.gt_column_names))))))
@@ -145,6 +146,9 @@ class GeminiLoader(object):
                              ('variants_by_gene', 'variant_id, gene', ','.join(list(repeat("?", 2)))))
         self.insert_variant_chrom_start_query = self.session.prepare(basic_query % \
                              ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 3)))))
+        end_time = time.time()
+        
+        print("preparing statements took %.2f s." % (end_time - start_time))
                                                  
     def populate_from_vcf(self):
         """
