@@ -58,11 +58,7 @@ class GeminiLoader(object):
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
             
         NUM_BUILT_IN = 6
-        self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]
-        
-        if not args.skip_gene_tables:
-            self._get_gene_detailed()
-            self._get_gene_summary()
+        self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]        
 
         if self.args.anno_type == "VEP":
             self._effect_fields = self._get_vep_csq(self.vcf_reader)
@@ -81,6 +77,10 @@ class GeminiLoader(object):
             self.num_samples = len(self.samples)
         else:
             self.num_samples = 0
+            
+        if not self.args.skip_gene_tables:
+            self._get_gene_detailed()
+            self._get_gene_summary()
 
     def store_vcf_header(self):
         """Store the raw VCF header.
