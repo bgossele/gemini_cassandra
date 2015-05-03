@@ -126,8 +126,13 @@ class GeminiLoader(object):
     
     def prepare_insert_queries(self):
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
-        start_time = time.time()
         
+        from time import sleep
+        from random import randint
+        
+        sleep(20*randint(0,6))
+        
+        start_time = time.time()        
         self.insert_variants_query = self.session.prepare(basic_query % \
                              ('variants', ','.join(get_column_names('variants') + self.gt_column_names), ','.join(list(repeat("?",len(get_column_names('variants') + self.gt_column_names))))))
         self.insert_variants_samples_gt_types_query = self.session.prepare(basic_query % \
