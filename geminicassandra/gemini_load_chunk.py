@@ -210,7 +210,7 @@ class GeminiLoader(object):
                     super_buffer.append([self.v_id, sample[0], sample[1],self.v_id, sample[0], sample[1],self.v_id, sample[0], sample[2],self.v_id, sample[0], sample[3]])
                     
             stime = time.time()                       
-            batch_insert_query_prepared(self.session, self.prepared_batch, super_buffer)
+            batch_insert_query_prepared(self.session, self.prepared_batch, super_buffer, 25)
             #self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer)
             variants_gts_timer += (time.time() - stime)
                 # add each of the impact for this variant (1 per gene/transcript)
