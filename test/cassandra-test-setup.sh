@@ -2,7 +2,7 @@
 export n_cores=3
 export buffer_size=50
 
-geminicassandra load --test-mode -v test.query.vcf --skip-gerp-bp --skip-cadd -t snpEff -db $cassandra_ips -ks test_query_db --cores $n_cores --buffer-size $buffer_size --replication 1 --max_queue 45
+geminicassandra load --skip-gene-tables --test-mode -v test.query.vcf --skip-gerp-bp --skip-cadd -t snpEff -db $cassandra_ips -ks test_query_db --cores $n_cores --buffer-size $buffer_size 
 geminicassandra load --skip-gene-tables --test-mode -p test_extended_ped.ped -v test4.vep.snpeff.vcf  --skip-gerp-bp --skip-cadd -t snpEff -db $cassandra_ips -ks extended_ped_db --cores $n_cores
 geminicassandra load --skip-gene-tables --test-mode -v test.snpeff.vcf --skip-gerp-bp --skip-cadd -t snpEff -db $cassandra_ips -ks test_snpeff_vcf_db --cores $n_cores
 geminicassandra load --skip-gene-tables --test-mode -v test.exac.vcf --skip-gerp-bp --skip-cadd -db $cassandra_ips -ks test_exac_db --cores $n_cores 

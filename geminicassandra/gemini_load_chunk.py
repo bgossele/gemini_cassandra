@@ -31,6 +31,8 @@ import time
 from string import strip
 from random import randint
 from geminicassandra.table_schemes import get_column_names
+from cassandra.query import BatchStatement
+import Queue
 
 class GeminiLoader(object):
     """
@@ -123,31 +125,46 @@ class GeminiLoader(object):
     def prepare_insert_queries(self):
         
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
-        
-        from time import sleep
+        '''from time import sleep
         
         nap = 15*randint(0,6)
-        sleep(nap)
+        sleep(nap)'''
         
-        start_time = time.time()        
+        start_time = time.time()     
+        
+        '''variants_batch = "BEGIN BATCH " + basic_query % \
+                             ('variants', ','.join(get_column_names('variants') + self.gt_column_names), ','.join(list(repeat("?",len(get_column_names('variants') + self.gt_column_names))))) + ";"\
+                             + basic_query % \
+                             ('variants_by_sub_type_call_rate', ','.join(get_column_names('variants_by_sub_type_call_rate')), ','.join(list(repeat("?", 3)))) + ";" \
+                             + basic_query % \
+                             ('variants_by_gene', 'variant_id, gene', ','.join(list(repeat("?", 2)))) + ";" \
+                             + basic_query % \
+                             ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 3)))) + ";"\
+                             + "APPLY BATCH;"
+        self.insert_variants_batch = self.session.prepare(variants_batch)'''
+        
         self.insert_variants_query = self.session.prepare(basic_query % \
                              ('variants', ','.join(get_column_names('variants') + self.gt_column_names), ','.join(list(repeat("?",len(get_column_names('variants') + self.gt_column_names))))))
-        self.insert_variants_samples_gt_types_query = self.session.prepare(basic_query % \
-                             ('variants_by_samples_gt_types', "variant_id, sample_name, gt_types", ','.join(list(repeat("?",3)))))
-        self.insert_samples_variants_gt_types_query = self.session.prepare(basic_query % \
-                             ('samples_by_variants_gt_type', "variant_id, sample_name, gt_type", ','.join(list(repeat("?",3)))))
-        self.insert_variants_samples_gt_depths_query = self.session.prepare(basic_query % \
-                             ('variants_by_samples_gt_depths', "variant_id, sample_name, gt_depths", ','.join(list(repeat("?",3)))))
-        self.insert_variants_samples_gts_query = self.session.prepare(basic_query % \
-                             ('variants_by_samples_gts', "variant_id, sample_name, gts", ','.join(list(repeat("?",3))))) 
-        self.insert_variant_impacts_query = self.session.prepare(basic_query % \
-                             ('variant_impacts', ','.join(get_column_names('variant_impacts')), ','.join(list(repeat("?", len(get_column_names('variant_impacts')))))))
         self.insert_variant_stcr_query = self.session.prepare(basic_query % \
                              ('variants_by_sub_type_call_rate', ','.join(get_column_names('variants_by_sub_type_call_rate')), ','.join(list(repeat("?", 3)))))
         self.insert_variant_gene_query = self.session.prepare(basic_query % \
                              ('variants_by_gene', 'variant_id, gene', ','.join(list(repeat("?", 2)))))
         self.insert_variant_chrom_start_query = self.session.prepare(basic_query % \
                              ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 3)))))
+        var_gts_batch = "BEGIN BATCH " + basic_query % \
+                             ('variants_by_samples_gt_types', "variant_id, sample_name, gt_types", ','.join(list(repeat("?",3)))) + ";"\
+                             + basic_query % \
+                             ('samples_by_variants_gt_type', "variant_id, sample_name, gt_type", ','.join(list(repeat("?",3)))) + ";"\
+                             + basic_query % \
+                             ('variants_by_samples_gt_depths', "variant_id, sample_name, gt_depths", ','.join(list(repeat("?",3)))) + ";"\
+                             + basic_query % \
+                             ('variants_by_samples_gts', "variant_id, sample_name, gts", ','.join(list(repeat("?",3)))) + ";"\
+                             + "APPLY BATCH;"
+        self.prepared_batch = self.session.prepare(var_gts_batch)        
+        
+        self.insert_variant_impacts_query = self.session.prepare(basic_query % \
+                             ('variant_impacts', ','.join(get_column_names('variant_impacts')), ','.join(list(repeat("?", len(get_column_names('variant_impacts')))))))            
+                            
         end_time = time.time()
         
         print("preparing statements took %.2f s." % (end_time - start_time))
@@ -185,22 +202,16 @@ class GeminiLoader(object):
             if variant[55] != None:
                 self.var_gene_buffer.append([self.v_id, variant[55]])
             self.var_chrom_start_buffer.append([self.v_id, variant[0], variant[1]])
-                
-            var_sample_gt_types_buffer = blist([])
-            var_sample_gt_depths_buffer = blist([])
-            var_sample_gt_buffer = blist([])
+        
+            super_buffer = blist([])
                 
             for sample in sample_info:
-                if sample[1] != None:
-                    var_sample_gt_depths_buffer.append([self.v_id, sample[0], sample[2]])
-                    var_sample_gt_types_buffer.append([self.v_id, sample[0], sample[1]])
-                    var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
+                if sample[1] != None:                    
+                    super_buffer.append([self.v_id, sample[0], sample[1],self.v_id, sample[0], sample[1],self.v_id, sample[0], sample[2],self.v_id, sample[0], sample[3]])
                     
             stime = time.time()                       
-            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_types_query, var_sample_gt_types_buffer, self.queue_length)
-            batch_insert_query_prepared(self.session, self.insert_samples_variants_gt_types_query, var_sample_gt_types_buffer, self.queue_length)
-            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_depths_query, var_sample_gt_depths_buffer, self.queue_length)
-            batch_insert_query_prepared(self.session, self.insert_variants_samples_gts_query, var_sample_gt_buffer, self.queue_length)
+            batch_insert_query_prepared(self.session, self.prepared_batch, super_buffer)
+            #self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer)
             variants_gts_timer += (time.time() - stime)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
@@ -244,7 +255,7 @@ class GeminiLoader(object):
         startt = time.time()
         batch_insert_query_prepared(self.session, self.insert_variants_query, self.var_buffer,self.queue_length)
         batch_insert_query_prepared(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer,self.queue_length)
-        batch_insert_query_prepared(self.session, self.insert_variant_stcr_querye, self.var_subtypes_buffer,self.queue_length)
+        batch_insert_query_prepared(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer,self.queue_length)
         batch_insert_query_prepared(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self.queue_length)
         batch_insert_query_prepared(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer,self.queue_length)
         
@@ -259,6 +270,25 @@ class GeminiLoader(object):
             sys.stderr.write("pid " + str(os.getpid()) + ": " +
                              str(self.skipped) + " skipped due to having the "
                              "FILTER field set.\n")
+            
+    def prepared_batch_insert(self, session, types_buf, depth_buf, gt_buffer, queue_length=120):
+        """
+        Populate the given table with the given values
+        """
+        
+        futures = Queue.Queue(maxsize=queue_length+1)
+        for i in range(len(types_buf)):
+            if i >= queue_length:
+                old_future = futures.get_nowait()
+                old_future.result()
+            
+            batch = BatchStatement()
+            batch.add(self.insert_samples_variants_gt_types_query, types_buf[i])
+            batch.add(self.insert_variants_samples_gt_types_query, types_buf[i])
+            batch.add(self.insert_variants_samples_gt_depths_query, depth_buf[i])
+            batch.add(self.insert_variants_samples_gts_query, gt_buffer[i])
+            future = session.execute_async(batch)
+            futures.put_nowait(future)
 
     def _update_extra_headers(self, headers, cur_fields):
         """Update header information for extra fields.
