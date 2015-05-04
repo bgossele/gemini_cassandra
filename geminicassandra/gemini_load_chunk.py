@@ -205,7 +205,7 @@ class GeminiLoader(object):
                     var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])        
                              
             stime = time.time()                       
-            self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer, 30)
+            self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer, 25)
             variants_gts_timer += (time.time() - stime)
             
                 # add each of the impact for this variant (1 per gene/transcript)
@@ -266,21 +266,30 @@ class GeminiLoader(object):
                              str(self.skipped) + " skipped due to having the "
                              "FILTER field set.\n")
             
-    def prepared_batch_insert(self, session, types_buf, depth_buf, gt_buffer, queue_length=30):
+    def prepared_batch_insert(self, session, types_buf, depth_buf, gt_buffer, queue_length=25):
         """
         Populate the given table with the given values
         """
         
         futures = Queue.Queue(maxsize=queue_length+1)
+        entries_in_transit = Queue.Queue(maxsize=queue_length+1)
         i = 0
         while i < len(types_buf):
             if i >= queue_length:
                 old_future = futures.get_nowait()
+                old_i = entries_in_transit.get_nowait()
                 try:
                     old_future.result()
-                except cassandra.WriteTimeout:
+                except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
                     print "WriteTimeout - just keep swimming!"
-                    futures.put_nowait(old_future)
+                    batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+                    batch.add(self.insert_samples_variants_gt_types_query, types_buf[old_i])
+                    batch.add(self.insert_variants_samples_gt_types_query, types_buf[old_i])
+                    batch.add(self.insert_variants_samples_gt_depths_query, depth_buf[old_i])
+                    batch.add(self.insert_variants_samples_gts_query, gt_buffer[old_i])
+                    future = session.execute_async(batch)                    
+                    futures.put_nowait(future)
+                    entries_in_transit.put_nowait(old_i)
                     continue
                 
             batch = BatchStatement(batch_type=BatchType.UNLOGGED)
@@ -290,6 +299,7 @@ class GeminiLoader(object):
             batch.add(self.insert_variants_samples_gts_query, gt_buffer[i])
             future = session.execute_async(batch)
             futures.put_nowait(future)
+            entries_in_transit.put_nowait(i)
             i += 1           
 
     def _update_extra_headers(self, headers, cur_fields):
