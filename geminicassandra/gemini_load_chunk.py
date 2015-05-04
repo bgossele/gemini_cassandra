@@ -197,10 +197,10 @@ class GeminiLoader(object):
                     var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])
                     
             stime = time.time()                       
-            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_types_query, var_sample_gt_types_buffer, 10*self.queue_length)
-            batch_insert_query_prepared(self.session, self.insert_samples_variants_gt_types_query, var_sample_gt_types_buffer, 10*self.queue_length)
-            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_depths_query, var_sample_gt_depths_buffer, 10*self.queue_length)
-            batch_insert_query_prepared(self.session, self.insert_variants_samples_gts_query, var_sample_gt_buffer, 10*self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_types_query, var_sample_gt_types_buffer, self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_samples_variants_gt_types_query, var_sample_gt_types_buffer, self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_variants_samples_gt_depths_query, var_sample_gt_depths_buffer, self.queue_length)
+            batch_insert_query_prepared(self.session, self.insert_variants_samples_gts_query, var_sample_gt_buffer, self.queue_length)
             variants_gts_timer += (time.time() - stime)
                 # add each of the impact for this variant (1 per gene/transcript)
             for var_impact in variant_impacts:
@@ -225,7 +225,7 @@ class GeminiLoader(object):
                 self.var_chrom_start_buffer = blist([])
                 vars_inserted += self.buffer_size   
                 if(self.args.offset == '1'):                   
-                    print "%s vars done; last %s took %.2f s; var tables %.2f s, var_gt_tables %.2f s" % (vars_inserted, self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
+                    print "%s vars done; last %s took %.2f s; var tables %.2f s; var_gt_tables %.2f s" % (vars_inserted, self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
                 log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer)) 
                 log_file.flush()       
                 buffer_count = 0
