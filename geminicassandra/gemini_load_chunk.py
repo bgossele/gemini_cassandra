@@ -179,6 +179,7 @@ class GeminiLoader(object):
         interval_start = time.time()
         variants_gts_timer = 0
         log_file = open("loading_logs/%s.csv" % str(os.getpid()), "w")
+        self.time_out_log = open("loading_logs/%s.err" % str(os.getpid()), "w")
         #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
         vars_inserted = 0
@@ -257,7 +258,8 @@ class GeminiLoader(object):
         end_time = time.time()
         vars_inserted += self.buffer_size   
         log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, end_time - interval_start, end_time - startt, variants_gts_timer))        
-        log_file.close()        
+        log_file.close()     
+        self.time_out_log.close()   
         elapsed_time = end_time - start_time            
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
@@ -281,7 +283,9 @@ class GeminiLoader(object):
                 try:
                     old_future.result()
                 except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
-                    print "WriteTimeout - just keep swimming!"
+                    print "Proc %s: WriteTimeout - just keep swimming!" % os.getpid()
+                    self.time_out_log.write("WriteTimeout at %s; var_id = %s" % (time.time(), types_buf[old_i][0]))
+                    self.time_out_log.flush()
                     batch = BatchStatement(batch_type=BatchType.UNLOGGED)
                     batch.add(self.insert_samples_variants_gt_types_query, types_buf[old_i])
                     batch.add(self.insert_variants_samples_gt_types_query, types_buf[old_i])
