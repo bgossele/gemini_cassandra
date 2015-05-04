@@ -36,6 +36,7 @@ import Queue
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.policies import RetryPolicy
 from cassandra import ConsistencyLevel
+import cassandra
 
 class GeminiLoader(object):
     """
@@ -178,7 +179,6 @@ class GeminiLoader(object):
         interval_start = time.time()
         variants_gts_timer = 0
         log_file = open("loading_logs/%s.csv" % str(os.getpid()), "w")
-        sys.err = open("loading_logs/%s.err" % str(os.getpid()), "w")
         #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
         vars_inserted = 0
@@ -271,30 +271,26 @@ class GeminiLoader(object):
         Populate the given table with the given values
         """
         
-        class custom_retry_policy(RetryPolicy):
-            
-            def on_read_timeout(self, *args, **kwargs):
-                return (self.RETHROW, None)
-
-            def on_write_timeout(self, *args, **kwargs):
-                return (self.RETRY, ConsistencyLevel.ONE)
-        
-            def on_unavailable(self, *args, **kwargs):
-                return (self.RETHROW, None)
-        
         futures = Queue.Queue(maxsize=queue_length+1)
-        for i in range(len(types_buf)):
+        i = 0
+        while i < len(types_buf):
             if i >= queue_length:
                 old_future = futures.get_nowait()
-                old_future.result()
-            
-            batch = BatchStatement(batch_type=BatchType.UNLOGGED, retry_policy=custom_retry_policy)
+                try:
+                    old_future.result()
+                except cassandra.WriteTimeout:
+                    print "WriteTimeout - just keep swimming!"
+                    futures.put_nowait(old_future)
+                    continue
+                
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
             batch.add(self.insert_samples_variants_gt_types_query, types_buf[i])
             batch.add(self.insert_variants_samples_gt_types_query, types_buf[i])
             batch.add(self.insert_variants_samples_gt_depths_query, depth_buf[i])
             batch.add(self.insert_variants_samples_gts_query, gt_buffer[i])
             future = session.execute_async(batch)
             futures.put_nowait(future)
+            i += 1           
 
     def _update_extra_headers(self, headers, cur_fields):
         """Update header information for extra fields.
