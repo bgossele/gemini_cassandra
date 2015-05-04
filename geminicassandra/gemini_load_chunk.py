@@ -14,7 +14,7 @@ import version
 from ped import load_ped_file
 import gene_table
 import infotag
-from database_cassandra import insert, batch_insert, batch_insert_query_prepared, create_tables
+from database_cassandra import insert, batch_insert, create_tables
 import annotations
 import func_impact
 import severe_impact
@@ -33,6 +33,9 @@ from random import randint
 from geminicassandra.table_schemes import get_column_names
 from cassandra.query import BatchStatement, BatchType
 import Queue
+from cassandra.concurrent import execute_concurrent_with_args
+from cassandra.policies import RetryPolicy
+from cassandra import ConsistencyLevel
 
 class GeminiLoader(object):
     """
@@ -174,7 +177,8 @@ class GeminiLoader(object):
         start_time = time.time()
         interval_start = time.time()
         variants_gts_timer = 0
-        log_file = open("loading_logs/%s.csv" % str(os.getpid()), "a")
+        log_file = open("loading_logs/%s.csv" % str(os.getpid()), "w")
+        sys.err = open("loading_logs/%s.err" % str(os.getpid()), "w")
         #with open(extra_file, "w") as extra_handle:
             # process and load each variant in the VCF file
         vars_inserted = 0
@@ -201,7 +205,7 @@ class GeminiLoader(object):
                     var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])        
                              
             stime = time.time()                       
-            self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer)
+            self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer, 30)
             variants_gts_timer += (time.time() - stime)
             
                 # add each of the impact for this variant (1 per gene/transcript)
@@ -212,11 +216,11 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                batch_insert_query_prepared(self.session, self.insert_variants_query, self.var_buffer,self.queue_length)
-                batch_insert_query_prepared(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer,self.queue_length)
-                batch_insert_query_prepared(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer,self.queue_length)
-                batch_insert_query_prepared(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self.queue_length)
-                batch_insert_query_prepared(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer,self.queue_length)
+                execute_concurrent_with_args(self.session, self.insert_variants_query, self.var_buffer,30)
+                execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
+                execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
+                execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer)
+                execute_concurrent_with_args(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
                 endt = time.time()
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -244,11 +248,11 @@ class GeminiLoader(object):
         self.v_id -= 1
         
         startt = time.time()
-        batch_insert_query_prepared(self.session, self.insert_variants_query, self.var_buffer,self.queue_length)
-        batch_insert_query_prepared(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer,self.queue_length)
-        batch_insert_query_prepared(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer,self.queue_length)
-        batch_insert_query_prepared(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self.queue_length)
-        batch_insert_query_prepared(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer,self.queue_length)
+        execute_concurrent_with_args(self.session, self.insert_variants_query, self.var_buffer)
+        execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
+        execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
+        execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self)
+        execute_concurrent_with_args(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
         
         end_time = time.time()
         vars_inserted += self.buffer_size   
@@ -262,10 +266,21 @@ class GeminiLoader(object):
                              str(self.skipped) + " skipped due to having the "
                              "FILTER field set.\n")
             
-    def prepared_batch_insert(self, session, types_buf, depth_buf, gt_buffer, queue_length=120):
+    def prepared_batch_insert(self, session, types_buf, depth_buf, gt_buffer, queue_length=30):
         """
         Populate the given table with the given values
         """
+        
+        class custom_retry_policy(RetryPolicy):
+            
+            def on_read_timeout(self, *args, **kwargs):
+                return (self.RETHROW, None)
+
+            def on_write_timeout(self, *args, **kwargs):
+                return (self.RETRY, ConsistencyLevel.ONE)
+        
+            def on_unavailable(self, *args, **kwargs):
+                return (self.RETHROW, None)
         
         futures = Queue.Queue(maxsize=queue_length+1)
         for i in range(len(types_buf)):
@@ -273,7 +288,7 @@ class GeminiLoader(object):
                 old_future = futures.get_nowait()
                 old_future.result()
             
-            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+            batch = BatchStatement(batch_type=BatchType.UNLOGGED, retry_policy=custom_retry_policy)
             batch.add(self.insert_samples_variants_gt_types_query, types_buf[i])
             batch.add(self.insert_variants_samples_gt_types_query, types_buf[i])
             batch.add(self.insert_variants_samples_gt_depths_query, depth_buf[i])
