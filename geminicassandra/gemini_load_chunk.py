@@ -143,6 +143,8 @@ class GeminiLoader(object):
                              ('variants_by_samples_gt_depths', "variant_id, sample_name, gt_depths", ','.join(list(repeat("?",3)))))
         self.insert_variants_samples_gts_query = self.session.prepare(basic_query % \
                              ('variants_by_samples_gts', "variant_id, sample_name, gts", ','.join(list(repeat("?",3))))) 
+        self.insert_variant_impacts_query = self.session.prepare(basic_query % \
+                             ('variant_impacts', ','.join(get_column_names('variant_impacts')), ','.join(list(repeat("?", len(get_column_names('variant_impacts')))))))
         self.insert_variant_stcr_query = self.session.prepare(basic_query % \
                              ('variants_by_sub_type_call_rate', ','.join(get_column_names('variants_by_sub_type_call_rate')), ','.join(list(repeat("?", 3)))))
         self.insert_variant_gene_query = self.session.prepare(basic_query % \
