@@ -62,7 +62,7 @@ class GeminiLoader(object):
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
-            if len(self.samples == 0):
+            if len(self.samples) == 0:
                 print "No sample genotypes!"
             
         NUM_BUILT_IN = 6
