@@ -62,6 +62,8 @@ class GeminiLoader(object):
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
+            if len(self.samples == 0):
+                print "No sample genotypes!"
             
         NUM_BUILT_IN = 6
         self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]        
@@ -283,7 +285,7 @@ class GeminiLoader(object):
                 try:
                     old_future.result()
                 except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
-                    self.time_out_log.write("WriteTimeout at %s; var_id = %s\n" % (time.time(), types_buf[old_i][0]))
+                    self.time_out_log.write("WriteTimeout at %s; var = %s; sample = %s; type = %s\n" % (time.time(), tuple(types_buf[old_i])))
                     self.time_out_log.flush()
                     batch = BatchStatement(batch_type=BatchType.UNLOGGED)
                     batch.add(self.insert_samples_variants_gt_types_query, types_buf[old_i])
