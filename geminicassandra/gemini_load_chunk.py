@@ -216,7 +216,7 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer,30)
+                self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer)
                 execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
                 execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
                 execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer)
@@ -248,7 +248,7 @@ class GeminiLoader(object):
         self.v_id -= 1
         
         startt = time.time()
-        execute_concurrent_with_args(self.session, self.insert_variants_query, self.var_buffer)
+        self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer)
         execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
         execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
         execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self)
@@ -308,8 +308,10 @@ class GeminiLoader(object):
     def execute_concurrent_with_retry(self, session, insert_query, contents, retry = 0):
         try:
             execute_concurrent_with_args(session, insert_query, contents)
+            print "2:: var = %d; n = %d" % (contents[0][4], retry)
         except cassandra.WriteTimeout:
-            self.time_out_log("2:: var = %d; n = %d" % (contents[0][4], retry))            
+            self.time_out_log.write("2:: var = %d; n = %d" % (contents[0][4], retry))   
+            self.time_out_log.flush()         
             self.execute_concurrent_with_retry(session, insert_query, contents, retry + 1)        
 
     def _update_extra_headers(self, headers, cur_fields):
