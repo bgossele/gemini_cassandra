@@ -4,7 +4,6 @@
 import os.path
 import sys
 import numpy as np
-import json
 
 # third-party imports
 import cyvcf as vcf
@@ -24,7 +23,7 @@ from geminicassandra.gemini_constants import HET, HOM_ALT, HOM_REF, UNKNOWN
 from compression import pack_blob
 from geminicassandra.config import read_gemini_config
 from cassandra.cluster import Cluster
-from blist import blist
+import blist
 from itertools import repeat
 from geminicassandra.ped import get_ped_fields
 import time
@@ -192,7 +191,7 @@ class GeminiLoader(object):
             self.var_subtypes_buffer.append([self.v_id, variant[11], variant[12]])
             if variant[55] != None:
                 self.var_gene_buffer.append([self.v_id, variant[55]])
-            self.var_chrom_start_buffer.append([self.v_id, variant[0], variant[1]])
+            self.var_chrom_start_buffer.append([self.v_id, variant[1], variant[2]])
         
             var_sample_gt_types_buffer = blist([])
             var_sample_gt_depths_buffer = blist([])
@@ -217,10 +216,10 @@ class GeminiLoader(object):
             if buffer_count >= self.buffer_size:
                 startt = time.time()
                 self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer)
-                execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
-                execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
-                execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer)
-                execute_concurrent_with_args(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
+                self.execute_concurrent_with_retry(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
+                self.execute_concurrent_with_retry(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
+                self.execute_concurrent_with_retry(self.session, self.insert_variant_gene_query, self.var_gene_buffer)
+                self.execute_concurrent_with_retry(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
                 endt = time.time()
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -249,10 +248,10 @@ class GeminiLoader(object):
         
         startt = time.time()
         self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer)
-        execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
-        execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
-        execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self)
-        execute_concurrent_with_args(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
+        self.execute_concurrent_with_retry(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
+        self.execute_concurrent_with_retry(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
+        self.execute_concurrent_with_retry(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self)
+        self.execute_concurrent_with_retry(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
         
         end_time = time.time()
         vars_inserted += self.buffer_size   
@@ -309,7 +308,7 @@ class GeminiLoader(object):
         try:
             execute_concurrent_with_args(session, insert_query, contents)
         except cassandra.WriteTimeout:
-            self.time_out_log.write("2:: var = %d; n = %d\n" % (contents[0][4], retry))   
+            self.time_out_log.write("2:: var = %d; n = %d\n" % (contents[0][0], retry))   
             self.time_out_log.flush()         
             self.execute_concurrent_with_retry(session, insert_query, contents, retry + 1)        
 
@@ -624,8 +623,8 @@ class GeminiLoader(object):
         if extra_fields:
             extra_fields.update({"chrom": var.CHROM, "start": var.start, "end": var.end})
         chrom = var.CHROM if var.CHROM.startswith("chr") else "chr" + var.CHROM
-        variant = [chrom, var.start, var.end,
-                   vcf_id, self.v_id, anno_id, var.REF, ','.join(var.ALT),
+        variant = [self.v_id, chrom, var.start, var.end,
+                   vcf_id, anno_id, var.REF, ','.join(var.ALT),
                    var.QUAL, var_filter, var.var_type,
                    var.var_subtype,
                    call_rate, in_dbsnp,
