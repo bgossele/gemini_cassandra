@@ -308,7 +308,6 @@ class GeminiLoader(object):
     def execute_concurrent_with_retry(self, session, insert_query, contents, retry = 0):
         try:
             execute_concurrent_with_args(session, insert_query, contents)
-            print "2:: var = %d; n = %d" % (contents[0][4], retry)
         except cassandra.WriteTimeout:
             self.time_out_log.write("2:: var = %d; n = %d" % (contents[0][4], retry))   
             self.time_out_log.flush()         
