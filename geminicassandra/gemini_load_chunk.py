@@ -34,8 +34,6 @@ from geminicassandra.table_schemes import get_column_names
 from cassandra.query import BatchStatement, BatchType
 import Queue
 from cassandra.concurrent import execute_concurrent_with_args
-from cassandra.policies import RetryPolicy
-from cassandra import ConsistencyLevel
 import cassandra
 
 class GeminiLoader(object):
@@ -62,6 +60,7 @@ class GeminiLoader(object):
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
+            print "# samples = %s" % len(self.samples)
             
         NUM_BUILT_IN = 6
         self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]        
@@ -79,12 +78,7 @@ class GeminiLoader(object):
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
                 # load the sample info from the VCF file.
             self._prepare_samples()
-                # initialize genotype counts for each sample
-            self.num_samples = len(self.samples)
-        else:
-            self.num_samples = 0
-            
-        print "# samples = %s" % self.num_samples
+                # initialize genotype counts for each sampl  
             
         if not self.args.skip_gene_tables:
             self._get_gene_detailed()
@@ -132,10 +126,10 @@ class GeminiLoader(object):
         
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
         
-        from time import sleep
+        '''from time import sleep
         
         nap = 20*randint(0,6)
-        sleep(nap)
+        sleep(nap)'''
         
         start_time = time.time()
         
