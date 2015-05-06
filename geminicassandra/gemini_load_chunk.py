@@ -126,10 +126,10 @@ class GeminiLoader(object):
         
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
         
-        '''from time import sleep
+        from time import sleep
         
         nap = 20*randint(0,6)
-        sleep(nap)'''
+        sleep(nap)
         
         start_time = time.time()
         
