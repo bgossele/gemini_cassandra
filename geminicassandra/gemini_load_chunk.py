@@ -23,7 +23,7 @@ from geminicassandra.gemini_constants import HET, HOM_ALT, HOM_REF, UNKNOWN
 from compression import pack_blob
 from geminicassandra.config import read_gemini_config
 from cassandra.cluster import Cluster
-import blist
+from blist import blist
 from itertools import repeat
 from geminicassandra.ped import get_ped_fields
 import time
