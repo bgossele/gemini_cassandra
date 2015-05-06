@@ -283,7 +283,7 @@ class GeminiLoader(object):
                     old_future.result()
                 except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
                     self.time_out_log.write("1:: var = %s; sample = %s; type = %s\n" % \
-                                            (time.time(), types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
+                                            (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
                     self.time_out_log.flush()
                     batch = BatchStatement(batch_type=BatchType.UNLOGGED)
                     batch.add(self.insert_samples_variants_gt_types_query, types_buf[old_i])
