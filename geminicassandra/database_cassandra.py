@@ -3,8 +3,8 @@
 from itertools import repeat
 
 from cassandra.query import BatchStatement, SimpleStatement
-import Queue
 from cassandra.concurrent import execute_concurrent_with_args
+
 
 def drop_tables(session):
     session.execute("DROP TABLE IF EXISTS variants")
@@ -308,6 +308,7 @@ def batch_insert(session, table, columns, contents, queue_length=120):
     insert_query = session.prepare('INSERT INTO ' + table + ' (' + column_names + ') VALUES (' + question_marks + ')')
     
     execute_concurrent_with_args(session, insert_query, contents)
+          
     
 def insert(session, table, columns, contents):
     column_names = ','.join(columns)

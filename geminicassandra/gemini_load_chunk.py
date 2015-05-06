@@ -35,6 +35,7 @@ from cassandra.query import BatchStatement, BatchType
 import Queue
 from cassandra.concurrent import execute_concurrent_with_args
 import cassandra
+from multiprocessing import cpu_count
 
 class GeminiLoader(object):
     """
@@ -126,10 +127,12 @@ class GeminiLoader(object):
         
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
         
-        from time import sleep
-        
-        nap = 20*randint(0,6)
-        sleep(nap)
+        if cpu_count() > 8:
+            
+            from time import sleep
+            
+            nap = 20*randint(0,6)
+            sleep(nap)
         
         start_time = time.time()
         
@@ -213,7 +216,7 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                execute_concurrent_with_args(self.session, self.insert_variants_query, self.var_buffer,30)
+                self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer,30)
                 execute_concurrent_with_args(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
                 execute_concurrent_with_args(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
                 execute_concurrent_with_args(self.session, self.insert_variant_gene_query, self.var_gene_buffer)
@@ -279,7 +282,7 @@ class GeminiLoader(object):
                 try:
                     old_future.result()
                 except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
-                    self.time_out_log.write("WriteTimeout at %s; var = %s; sample = %s; type = %s\n" % \
+                    self.time_out_log.write("1:: var = %s; sample = %s; type = %s\n" % \
                                             (time.time(), types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
                     self.time_out_log.flush()
                     batch = BatchStatement(batch_type=BatchType.UNLOGGED)
@@ -300,7 +303,14 @@ class GeminiLoader(object):
             future = session.execute_async(batch)
             futures.put_nowait(future)
             entries_in_transit.put_nowait(i)
-            i += 1           
+            i += 1   
+            
+    def execute_concurrent_with_retry(self, session, insert_query, contents, retry = 0):
+        try:
+            execute_concurrent_with_args(session, insert_query, contents)
+        except cassandra.WriteTimeout:
+            self.time_out_log("2:: var = %d; n = %d" % (contents[0][4], retry))            
+            self.execute_concurrent_with_retry(session, insert_query, contents, retry + 1)        
 
     def _update_extra_headers(self, headers, cur_fields):
         """Update header information for extra fields.
