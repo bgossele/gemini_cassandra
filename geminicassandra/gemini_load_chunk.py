@@ -62,8 +62,6 @@ class GeminiLoader(object):
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
-            if len(self.samples) == 0:
-                print "No sample genotypes!"
             
         NUM_BUILT_IN = 6
         self.extra_sample_columns = get_ped_fields(args.ped_file)[NUM_BUILT_IN:]        
@@ -85,6 +83,8 @@ class GeminiLoader(object):
             self.num_samples = len(self.samples)
         else:
             self.num_samples = 0
+            
+        print "# samples = %s" % self.num_samples
             
         if not self.args.skip_gene_tables:
             self._get_gene_detailed()
