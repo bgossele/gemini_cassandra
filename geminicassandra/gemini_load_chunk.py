@@ -35,6 +35,7 @@ import Queue
 from cassandra.concurrent import execute_concurrent_with_args
 import cassandra
 from multiprocessing import cpu_count
+from time import sleep
 
 class GeminiLoader(object):
     """
@@ -127,8 +128,6 @@ class GeminiLoader(object):
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
         
         if cpu_count() > 8:
-            
-            from time import sleep
             
             nap = 20*randint(0,6)
             sleep(nap)
@@ -281,7 +280,7 @@ class GeminiLoader(object):
                 try:
                     old_future.result()
                 except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
-                    self.time_out_log.write("1:: var = %s; sample = %s; type = %s\n" % \
+                    self.time_out_log.write("1::%s;%s;%s\n" % \
                                             (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
                     self.time_out_log.flush()
                     batch = BatchStatement(batch_type=BatchType.UNLOGGED)
@@ -304,13 +303,13 @@ class GeminiLoader(object):
             entries_in_transit.put_nowait(i)
             i += 1   
             
-    def execute_concurrent_with_retry(self, session, insert_query, contents, retry = 0):
+    def execute_concurrent_with_retry(self, session, insert_query, contents):
         try:
             execute_concurrent_with_args(session, insert_query, contents)
         except cassandra.WriteTimeout:
-            self.time_out_log.write("2:: var = %d; n = %d\n" % (contents[0][0], retry))   
+            self.time_out_log.write("2::%d\n" % contents[0][0])   
             self.time_out_log.flush()         
-            self.execute_concurrent_with_retry(session, insert_query, contents, retry + 1)        
+            self.execute_concurrent_with_retry(session, insert_query, contents)        
 
     def _update_extra_headers(self, headers, cur_fields):
         """Update header information for extra fields.
