@@ -159,7 +159,6 @@ def load_chunks_multicore(grabix_file, args):
 
     for chunk_num, chunk in chunk_steps:
         start, stop = chunk
-        print "Loading chunk " + str(chunk_num) + "."
         gemini_load = gemini_pipe_load_cmd().format(**locals())
         procs.append(subprocess.Popen(submit_command.format(cmd=gemini_load),
                                       shell=True))
@@ -265,6 +264,7 @@ def gemini_pipe_load_cmd():
 def get_chunk_steps(grabix_file, args):
     index_file = grabix_index(grabix_file)
     num_lines = get_num_lines(index_file)
+    print "Importing %d variants." % num_lines
     chunk_size = int(num_lines) / int(args.cores)
     print "Breaking {0} into {1} chunks.".format(grabix_file, args.cores)
 

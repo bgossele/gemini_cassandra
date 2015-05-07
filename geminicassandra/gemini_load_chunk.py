@@ -36,6 +36,7 @@ from cassandra.concurrent import execute_concurrent_with_args
 import cassandra
 from multiprocessing import cpu_count
 from time import sleep
+from sys import stderr
 
 class GeminiLoader(object):
     """
@@ -155,7 +156,7 @@ class GeminiLoader(object):
                        
         end_time = time.time()
         
-        print("preparing statements took %.2f s." % (end_time - start_time))
+        print "Proc %s: preparing statements took %.2f s." % (os.getpid(), (end_time - start_time))
                                                  
     def populate_from_vcf(self):
         """
@@ -167,6 +168,9 @@ class GeminiLoader(object):
         self.var_gene_buffer = blist([])
         self.var_chrom_start_buffer = blist([])
         self.prepare_insert_queries()
+        self.leftover_types = blist([])
+        self.leftover_depths = blist([])
+        self.leftover_gts = blist([])
         buffer_count = 0
         self.skipped = 0
         #extra_file, extraheader_file = geminicassandra.get_extra_files(self.args.db)
@@ -203,7 +207,7 @@ class GeminiLoader(object):
                     var_sample_gt_buffer.append([self.v_id, sample[0], sample[3]])        
                              
             stime = time.time()                       
-            self.prepared_batch_insert(self.session, var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer, 25)
+            self.prepared_batch_insert(var_sample_gt_types_buffer, var_sample_gt_depths_buffer, var_sample_gt_buffer, 25)
             variants_gts_timer += (time.time() - stime)
             
                 # add each of the impact for this variant (1 per gene/transcript)
@@ -214,11 +218,11 @@ class GeminiLoader(object):
                 # buffer full - start to insert into DB
             if buffer_count >= self.buffer_size:
                 startt = time.time()
-                self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer)
-                self.execute_concurrent_with_retry(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
-                self.execute_concurrent_with_retry(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
-                self.execute_concurrent_with_retry(self.session, self.insert_variant_gene_query, self.var_gene_buffer)
-                self.execute_concurrent_with_retry(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
+                self.execute_concurrent_with_retry(self.insert_variants_query, self.var_buffer)
+                self.execute_concurrent_with_retry(self.insert_variant_impacts_query, self.var_impacts_buffer)
+                self.execute_concurrent_with_retry(self.insert_variant_stcr_query, self.var_subtypes_buffer)
+                self.execute_concurrent_with_retry(self.insert_variant_gene_query, self.var_gene_buffer)
+                self.execute_concurrent_with_retry(self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
                 endt = time.time()
                     # binary.genotypes.append(var_buffer)
                     # reset for the next batch
@@ -246,70 +250,93 @@ class GeminiLoader(object):
         self.v_id -= 1
         
         startt = time.time()
-        self.execute_concurrent_with_retry(self.session, self.insert_variants_query, self.var_buffer)
-        self.execute_concurrent_with_retry(self.session, self.insert_variant_impacts_query, self.var_impacts_buffer)
-        self.execute_concurrent_with_retry(self.session, self.insert_variant_stcr_query, self.var_subtypes_buffer)
-        self.execute_concurrent_with_retry(self.session, self.insert_variant_gene_query, self.var_gene_buffer,self)
-        self.execute_concurrent_with_retry(self.session, self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
+        self.execute_concurrent_with_retry(self.insert_variants_query, self.var_buffer)
+        self.execute_concurrent_with_retry(self.insert_variant_impacts_query, self.var_impacts_buffer)
+        self.execute_concurrent_with_retry(self.insert_variant_stcr_query, self.var_subtypes_buffer)
+        self.execute_concurrent_with_retry(self.insert_variant_gene_query, self.var_gene_buffer)
+        self.execute_concurrent_with_retry(self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
+        
+        self.prepared_batch_insert(self.leftover_types, self.leftover_depths, self.leftover_gts)
         
         end_time = time.time()
         vars_inserted += self.buffer_size   
         log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, end_time - interval_start, end_time - startt, variants_gts_timer))        
-        log_file.close()     
+        
         self.time_out_log.close()   
         elapsed_time = end_time - start_time            
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
+        log_file.write("pid " + str(os.getpid()) + ": " +
+                         str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
+        log_file.close()     
         if self.args.passonly:
             sys.stderr.write("pid " + str(os.getpid()) + ": " +
                              str(self.skipped) + " skipped due to having the "
                              "FILTER field set.\n")
             
-    def prepared_batch_insert(self, session, types_buf, depth_buf, gt_buffer, queue_length=25):
+    def prepared_batch_insert(self, types_buf, depth_buf, gt_buffer, queue_length=40):
         """
         Populate the given table with the given values
         """
-        
+        retry_threshold = 20
         futures = Queue.Queue(maxsize=queue_length+1)
         entries_in_transit = Queue.Queue(maxsize=queue_length+1)
+        retries = {}
         i = 0
         while i < len(types_buf):
+            #TODO: nieuwe batch klaarmaken als 1 naar leftovers is verwezen?!
             if i >= queue_length:
                 old_future = futures.get_nowait()
                 old_i = entries_in_transit.get_nowait()
                 try:
                     old_future.result()
-                except (cassandra.WriteTimeout, cassandra.InvalidRequest, cassandra.OperationTimedOut) as e:
-                    self.time_out_log.write("1::%s;%s;%s\n" % \
-                                            (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
-                    self.time_out_log.flush()
-                    batch = BatchStatement(batch_type=BatchType.UNLOGGED)
-                    batch.add(self.insert_samples_variants_gt_types_query, types_buf[old_i])
-                    batch.add(self.insert_variants_samples_gt_types_query, types_buf[old_i])
-                    batch.add(self.insert_variants_samples_gt_depths_query, depth_buf[old_i])
-                    batch.add(self.insert_variants_samples_gts_query, gt_buffer[old_i])
-                    future = session.execute_async(batch)                    
-                    futures.put_nowait(future)
-                    entries_in_transit.put_nowait(old_i)
-                    continue
+                    del retries[old_i]
+                except (cassandra.WriteTimeout, cassandra.InvalidRequest) as e:
+                    if retries[old_i] < retry_threshold:
+                        if retries[old_i] == 0:
+                            self.time_out_log.write("1::%s;%s;%s\n" % \
+                                                    (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
+                            self.time_out_log.flush()
+                        future = self.execute_var_gts_batch(types_buf[old_i], depth_buf[old_i], gt_buffer[old_i])      
+                        futures.put_nowait(future)
+                        entries_in_transit.put_nowait(old_i)
+                        retries[old_i] += 1
+                        continue
+                    else:
+                        self.leftover_types.append(types_buf[old_i])
+                        self.leftover_depths.append(depth_buf[old_i])
+                        self.leftover_gts.append(gt_buffer[old_i])
+                        self.time_out_log.write("3::%s;%s;%s\n" % \
+                                                (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
+                        self.time_out_log.flush()
+                        sleep(1)
                 
-            batch = BatchStatement(batch_type=BatchType.UNLOGGED)
-            batch.add(self.insert_samples_variants_gt_types_query, types_buf[i])
-            batch.add(self.insert_variants_samples_gt_types_query, types_buf[i])
-            batch.add(self.insert_variants_samples_gt_depths_query, depth_buf[i])
-            batch.add(self.insert_variants_samples_gts_query, gt_buffer[i])
-            future = session.execute_async(batch)
+                except cassandra.OperationTimedOut as e:
+                    self.time_out_log.write(str(e))
+                    stderr.write("Proc %s: OperationTimedOut - goodbye\n")
+                    sys.exit()
+                
+            future = self.execute_var_gts_batch(types_buf[i], depth_buf[i], gt_buffer[i])
             futures.put_nowait(future)
             entries_in_transit.put_nowait(i)
+            retries[i] = 0
             i += 1   
             
-    def execute_concurrent_with_retry(self, session, insert_query, contents):
+    def execute_var_gts_batch(self, type_info, depth, gt):
+        batch = BatchStatement(batch_type=BatchType.UNLOGGED)
+        batch.add(self.insert_samples_variants_gt_types_query, type_info)
+        batch.add(self.insert_variants_samples_gt_types_query, type_info)
+        batch.add(self.insert_variants_samples_gt_depths_query, depth)
+        batch.add(self.insert_variants_samples_gts_query, gt)
+        return self.session.execute_async(batch)
+            
+    def execute_concurrent_with_retry(self, insert_query, contents):
         try:
-            execute_concurrent_with_args(session, insert_query, contents)
+            execute_concurrent_with_args(self.session, insert_query, contents)
         except cassandra.WriteTimeout:
             self.time_out_log.write("2::%d\n" % contents[0][0])   
             self.time_out_log.flush()         
-            self.execute_concurrent_with_retry(session, insert_query, contents)        
+            self.execute_concurrent_with_retry(insert_query, contents)        
 
     def _update_extra_headers(self, headers, cur_fields):
         """Update header information for extra fields.
