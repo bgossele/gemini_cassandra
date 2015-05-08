@@ -254,7 +254,7 @@ class GeminiLoader(object):
         self.execute_concurrent_with_retry(self.insert_variant_gene_query, self.var_gene_buffer)
         self.execute_concurrent_with_retry(self.insert_variant_chrom_start_query, self.var_chrom_start_buffer)
         
-        self.prepared_batch_insert(self.leftover_types, self.leftover_depths, self.leftover_gts)
+        #self.prepared_batch_insert(self.leftover_types, self.leftover_depths, self.leftover_gts)
         
         end_time = time.time()
         vars_inserted += self.buffer_size   
@@ -264,8 +264,8 @@ class GeminiLoader(object):
         elapsed_time = end_time - start_time            
         sys.stderr.write("pid " + str(os.getpid()) + ": " +
                          str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
-        log_file.write("pid " + str(os.getpid()) + ": " +
-                         str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
+        log_file.write(str(self.counter) + " variants processed in %s s.\n" % elapsed_time)
+        log_file.write("%d leftovers\n" % len(self.leftover_types))
         log_file.close()     
         if self.args.passonly:
             sys.stderr.write("pid " + str(os.getpid()) + ": " +
@@ -281,18 +281,16 @@ class GeminiLoader(object):
         retries = {}
         i = 0
         while i < len(types_buf):
-            #TODO: nieuwe batch klaarmaken als 1 naar leftovers is verwezen?!
             if i >= queue_length:
                 (old_i, old_future) = futures.get_nowait()
                 try:
                     old_future.result()
                     del retries[old_i]
-                except (cassandra.WriteTimeout, cassandra.InvalidRequest) as e:
+                except cassandra.WriteTimeout:
                     if retries[old_i] < retry_threshold:
                         if retries[old_i] == 0:
-                            self.time_out_log.write("1::%s;%s;%s\n" % \
+                            self.write_to_timeoutlog("1::%s;%s;%s\n" % \
                                                     (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
-                            self.time_out_log.flush()
                         future = self.execute_var_gts_batch(types_buf[old_i], depth_buf[old_i], gt_buffer[old_i])      
                         futures.put_nowait((old_i, future))
                         retries[old_i] += 1
@@ -301,12 +299,27 @@ class GeminiLoader(object):
                         self.leftover_types.append(types_buf[old_i])
                         self.leftover_depths.append(depth_buf[old_i])
                         self.leftover_gts.append(gt_buffer[old_i])
-                        self.time_out_log.write("3::%s;%s;%s\n" % \
-                                                (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
-                        self.time_out_log.flush()
-                
+                        self.write_to_timeoutlog("2::%s;%s;%s;%s;%s\n" % \
+                                                (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2], depth_buf[old_i][2], gt_buffer[old_i][2]))
+                        
+                except cassandra.InvalidRequest:
+                    if retries[old_i] < retry_threshold:
+                        if retries[old_i] == 0:
+                            self.write_to_timeoutlog("3::%s;%s;%s\n" % \
+                                                    (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
+                        future = self.execute_var_gts_batch(types_buf[old_i], depth_buf[old_i], gt_buffer[old_i])      
+                        futures.put_nowait((old_i, future))
+                        retries[old_i] += 1
+                        continue
+                    else:
+                        self.leftover_types.append(types_buf[old_i])
+                        self.leftover_depths.append(depth_buf[old_i])
+                        self.leftover_gts.append(gt_buffer[old_i])
+                        self.write_to_timeoutlog("4::%s;%s;%s;%s;%s\n" % \
+                                                (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2], depth_buf[old_i][2], gt_buffer[old_i][2]))
+                        
                 except cassandra.OperationTimedOut as e:
-                    self.time_out_log.write(str(e))
+                    self.write_to_timeoutlog(str(e))
                     stderr.write("Proc %s: OperationTimedOut - goodbye\n")
                     sys.exit()
                 
@@ -323,13 +336,25 @@ class GeminiLoader(object):
         batch.add(self.insert_variants_samples_gts_query, gt)
         return self.session.execute_async(batch)
             
-    def execute_concurrent_with_retry(self, insert_query, contents):
+    def execute_concurrent_with_retry(self, insert_query, contents, retry=0):
         try:
             execute_concurrent_with_args(self.session, insert_query, contents)
         except cassandra.WriteTimeout:
-            self.time_out_log.write("2::%d\n" % contents[0][0])   
-            self.time_out_log.flush()         
-            self.execute_concurrent_with_retry(insert_query, contents)        
+            self.write_to_timeoutlog("5::%d\n" % contents[0][0])   
+            self.execute_concurrent_with_retry(insert_query, contents, retry)
+        except cassandra.InvalidRequest as e:
+            if retry < 8:
+                self.write_to_timeoutlog("6::%d\n" % contents[0][0])   
+                self.execute_concurrent_with_retry(insert_query, contents, retry+1)
+            else:
+                self.write_to_timeoutlog("Give up - too many invalid dink\n")
+                self.write_to_timeoutlog(str(e))
+                raise e
+            
+    def write_to_timeoutlog(self, message):
+        self.time_out_log.write(message)
+        self.time_out_log.flush()
+                   
 
     def _update_extra_headers(self, headers, cur_fields):
         """Update header information for extra fields.
