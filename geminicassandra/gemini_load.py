@@ -284,7 +284,6 @@ def get_num_lines(index_file):
     with open(index_file) as index_handle:
         index_handle.next()
         num_lines = int(index_handle.next().strip())
-    print "Loading %d variants." % (num_lines)
     return num_lines
 
 def grabix_index(fname):

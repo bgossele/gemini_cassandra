@@ -232,8 +232,6 @@ class GeminiLoader(object):
                 self.var_gene_buffer = blist([])
                 self.var_chrom_start_buffer = blist([])
                 vars_inserted += self.buffer_size   
-                if(self.args.offset == '1'):                   
-                    print "%s vars done; last %s took %.2f s; var tables %.2f s; var_gt_tables %.2f s" % (vars_inserted, self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer) 
                 log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, endt - interval_start, endt - startt, variants_gts_timer)) 
                 log_file.flush()       
                 buffer_count = 0
@@ -260,7 +258,7 @@ class GeminiLoader(object):
         
         end_time = time.time()
         vars_inserted += self.buffer_size   
-        log_file.write("%s;%.2f;%.2f;%.2f\n" % (self.buffer_size, end_time - interval_start, end_time - startt, variants_gts_timer))        
+        log_file.write("%d;%.2f;%.2f;%.2f\n" % (len(self.var_buffer), end_time - interval_start, end_time - startt, variants_gts_timer))        
         
         self.time_out_log.close()   
         elapsed_time = end_time - start_time            
@@ -278,16 +276,14 @@ class GeminiLoader(object):
         """
         Populate the given table with the given values
         """
-        retry_threshold = 20
+        retry_threshold = 8
         futures = Queue.Queue(maxsize=queue_length+1)
-        entries_in_transit = Queue.Queue(maxsize=queue_length+1)
         retries = {}
         i = 0
         while i < len(types_buf):
             #TODO: nieuwe batch klaarmaken als 1 naar leftovers is verwezen?!
             if i >= queue_length:
-                old_future = futures.get_nowait()
-                old_i = entries_in_transit.get_nowait()
+                (old_i, old_future) = futures.get_nowait()
                 try:
                     old_future.result()
                     del retries[old_i]
@@ -298,8 +294,7 @@ class GeminiLoader(object):
                                                     (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
                             self.time_out_log.flush()
                         future = self.execute_var_gts_batch(types_buf[old_i], depth_buf[old_i], gt_buffer[old_i])      
-                        futures.put_nowait(future)
-                        entries_in_transit.put_nowait(old_i)
+                        futures.put_nowait((old_i, future))
                         retries[old_i] += 1
                         continue
                     else:
@@ -309,7 +304,6 @@ class GeminiLoader(object):
                         self.time_out_log.write("3::%s;%s;%s\n" % \
                                                 (types_buf[old_i][0], types_buf[old_i][1], types_buf[old_i][2]))
                         self.time_out_log.flush()
-                        sleep(1)
                 
                 except cassandra.OperationTimedOut as e:
                     self.time_out_log.write(str(e))
@@ -317,8 +311,7 @@ class GeminiLoader(object):
                     sys.exit()
                 
             future = self.execute_var_gts_batch(types_buf[i], depth_buf[i], gt_buffer[i])
-            futures.put_nowait(future)
-            entries_in_transit.put_nowait(i)
+            futures.put_nowait((i, future))
             retries[i] = 0
             i += 1   
             
