@@ -351,7 +351,7 @@ class GeminiLoader(object):
     def execute_concurrent_with_retry(self, insert_query, contents, retry=0):
         try:
             execute_concurrent_with_args(self.session, insert_query, contents)
-        except cassandra.WriteTimeout:
+        except cassandra.WriteTimeout, cassandra.OperationTimedOut:
             self.write_to_timeoutlog("7::%d\n" % contents[0][0])   
             self.execute_concurrent_with_retry(insert_query, contents, retry)
         except cassandra.InvalidRequest as e:
