@@ -41,11 +41,15 @@ def load(parser, args):
     # collect of the the add'l annotation files
     annotations.load_annos( args )
     
-    gemini_loader = GeminiLoader(args)
-    gemini_loader.setup_db()
-    time_2 = time.time()
-    gemini_loader.single_core_stuff()
-    time_3 = time.time()
+    time_2 = start_time
+    time_3 = start_time
+    
+    if(args.node_num == 1):
+        gemini_loader = GeminiLoader(args)
+        gemini_loader.setup_db()
+        time_2 = time.time()
+        gemini_loader.single_core_stuff()
+        time_3 = time.time()
     
     if args.scheduler:
         #load_ipython(args)
@@ -265,12 +269,12 @@ def get_chunk_steps(grabix_file, args):
     index_file = grabix_index(grabix_file)
     num_lines = get_num_lines(index_file)
     print "Importing %d variants." % num_lines
-    chunk_size = int(num_lines) / int(args.cores)
+    chunk_size = int(num_lines) / int(args.cores * args.total_nodes)
     print "Breaking {0} into {1} chunks.".format(grabix_file, args.cores)
-
+    offset = (args.node_num - 1) * args.cores
     starts = []
     stops = []
-    for chunk in range(0, int(args.cores)):
+    for chunk in range(offset, offset + int(args.cores)):
         start = (chunk * chunk_size) + 1
         stop  = start + chunk_size - 1
         # make sure the last chunk covers the remaining lines

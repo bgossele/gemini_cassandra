@@ -159,6 +159,14 @@ def main():
                              default = 120,
                              type=int,
                              help="queue length (per core) for batched inserts to Cassandra")
+    parser_load.add_argument('--node_num',
+                             dest="node_num",
+                             default = 1,
+                             type=int)
+    parser_load.add_argument('--total_nodes',
+                             dest="total_nodes",
+                             default = 1,
+                             type=int)
 
     def load_fn(parser, args):
         import gemini_load
