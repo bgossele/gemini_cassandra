@@ -280,7 +280,7 @@ def get_chunk_steps(grabix_file, args):
         # make sure the last chunk covers the remaining lines
         if chunk >= (args.cores * args.total_nodes - 1) and stop < num_lines:
             stop = num_lines
-        print "Chunk %d from line %d to %d." % (chunk, start, stop)
+        print "Chunk %d from line %d to %d. Length = %d" % (chunk, start, stop, stop - start)
         starts.append(start)
         stops.append(stop)
     return list(enumerate(zip(starts, stops)))
