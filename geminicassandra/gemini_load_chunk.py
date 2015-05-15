@@ -983,8 +983,6 @@ def load(parser, args):
         parser.print_help()
         exit("\nERROR: Unsupported selection for -t\n")
         
-    print "Loading starting from %s" % args.offset
-
     # collect of the the add'l annotation files
     annotations.load_annos( args )
 
