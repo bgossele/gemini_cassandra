@@ -173,16 +173,12 @@ class GeminiLoader(object):
         self.leftover_gts = blist([])
         buffer_count = 0
         self.skipped = 0
-        #extra_file, extraheader_file = geminicassandra.get_extra_files(self.args.db)
-        #extra_headers = {}
         self.counter = 0
         start_time = time.time()
         interval_start = time.time()
         variants_gts_timer = 0
         log_file = open("loading_logs/%s.csv" % str(os.getpid()), "w")
         self.time_out_log = open("loading_logs/%s.err" % str(os.getpid()), "w")
-        #with open(extra_file, "w") as extra_handle:
-            # process and load each variant in the VCF file
         vars_inserted = 0
         for var in self.vcf_reader:
             if self.args.passonly and (var.FILTER is not None and var.FILTER != "."):
@@ -239,11 +235,7 @@ class GeminiLoader(object):
                 variants_gts_timer = 0
             self.v_id += 1
             self.counter += 1
-        '''if extra_headers:
-            with open(extraheader_file, "w") as out_handle:
-                out_handle.write(json.dumps(extra_headers))
-        else:
-            os.remove(extra_file)'''
+            
         # final load to the database
         self.v_id -= 1
         
