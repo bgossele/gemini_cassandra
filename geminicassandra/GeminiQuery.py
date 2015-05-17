@@ -686,6 +686,7 @@ class GeminiQuery(object):
             self.report_cols = []
             self.result = iter([])
         else:
+            print "Found %d matching rows." % len(self.matches)
             try:
                 query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
                 if self.matches != "*":
