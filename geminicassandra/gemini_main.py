@@ -380,6 +380,10 @@ def main():
                               action='store_true',
                               help='Sort variants by start, samples by sample_id. ONLY TO BE USED FOR UNIT TESTS',
                               default=False)
+    parser_query.add_argument('--exp_id',
+                              dest='exp_id',
+                              default='hoebahoeba')
+    
     def query_fn(parser, args):
         import gemini_query
         gemini_query.query(parser, args)

@@ -168,7 +168,9 @@ test/exp
 test/obs
 test/measurements
 benchmarking/res
+benchmarking/querylog
 test/loading_logs
+querylog
 
 # emacs temporary file
 .#*

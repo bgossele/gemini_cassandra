@@ -109,6 +109,7 @@ def add_required_columns_to_query(args):
 
 
 def run_query(args):
+    start_time = time.time()
     predicates = get_row_predicates(args)
     add_required_columns_to_query(args)
     formatter = select_formatter(args)
@@ -118,41 +119,10 @@ def run_query(args):
     gq = GeminiQuery.GeminiQuery(args.contact_points, args.keyspace, out_format=formatter)
     gq.run(args.query, args.gt_filter, args.show_variant_samples,
            args.sample_delim, predicates, genotypes_needed,
-           gene_needed, args.show_families, args.testing, sample_names_needed, args.cores)
-
-    if args.use_header and gq.header:
-        print gq.header
-        #print
-
-    if not args.dgidb:
-        for row in gq:
-            print row
-    else:
-        # collect a list of all the genes that need to be queried
-        # from DGIdb
-        genes = defaultdict()
-        for row in gq:
-            genes[row['gene']] = True
-
-        # collect info from DGIdb
-        dgidb_info = query_dgidb(genes)
-
-        # rerun the query (the cursor is now consumed)
-        gq = GeminiQuery.GeminiQuery(args.contact_points, args.keyspace, out_format=formatter)
-        gq.run(args.query, args.gt_filter, args.show_variant_samples,
-           args.sample_delim, predicates, genotypes_needed,
-           gene_needed, args.show_families, args.testing, args.cores)
-
-        # report the query results with DGIdb info added at the end.
-        for row in gq:
-            print str(row) + "\t" + str(dgidb_info[row['gene']])
-
+           gene_needed, args.show_families, args.testing, sample_names_needed, args.cores, start_time, args.use_header, args.exp_id)
 
 def query(parser, args):
-    start_time = time.time()
     run_query(args)
-    end_time = time.time()
-    #print "query completed in %s s. \n" % (end_time - start_time)
 
 if __name__ == "__main__":
     main()

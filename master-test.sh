@@ -14,7 +14,7 @@ export cassandra_ips="127.0.0.1"
 
 cd test
 
-bash cassandra-test-setup.sh
+#bash cassandra-test-setup.sh
 
 bash cassandra-test-query.sh
 

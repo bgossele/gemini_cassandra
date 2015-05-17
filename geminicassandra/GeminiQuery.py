@@ -19,6 +19,8 @@ from geminicassandra.query_expressions import Basic_expression, AND_expression,\
 from geminicassandra.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
+from time import sleep
+import time
 
 
 # geminicassandra imports
@@ -454,7 +456,10 @@ class GeminiQuery(object):
     def run(self, query, gt_filter=None, show_variant_samples=False,
             variant_samples_delim=',', predicates=None,
             needs_genotypes=False, needs_genes=False,
-            show_families=False, sort_results=False, needs_sample_names=False, nr_cores = 1):
+            show_families=False, sort_results=False, 
+            needs_sample_names=False, nr_cores = 1,
+            start_time = -42, use_header = False,
+            exp_id="Oink"):
         """
         Execute a query against a Gemini database. The user may
         specify:
@@ -466,10 +471,11 @@ class GeminiQuery(object):
         self.gt_filter = gt_filter
         #print self.query + '; gt-filter = %s \n' % gt_filter
         self.nr_cores = nr_cores
+        self.start_time = start_time
+        self.use_header = use_header
+        self.exp_id = exp_id
         if self._is_gt_filter_safe() is False:
             sys.exit("ERROR: unsafe --gt-filter command.")
-        '''if not self.gt_filter == None:
-            self.gt_filter = self.gt_filter.replace('==','=')'''
         
         self.show_variant_samples = show_variant_samples
         self.variant_samples_delim = variant_samples_delim
@@ -574,58 +580,61 @@ class GeminiQuery(object):
                 sys.__stderr__.write(str(e) + "\n")
                 self.cluster.shutdown()
                 raise StopIteration
-            variant_names = []
-            het_names = []
-            hom_alt_names = []
-            hom_ref_names = []
-            unknown_names = []
-            info = None
-
-            if 'info' in self.report_cols:
-                info = compression.unpack_ordereddict_blob(row['info'])
-
-            fields = OrderedDict()
-
-            for col in self.report_cols:
-                if col == "*":
-                    continue
-                if not col == "info":
-                    fields[col] = row[col]
-                elif col == "info":
-                    fields[col] = self._info_dict_to_string(info)
-
-            if self.show_variant_samples or self.needs_sample_names:
-                
-                het_names = self._get_variant_samples(row['variant_id'], HET)
-                hom_alt_names = self._get_variant_samples(row['variant_id'], HOM_ALT)
-                hom_ref_names = self._get_variant_samples(row['variant_id'], HOM_REF)
-                unknown_names = self._get_variant_samples(row['variant_id'], UNKNOWN)
-                variant_names = het_names | hom_alt_names
-                
-                if self.show_variant_samples:
-                    fields["variant_samples"] = \
-                        self.variant_samples_delim.join(variant_names)
-                    fields["HET_samples"] = \
-                        self.variant_samples_delim.join(het_names)
-                    fields["HOM_ALT_samples"] = \
-                        self.variant_samples_delim.join(hom_alt_names)
-                    
-            if self.show_families:
-                families = map(str, list(set([self.sample_to_sample_object[x].family_id
-                                              for x in variant_names])))
-                fields["families"] = self.variant_samples_delim.join(families)
+            return self.row_2_GeminiRow(row)
             
-            gemini_row = GeminiRow(fields, variant_names, het_names, hom_alt_names,
-                                   hom_ref_names, unknown_names, info,
-                                   formatter=self.formatter)
+    def row_2_GeminiRow(self, row):
+        variant_names = []
+        het_names = []
+        hom_alt_names = []
+        hom_ref_names = []
+        unknown_names = []
+        info = None
 
-            if not all([predicate(gemini_row) for predicate in self.predicates]):
+        if 'info' in self.report_cols:
+            info = compression.unpack_ordereddict_blob(row['info'])
+
+        fields = OrderedDict()
+
+        for col in self.report_cols:
+            if col == "*":
                 continue
+            if not col == "info":
+                fields[col] = row[col]
+            elif col == "info":
+                fields[col] = self._info_dict_to_string(info)
 
-            if not self.for_browser:
-                return gemini_row
-            else:
-                return fields
+        if self.show_variant_samples or self.needs_sample_names:
+                
+            het_names = self._get_variant_samples(row['variant_id'], HET)
+            hom_alt_names = self._get_variant_samples(row['variant_id'], HOM_ALT)
+            hom_ref_names = self._get_variant_samples(row['variant_id'], HOM_REF)
+            unknown_names = self._get_variant_samples(row['variant_id'], UNKNOWN)
+            variant_names = het_names | hom_alt_names
+                
+            if self.show_variant_samples:
+                fields["variant_samples"] = \
+                    self.variant_samples_delim.join(variant_names)
+                fields["HET_samples"] = \
+                    self.variant_samples_delim.join(het_names)
+                fields["HOM_ALT_samples"] = \
+                    self.variant_samples_delim.join(hom_alt_names)
+                    
+        if self.show_families:
+            families = map(str, list(set([self.sample_to_sample_object[x].family_id
+                                          for x in variant_names])))
+            fields["families"] = self.variant_samples_delim.join(families)
+            
+        gemini_row = GeminiRow(fields, variant_names, het_names, hom_alt_names,
+                               hom_ref_names, unknown_names, info,
+                               formatter=self.formatter)
+
+        if not all([predicate(gemini_row) for predicate in self.predicates]):
+            return None
+
+        if not self.for_browser:
+            return gemini_row
+        else:
+            return fields
             
     def _get_variant_samples(self, variant_id, gt_type):
         query = "SELECT sample_name from samples_by_variants_gt_type WHERE variant_id = %s AND gt_type = %s"
@@ -686,7 +695,10 @@ class GeminiQuery(object):
             self.report_cols = []
             self.result = iter([])
         else:
-            print "Found %d matching rows." % len(self.matches)
+            if self.matches == "*":
+                print "All rows match query."
+            else:
+                print "%d rows match query." % len(self.matches)
             try:
                 query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
                 if self.matches != "*":
@@ -698,20 +710,31 @@ class GeminiQuery(object):
                         query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
                 query += " " + self.rest_of_query
                 self.session.row_factory = ordered_dict_factory
-                res = self.session.execute(query)  
-                if self.sort_results:
+                future = self.session.execute_async(query)  
+                future.add_callbacks(results_callback(self), error_callback)
+                while not self.query_executed:
+                    sleep(0.001)
+                '''if self.sort_results:
                     if self.from_table == 'variants':
                         res = sorted(res, key = lambda x: x['start'])   
                     elif self.from_table == 'samples':
-                        res = sorted(res, key = lambda x: x['sample_id'])
+                        res = sorted(res, key = lambda x: x['sample_id'])'''
                       
-                self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
-                self.result = iter(res)
-                
+                time_taken = time.time() - self.start_time
+                print "Query %s completed in %s s." % (self.exp_id, time_taken)
+                log = open("querylog", 'a')
+                log.write("%s;%s\n" % (self.exp_id, time_taken))
+                log.close()
             except cassandra.protocol.SyntaxException as e:
                 print "Cassandra error: {0}".format(e)
                 sys.exit("The query issued (%s) has a syntax error." % query)
-
+                
+    def set_report_cols(self, rep_cols):
+        self.report_cols = rep_cols
+        
+    def set_query_executed(self, b):
+        self.query_executed = b
+                
     def _apply_query(self):
         """
         Execute a query. Intercept gt* columns and
@@ -740,6 +763,9 @@ class GeminiQuery(object):
             self.extra_columns.append('start')
         self._execute_query()
         
+    def shutdown(self):
+        self.session.shutdown()
+        self.cluster.shutdown()
 
     def _get_matching_sample_ids(self, wildcard):
         
@@ -1083,64 +1109,28 @@ def fold(function, iterable, initializer=None):
         accum_value = function(x, accum_value)
     return accum_value
 
-if __name__ == "__main__":
-
-    db = sys.argv[1]
-
-    gq = GeminiQuery(db)
-
-    print "test a basic query with no genotypes"
-    query = "select chrom, start, end from variants limit 5"
-    gq.run(query)
-    for row in gq:
-        print row
-
-    print "test a basic query with no genotypes using a header"
-    query = "select chrom, start, end from variants limit 5"
-    gq.run(query)
-    print gq.header
-    for row in gq:
-        print row
-
-    print "test query that selects a sample genotype"
-    query = "select chrom, start, end, gts.NA20814 from variants limit 5"
-    gq.run(query)
-    for row in gq:
-        print row
-
-    print "test query that selects a sample genotype and uses a header"
-    query = "select chrom, start, end, gts.NA20814 from variants limit 5"
-    gq.run(query)
-    print gq.header
-    for row in gq:
-        print row
-
-    print "test query that selects and _filters_ on a sample genotype"
-    query = "select chrom, start, end, gts.NA20814 from variants limit 50"
-    db_filter = "gt_types.NA20814 == HET"
-    gq.run(query, db_filter)
-    for row in gq:
-        print row
-
-    print "test query that selects and _filters_ on a sample genotype and uses a filter"
-    query = "select chrom, start, end, gts.NA20814 from variants limit 50"
-    db_filter = "gt_types.NA20814 == HET"
-    gq.run(query, db_filter)
-    print gq.header
-    for row in gq:
-        print row
-
-    print "test query that selects and _filters_ on a sample genotype and uses a filter and a header"
-    query = "select chrom, start, end, gts.NA20814 from variants limit 50"
-    db_filter = "gt_types.NA20814 == HET"
-    gq.run(query, db_filter)
-    print gq.header
-    for row in gq:
-        print row
-
-    print "demonstrate accessing individual columns"
-    query = "select chrom, start, end, gts.NA20814 from variants limit 50"
-    db_filter = "gt_types.NA20814 == HET"
-    gq.run(query, db_filter)
-    for row in gq:
-        print row['chrom'], row['start'], row['end'], row['gts.NA20814']
+def results_callback(gq):
+    
+    def callback2(results):
+        
+        report_cols_set = False
+            
+        for row in results:
+            
+            if not report_cols_set:                
+                gq.set_report_cols(filter(lambda x: not x in gq.extra_columns, row.keys()))
+                report_cols_set = True
+                if gq.use_header and gq.header:
+                    print gq.header
+                
+            gemini_row = gq.row_2_GeminiRow(row)
+            if not gemini_row == None:
+                print gemini_row
+                
+        gq.shutdown()
+        gq.set_query_executed(True)
+    
+    return callback2 
+    
+def error_callback(exc):
+    sys.stderr.write("Query failed: %s\n" % exc)
