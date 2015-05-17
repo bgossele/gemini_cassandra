@@ -1133,5 +1133,8 @@ def results_callback(gq):
     
     return callback2 
     
-def error_callback(exc):
-    sys.stderr.write("Query failed: %s\n" % exc)
+def error_callback(gq):
+    def err_cb(exc):
+        sys.stderr.write("Query failed: %s\n" % exc)
+        gq.set_query_executed(True)
+        
