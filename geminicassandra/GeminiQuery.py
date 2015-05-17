@@ -19,9 +19,9 @@ from geminicassandra.query_expressions import Basic_expression, AND_expression,\
 from geminicassandra.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
-from time import sleep
 import time
 from multiprocessing.synchronize import Event
+from itertools import repeat
 
 
 # geminicassandra imports
@@ -692,16 +692,65 @@ class GeminiQuery(object):
         return False
 
     def _execute_query(self):
-        if len(self.matches) == 0:
+        
+        def execute_async_blocking(query,pars,timeout):
+            future = self.session.execute_async(query,pars,timeout)  
+            handler = PagedResultHandler(future,self)
+            handler.finished_event.wait()
+            if handler.error:
+                sys.stderr.write(query)
+        
+        n_matches = len(self.matches)
+        self.session.row_factory = ordered_dict_factory
+        query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
+        
+        if n_matches == 0:
             print "No results!"
-            self.report_cols = []
-            self.result = iter([])
-        else:
-            if not self.test_mode:
-                if self.matches == "*":
-                    print "All rows match query."
-                else:
-                    print "%d rows match query." % len(self.matches)
+        elif not self.test_mode:
+            
+            if self.matches == "*":
+                print "All rows match query."
+                query += " " + self.rest_of_query
+                
+                execute_async_blocking(query, (), self.timeout)
+            
+            else:
+                
+                print "%d rows match query." % len(self.matches)
+                    
+                batch_size = 1000              
+                in_clause = ','.join(list(repeat("?",batch_size))) 
+                batch_query = query + " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)    
+                batch_query += " " + self.rest_of_query
+                
+                prepquery = self.session.prepare(batch_query)
+                
+                for i in range(n_matches / batch_size):
+                    print "batch %d" % i
+                    batch = self.matches[i*batch_size:(i+1)*batch_size]
+                    
+                    execute_async_blocking(prepquery, batch, self.timeout)
+                
+                if n_matches % batch_size != 0:
+                    leftovers_batch = self.matches[(n_matches / batch_size)*batch_size:]
+                    if self.from_table != 'samples':
+                        in_clause = ",".join(map(str, leftovers_batch))            
+                        leftover_query = query + " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
+                    else:
+                        in_clause = "','".join(leftovers_batch)            
+                        leftover_query = query + " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
+                    execute_async_blocking(leftover_query, (), self.timeout)                          
+            
+            time_taken = time.time() - self.start_time
+            print "Query %s completed in %s s." % (self.exp_id, time_taken)
+            log = open("querylog", 'a')
+            log.write("%s;%s\n" % (self.exp_id, time_taken))
+            log.close() 
+                   
+        else: 
+            '''
+                Test mode stuff: no extra prints, synchronous execution, sort results
+            '''
             try:
                 query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
                 if self.matches != "*":
@@ -712,39 +761,25 @@ class GeminiQuery(object):
                         in_clause = "','".join(self.matches)            
                         query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
                 query += " " + self.rest_of_query
-                self.session.row_factory = ordered_dict_factory
-                
-                
-                if self.test_mode:
-                    res = self.session.execute(query)  
-                    if self.from_table == 'variants':
-                        res = sorted(res, key = lambda x: x['start'])   
-                    elif self.from_table == 'samples':
-                        res = sorted(res, key = lambda x: x['sample_id'])
-                      
-                    self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
                     
-                    if self.use_header and self.header:
-                        print self.header
+                res = self.session.execute(query)  
+                if self.from_table == 'variants':
+                    res = sorted(res, key = lambda x: x['start'])   
+                elif self.from_table == 'samples':
+                    res = sorted(res, key = lambda x: x['sample_id'])
+                          
+                self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
                         
-                    for row in res:
-                        print self.row_2_GeminiRow(row)
-                                        
-                else:
-                
-                    future = self.session.execute_async(query,(),self.timeout)  
-                    handler = PagedResultHandler(future,self)
-                    handler.finished_event.wait()
-                                          
-                    time_taken = time.time() - self.start_time
-                    print "Query %s completed in %s s." % (self.exp_id, time_taken)
-                    log = open("querylog", 'a')
-                    log.write("%s;%s\n" % (self.exp_id, time_taken))
-                    log.close()
-                    
+                if self.use_header and self.header:
+                    print self.header
+                            
+                for row in res:
+                    print self.row_2_GeminiRow(row)    
+                        
             except cassandra.protocol.SyntaxException as e:
                 print "Cassandra error: {0}".format(e)
                 sys.exit("The query issued (%s) has a syntax error." % query)
+            
                 
     def set_report_cols(self, rep_cols):
         self.report_cols = rep_cols
@@ -762,7 +797,7 @@ class GeminiQuery(object):
         
         self.matches = "*"
         if not self.where_exp is None:
-            self.matches = self.where_exp.evaluate(self.session, "*")
+            self.matches = list(self.where_exp.evaluate(self.session, "*"))
 
         if self._query_needs_genotype_info():
             # break up the select statement into individual
@@ -1157,7 +1192,7 @@ class PagedResultHandler(object):
 
     def handle_error(self, exc):
         self.error = exc
-        sys.stderr.write("Query failed: %s\n" % exc)
+        sys.stderr.write("Final query failed: %s\n" % exc)
         self.finished_event.set()
 
         

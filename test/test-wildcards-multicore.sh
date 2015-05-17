@@ -11,7 +11,7 @@ T/T	C/C	C/T	C/T
 T/T	T/T	C/C	C/C
 C/T	C/C	C/C	C/C
 ./.	C/C	C/C	./." > exp
-geminicassandra query -q "select (gts).(*)from variants" -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
+geminicassandra query -q "select (gts).(*)from variants" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
 check obs exp
 rm obs exp
 
@@ -85,7 +85,7 @@ echo "    wildcard_mc.t6...\c"
 echo "chrom	start	end	ref	alt	gts_m10478	gts_m10500
 chr10	135336655	135336656	G	A	A/A	./." > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='2') from variants" \
-             --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && gts.M10478 =='A/A'" -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
+             --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && gts.M10478 =='A/A'" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
 check obs exp
 rm obs exp
 
@@ -208,7 +208,7 @@ echo "    wildcard_mc.t15...\c"
 echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215	gts_m10500	gts_m10478
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==    HOM_ALT].[  count   !=2] && gts.M10478 =='G/G'" -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
+             --gt-filter "[gt_types].[*].[==    HOM_ALT].[  count   !=2] && gts.M10478 =='G/G'" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
 check obs exp
 rm obs exp
 
@@ -293,7 +293,7 @@ T/T	C/C	C/T	C/T
 T/T	T/T	C/C	C/C
 C/T	C/C	C/C	C/C
 ./.	C/C	C/C	./." > exp
-geminicassandra query -q "select (gts).(*)from variants" -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
+geminicassandra query -q "select (gts).(*)from variants" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
 check obs exp
 rm obs exp
 
@@ -367,7 +367,7 @@ echo "    wildcard_mc3.t6...\c"
 echo "chrom	start	end	ref	alt	gts_m10478	gts_m10500
 chr10	135336655	135336656	G	A	A/A	./." > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(phenotype=='2') from variants" \
-             --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && gts.M10478 =='A/A'" -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
+             --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && gts.M10478 =='A/A'" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
 check obs exp
 rm obs exp
 
@@ -490,7 +490,7 @@ echo "    wildcard_mc3.t15...\c"
 echo "chrom	start	end	ref	alt	gts_m10475	gts_m128215	gts_m10500	gts_m10478
 chr10	126678091	126678092	G	A	G/G	G/A	G/G	G/G" > exp
 geminicassandra query --header -q "select chrom, start, end, ref, alt, (gts).(*) from variants" \
-             --gt-filter "[gt_types].[*].[==    HOM_ALT].[  count   !=2] && gts.M10478 =='G/G'" -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
+             --gt-filter "[gt_types].[*].[==    HOM_ALT].[  count   !=2] && gts.M10478 =='G/G'" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
 check obs exp
 rm obs exp
 

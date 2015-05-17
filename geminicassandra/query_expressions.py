@@ -8,7 +8,6 @@ from multiprocessing import Pipe
 from multiprocessing.process import Process
 from cassandra.cluster import Cluster
 import array
-from time import sleep
 import sys
 from multiprocessing.synchronize import Event
 
