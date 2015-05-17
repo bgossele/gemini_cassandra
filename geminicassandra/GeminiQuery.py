@@ -15,7 +15,7 @@ from gemini_utils import (OrderedDict, itersubclasses, partition_by_fn)
 from sql_utils import ensure_columns
 from collections import namedtuple
 from geminicassandra.query_expressions import Basic_expression, AND_expression,\
-    NOT_expression, OR_expression, rows_as_set, GT_wildcard_expression
+    NOT_expression, OR_expression, async_rows_as_set, GT_wildcard_expression
 from geminicassandra.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
@@ -456,7 +456,7 @@ class GeminiQuery(object):
     def run(self, query, gt_filter=None, show_variant_samples=False,
             variant_samples_delim=',', predicates=None,
             needs_genotypes=False, needs_genes=False,
-            show_families=False, sort_results=False, 
+            show_families=False, test_mode=False, 
             needs_sample_names=False, nr_cores = 1,
             start_time = -42, use_header = False,
             exp_id="Oink", timeout=10.0):
@@ -480,7 +480,7 @@ class GeminiQuery(object):
         
         self.show_variant_samples = show_variant_samples
         self.variant_samples_delim = variant_samples_delim
-        self.sort_results = sort_results
+        self.test_mode = test_mode
         self.needs_genotypes = needs_genotypes
         self.needs_vcf_columns = False
         if self.formatter.name == 'vcf':
@@ -640,7 +640,7 @@ class GeminiQuery(object):
     def _get_variant_samples(self, variant_id, gt_type):
         query = "SELECT sample_name from samples_by_variants_gt_type WHERE variant_id = %s AND gt_type = %s"
         self.session.row_factory = tuple_factory
-        return rows_as_set(self.session.execute(query, (variant_id, gt_type)))    
+        return async_rows_as_set(self.session, query % (variant_id, gt_type))    
 
     def _group_samples_by_genotype(self, gt_types):
         """
@@ -696,10 +696,11 @@ class GeminiQuery(object):
             self.report_cols = []
             self.result = iter([])
         else:
-            if self.matches == "*":
-                print "All rows match query."
-            else:
-                print "%d rows match query." % len(self.matches)
+            if not self.test_mode:
+                if self.matches == "*":
+                    print "All rows match query."
+                else:
+                    print "%d rows match query." % len(self.matches)
             try:
                 query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
                 if self.matches != "*":
@@ -711,21 +712,36 @@ class GeminiQuery(object):
                         query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
                 query += " " + self.rest_of_query
                 self.session.row_factory = ordered_dict_factory
-                future = self.session.execute_async(query,(),self.timeout)  
-                future.add_callbacks(results_callback(self), error_callback(self))
-                while not self.query_executed:
-                    sleep(0.001)
-                '''if self.sort_results:
+                
+                
+                if self.test_mode:
+                    res = self.session.execute(query)  
                     if self.from_table == 'variants':
                         res = sorted(res, key = lambda x: x['start'])   
                     elif self.from_table == 'samples':
-                        res = sorted(res, key = lambda x: x['sample_id'])'''
+                        res = sorted(res, key = lambda x: x['sample_id'])
                       
-                time_taken = time.time() - self.start_time
-                print "Query %s completed in %s s." % (self.exp_id, time_taken)
-                log = open("querylog", 'a')
-                log.write("%s;%s\n" % (self.exp_id, time_taken))
-                log.close()
+                    self.report_cols = filter(lambda x: not x in self.extra_columns, res[0].keys())
+                    
+                    if self.use_header and self.header:
+                        print self.header
+                        
+                    for row in res:
+                        print self.row_2_GeminiRow(row)
+                                        
+                else:
+                
+                    future = self.session.execute_async(query,(),self.timeout)  
+                    future.add_callbacks(results_callback(self), error_callback(self))
+                    while not self.query_executed:
+                        sleep(0.001)
+                                          
+                    time_taken = time.time() - self.start_time
+                    print "Query %s completed in %s s." % (self.exp_id, time_taken)
+                    log = open("querylog", 'a')
+                    log.write("%s;%s\n" % (self.exp_id, time_taken))
+                    log.close()
+                    
             except cassandra.protocol.SyntaxException as e:
                 print "Cassandra error: {0}".format(e)
                 sys.exit("The query issued (%s) has a syntax error." % query)
@@ -760,7 +776,7 @@ class GeminiQuery(object):
         if self.show_families or self.show_variant_samples or self.needs_sample_names:
             if (not 'variant_id' in self.requested_columns) and (not "*" in self.requested_columns):
                 self.extra_columns.append('variant_id')
-        if self.sort_results and self.from_table == 'variants' and not 'start' in self.requested_columns:
+        if self.test_mode and self.from_table == 'variants' and not 'start' in self.requested_columns:
             self.extra_columns.append('start')
         self._execute_query()
         

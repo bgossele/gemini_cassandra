@@ -8,6 +8,8 @@ from multiprocessing import Pipe
 from multiprocessing.process import Process
 from cassandra.cluster import Cluster
 import array
+from time import sleep
+import sys
 
 class Expression(object):
     
@@ -46,7 +48,7 @@ class Basic_expression(Expression):
                 in_clause = ",".join(map(str, starting_set))            
                 query += " AND %s IN (%s)" % \
                     (self.SELECT_column, in_clause)     
-        return rows_as_set(socket.execute(query))
+        return async_rows_as_set(socket, query)
     
     def can_prune(self):
         return not any (op in self.where_clause \
@@ -114,8 +116,7 @@ class NOT_expression(Expression):
         if len(starting_set) == 0:
             return set()        
         elif starting_set == '*':
-            correct_starting_set = rows_as_set(session.execute(\
-                "SELECT %s FROM %s" % (self.SELECT_column, self.table)))
+            correct_starting_set = async_rows_as_set(session, "SELECT %s FROM %s" % (self.SELECT_column, self.table))
         else:
             correct_starting_set = starting_set
         
@@ -177,7 +178,7 @@ class GT_wildcard_expression(Expression):
             corrected_rule = self.wildcard_rule
             
         if starting_set == "*" and (invert or target_rule == 'none' or target_rule == 'count'):
-            correct_starting_set = array.array('i', rows_as_set(session.execute("SELECT variant_id FROM variants")))
+            correct_starting_set = array.array('i', async_rows_as_set(session, "SELECT variant_id FROM variants"))
         elif starting_set != "*":
             correct_starting_set = array.array('i', starting_set)
         else:
@@ -235,12 +236,28 @@ class GT_wildcard_expression(Expression):
                        if eval(str(count) + self.count_comp)])
         
         return res
+
+def async_rows_as_set(session, query):
     
-def rows_as_set(rows):
-    s = set()
-    for r in rows:
-        s.add(r[0])
-    return s
+    res = set()
+    flag = set()
+    
+    def dink(rows):
+        for r in rows:
+            res.add(r[0])
+        flag.add(True)
+        
+    def error_dink(exc):
+        sys.stderr.write("Query failed: %s\n%s\n", (query,exc))
+        flag.add(True)
+    
+    future = session.execute_async(query)
+    future.add_callbacks(dink, error_dink)
+    
+    while len(flag) == 0:
+        sleep(0.001)
+        
+    return res
  
 def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         
@@ -262,13 +279,13 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
                 
         if results == "*":
-            results = rows_as_set(session.execute(query))
+            results = async_rows_as_set(session, query)
         elif not any (op in clause for op in ["<", ">"]):
             in_clause = ",".join(map(str, results))
             query += " AND variant_id IN (%s)" % in_clause
-            results = rows_as_set(session.execute(query))
+            results = async_rows_as_set(session, query)
         else:
-            results = rows_as_set(session.execute(query)) & results
+            results = async_rows_as_set(session, query) & results
         
     session.shutdown()   
     
@@ -292,7 +309,7 @@ def any_query(conn, field, clause, initial_set, contact_points, keyspace):
             in_clause = ",".join(map(str, initial_set))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        row = rows_as_set(session.execute(query))
+        row = async_rows_as_set(session, query)
         results = row | results
         
     session.shutdown()   
@@ -317,7 +334,7 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
             in_clause = ",".join(map(str, results))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        variants = rows_as_set(session.execute(query))
+        variants = async_rows_as_set(session, query)
         results = results - variants
         
     session.shutdown()   
@@ -340,7 +357,7 @@ def count_query(conn, field, clause, initial_set, contact_points, keyspace):
             in_clause = ",".join(map(str, initial_set))
             query += " AND variant_id IN (%s)" % in_clause      
         
-        variants = rows_as_set(session.execute(query))
+        variants = async_rows_as_set(session, query)
         results = add_row_to_count_dict(results, variants)
         
     session.shutdown()       
