@@ -459,7 +459,7 @@ class GeminiQuery(object):
             show_families=False, sort_results=False, 
             needs_sample_names=False, nr_cores = 1,
             start_time = -42, use_header = False,
-            exp_id="Oink"):
+            exp_id="Oink", timeout=10.0):
         """
         Execute a query against a Gemini database. The user may
         specify:
@@ -474,6 +474,7 @@ class GeminiQuery(object):
         self.start_time = start_time
         self.use_header = use_header
         self.exp_id = exp_id
+        self.timeout = timeout
         if self._is_gt_filter_safe() is False:
             sys.exit("ERROR: unsafe --gt-filter command.")
         
@@ -710,7 +711,7 @@ class GeminiQuery(object):
                         query += " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
                 query += " " + self.rest_of_query
                 self.session.row_factory = ordered_dict_factory
-                future = self.session.execute_async(query)  
+                future = self.session.execute_async(query,(),self.timeout)  
                 future.add_callbacks(results_callback(self), error_callback)
                 while not self.query_executed:
                     sleep(0.001)

@@ -383,6 +383,10 @@ def main():
     parser_query.add_argument('--exp_id',
                               dest='exp_id',
                               default='hoebahoeba')
+    parser_query.add_argument('-timeout',
+                              dest='timeout',
+                              default=10.0,
+                              type=float)
     
     def query_fn(parser, args):
         import gemini_query

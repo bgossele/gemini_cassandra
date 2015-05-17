@@ -119,7 +119,7 @@ def run_query(args):
     gq = GeminiQuery.GeminiQuery(args.contact_points, args.keyspace, out_format=formatter)
     gq.run(args.query, args.gt_filter, args.show_variant_samples,
            args.sample_delim, predicates, genotypes_needed,
-           gene_needed, args.show_families, args.testing, sample_names_needed, args.cores, start_time, args.use_header, args.exp_id)
+           gene_needed, args.show_families, args.testing, sample_names_needed, args.cores, start_time, args.use_header, args.exp_id, args.timeout)
 
 def query(parser, args):
     run_query(args)
