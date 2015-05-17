@@ -712,7 +712,7 @@ class GeminiQuery(object):
                 query += " " + self.rest_of_query
                 self.session.row_factory = ordered_dict_factory
                 future = self.session.execute_async(query,(),self.timeout)  
-                future.add_callbacks(results_callback(self), error_callback)
+                future.add_callbacks(results_callback(self), error_callback(self))
                 while not self.query_executed:
                     sleep(0.001)
                 '''if self.sort_results:
