@@ -10,6 +10,7 @@ from cassandra.cluster import Cluster
 import array
 from time import sleep
 import sys
+from multiprocessing.synchronize import Event
 
 class Expression(object):
     
@@ -237,27 +238,7 @@ class GT_wildcard_expression(Expression):
         
         return res
 
-def async_rows_as_set(session, query):
-    
-    res = set()
-    flag = set()
-    
-    def dink(rows):
-        for r in rows:
-            res.add(r[0])
-        flag.add(True)
-        
-    def error_dink(exc):
-        sys.stderr.write("Query failed: %s\n%s\n", (query,exc))
-        flag.add(True)
-    
-    future = session.execute_async(query)
-    future.add_callbacks(dink, error_dink)
-    
-    while len(flag) == 0:
-        sleep(0.001)
-        
-    return res
+
  
 def all_query(conn, field, clause, initial_set, contact_points, keyspace):
         
@@ -373,4 +354,39 @@ def add_row_to_count_dict(res_dict, variants):
             res_dict[var] += 1    
     return res_dict   
 
+def async_rows_as_set(session, query):
     
+    future = session.execute_async(query)
+    handler = PagedResultHandler(future)
+    handler.finished_event.wait()
+    
+    if handler.error:
+        sys.stderr.write("Query failed: %s\n" % query)
+        raise handler.error
+    else:    
+        return handler.res
+
+class PagedResultHandler(object):
+
+    def __init__(self, future):
+        self.error = None
+        self.finished_event = Event()
+        self.future = future
+        self.future.add_callbacks(
+            callback=self.handle_page,
+            errback=self.handle_error)
+        self.res = set()
+
+    def handle_page(self, results):
+        
+        for row in results:            
+            self.res.add(row[0])
+
+        if self.future.has_more_pages:
+            self.future.start_fetching_next_page()
+        else:
+            self.finished_event.set()
+
+    def handle_error(self, exc):
+        self.error = exc
+        self.finished_event.set()

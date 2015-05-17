@@ -21,6 +21,7 @@ from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
 from time import sleep
 import time
+from multiprocessing.synchronize import Event
 
 
 # geminicassandra imports
@@ -732,9 +733,8 @@ class GeminiQuery(object):
                 else:
                 
                     future = self.session.execute_async(query,(),self.timeout)  
-                    future.add_callbacks(results_callback(self), error_callback(self))
-                    while not self.query_executed:
-                        sleep(0.001)
+                    handler = PagedResultHandler(future,self)
+                    handler.finished_event.wait()
                                           
                     time_taken = time.time() - self.start_time
                     print "Query %s completed in %s s." % (self.exp_id, time_taken)
@@ -748,9 +748,6 @@ class GeminiQuery(object):
                 
     def set_report_cols(self, rep_cols):
         self.report_cols = rep_cols
-        
-    def set_query_executed(self, b):
-        self.query_executed = b
                 
     def _apply_query(self):
         """
@@ -1126,34 +1123,41 @@ def fold(function, iterable, initializer=None):
         accum_value = function(x, accum_value)
     return accum_value
 
-def results_callback(gq):
-    
-    def callback2(results):
+class PagedResultHandler(object):
+
+    def __init__(self, future, gq):
+        self.error = None
+        self.finished_event = Event()
+        self.future = future
+        self.gq = gq
+        self.future.add_callbacks(
+            callback=self.handle_page,
+            errback=self.handle_error)
+
+    def handle_page(self, results):
         
         report_cols_set = False
             
         for row in results:
             
             if not report_cols_set:                
-                gq.set_report_cols(filter(lambda x: not x in gq.extra_columns, row.keys()))
+                self.gq.set_report_cols(filter(lambda x: not x in self.gq.extra_columns, row.keys()))
                 report_cols_set = True
-                if gq.use_header and gq.header:
-                    print gq.header
+                if self.gq.use_header and self.gq.header:
+                    print self.gq.header
                 
-            gemini_row = gq.row_2_GeminiRow(row)
+            gemini_row = self.gq.row_2_GeminiRow(row)
             if not gemini_row == None:
                 print gemini_row
-                
-        gq.shutdown()
-        gq.set_query_executed(True)
-    
-    return callback2 
-    
-def error_callback(gq):
-    
-    def err_cb(exc):
+
+        if self.future.has_more_pages:
+            self.future.start_fetching_next_page()
+        else:
+            self.finished_event.set()
+
+    def handle_error(self, exc):
+        self.error = exc
         sys.stderr.write("Query failed: %s\n" % exc)
-        gq.set_query_executed(True)
-        
-    return err_cb
+        self.finished_event.set()
+
         
