@@ -1191,7 +1191,6 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
     prepquery = session.prepare(batch_query)
                 
     for i in range(n_matches / batch_size):
-        print "batch %d" % i
         batch = matches[i*batch_size:(i+1)*batch_size]
                     
         execute_async_blocking(prepquery, batch)
