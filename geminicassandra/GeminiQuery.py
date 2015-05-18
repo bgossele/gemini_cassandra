@@ -1219,20 +1219,23 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
             
     print "%s ready to roll!" % output_path
     
-    batch_size = 150
+    batch_size = 50
     batch_buffer = []
     batch_count = 0
-    batch_count_limit = 500              
+    batch_count_limit = 200              
     in_clause = ','.join(list(repeat("?",batch_size))) 
     batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
                 
     prepquery = session.prepare(batch_query)
+    
+    print "%s query prepared" % os.getpid()
                 
     for i in range(n_matches / batch_size):
         batch_buffer.append(matches[i*batch_size:(i+1)*batch_size])
         batch_count += 1
         
         if batch_count >= batch_count_limit:
+            print "%s batch filled" % os.getpid()
             blrh = BatchedLoggedResultHandler(prepquery, batch_buffer, extra_columns, output_path, session) 
             blrh.run()
             batch_count = 0
