@@ -20,8 +20,8 @@ from geminicassandra.sql_utils import get_query_parts
 from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
 import time
-from multiprocessing.synchronize import Event
-from itertools import repeat
+from threading import Event
+from itertools import repeat, count
 from multiprocessing.process import Process
 from multiprocessing import Pipe
 import os
@@ -1165,49 +1165,6 @@ def fold(function, iterable, initializer=None):
     for x in it:
         accum_value = function(x, accum_value)
     return accum_value
-
-def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace):
-        
-    matches = conn.recv()
-    n_matches = len(matches)
-    conn.close()
-    
-    cluster = Cluster(db)
-    session = cluster.connect(keyspace)
-    session.row_factory = ordered_dict_factory
-    
-    def execute_async_blocking(query,pars=(),timeout=13.7):
-        future = session.execute_async(query,pars,timeout)  
-        
-        handler = LoggedPagedResultHandler(future, extra_columns, output_path)
-        handler.finished_event.wait()
-        if handler.error:
-            sys.stderr.write(query)
-            
-    print "%s ready to roll!" % output_path
-    
-    batch_size = 200              
-    in_clause = ','.join(list(repeat("?",batch_size))) 
-    batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
-                
-    prepquery = session.prepare(batch_query)
-                
-    for i in range(n_matches / batch_size):
-        batch = matches[i*batch_size:(i+1)*batch_size]
-                    
-        execute_async_blocking(prepquery, batch)
-                
-    if n_matches % batch_size != 0:
-        leftovers_batch = matches[(n_matches / batch_size)*batch_size:]
-        if table != 'samples':
-            in_clause = ",".join(map(str, leftovers_batch))            
-            leftover_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
-        else:
-            in_clause = "','".join(leftovers_batch)            
-            leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
-        execute_async_blocking(leftover_query)      
-    
-    session.shutdown()
     
 class LoggedPagedResultHandler(object):
     
@@ -1241,6 +1198,100 @@ class LoggedPagedResultHandler(object):
         self.error = exc
         sys.stderr.write("Final query failed: %s\n" % exc)
         self.finished_event.set()
+
+def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace):
+        
+    matches = conn.recv()
+    n_matches = len(matches)
+    conn.close()
+    
+    cluster = Cluster(db)
+    session = cluster.connect(keyspace)
+    session.row_factory = ordered_dict_factory
+    
+    def execute_async_blocking(query,pars=(),timeout=13.7):
+        future = session.execute_async(query,pars,timeout)  
+        
+        handler = LoggedPagedResultHandler(future, extra_columns, output_path)
+        handler.finished_event.wait()
+        if handler.error:
+            sys.stderr.write(str(query) + "\n")
+            
+    print "%s ready to roll!" % output_path
+    
+    batch_size = 150
+    batch_buffer = []
+    batch_count = 0
+    batch_count_limit = 500              
+    in_clause = ','.join(list(repeat("?",batch_size))) 
+    batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
+                
+    prepquery = session.prepare(batch_query)
+                
+    for i in range(n_matches / batch_size):
+        batch_buffer.append(matches[i*batch_size:(i+1)*batch_size])
+        batch_count += 1
+        
+        if batch_count >= batch_count_limit:
+            blrh = BatchedLoggedResultHandler(prepquery, batch_buffer, extra_columns, output_path, session) 
+            blrh.run()
+            batch_count = 0
+            batch_buffer = []
+            
+    blrh = BatchedLoggedResultHandler(prepquery, batch_buffer, extra_columns, output_path, session) 
+    blrh.run()            
+                
+    if n_matches % batch_size != 0:
+        leftovers_batch = matches[(n_matches / batch_size)*batch_size:]
+        if table != 'samples':
+            in_clause = ",".join(map(str, leftovers_batch))            
+            leftover_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
+        else:
+            in_clause = "','".join(leftovers_batch)            
+            leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
+        execute_async_blocking(leftover_query)      
+    
+    session.shutdown()
+
+class BatchedLoggedResultHandler(object):
+    
+    def __init__(self, query, batches, extra_columns, output_path, session):
+        self.error = None
+        self.session = session
+        self.finished_event = Event()
+        self.extra_columns = extra_columns
+        self.output_path = output_path
+        self.report_cols = None
+        self.query = query
+        self.n_batches = len(batches)
+        self.batches = iter(batches)
+        self.num_started = count()
+        self.num_finished = count()
+        
+    def insert_next(self, previous_result=-42):
+        if previous_result != -42:
+            if isinstance(previous_result, BaseException):
+                sys.stderr.write("Error on insert: %r\n", previous_result)
+            else:
+                with open(self.output_path, 'a') as output:                    
+                    for row in previous_result:                
+                        if not self.report_cols:
+                            self.report_cols = filter(lambda x: not x in self.extra_columns, row.keys())   
+                        gemini_row = barebones_row2geminiRow(row, self.report_cols)
+                        if not gemini_row == None:
+                            output.write("%s\n" % gemini_row)
+                     
+            if self.num_finished.next() >= self.n_batches - 1:
+                self.finished_event.set()
+    
+        if self.num_started.next() <= self.n_batches:
+            future = self.session.execute_async(self.query, self.batches.next())
+            future.add_callbacks(self.insert_next, self.insert_next)
+            
+    def run(self):        
+        for i in range(min(120, self.n_batches)):
+            self.insert_next()    
+        self.finished_event.wait()    
         
 def barebones_row2geminiRow(row, report_cols):
     
