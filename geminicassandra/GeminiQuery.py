@@ -1183,8 +1183,10 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
         handler.finished_event.wait()
         if handler.error:
             sys.stderr.write(query)
+            
+    print "%s ready to roll!" % output_path
     
-    batch_size = 500              
+    batch_size = 200              
     in_clause = ','.join(list(repeat("?",batch_size))) 
     batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
                 
