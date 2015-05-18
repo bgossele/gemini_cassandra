@@ -22,6 +22,9 @@ from string import strip
 import time
 from multiprocessing.synchronize import Event
 from itertools import repeat
+from multiprocessing.process import Process
+from multiprocessing import Pipe
+import os
 
 
 # geminicassandra imports
@@ -603,7 +606,7 @@ class GeminiQuery(object):
             if not col == "info":
                 fields[col] = row[col]
             elif col == "info":
-                fields[col] = self._info_dict_to_string(info)
+                fields[col] = _info_dict_to_string(info)
 
         if self.show_variant_samples or self.needs_sample_names:
                 
@@ -693,54 +696,57 @@ class GeminiQuery(object):
 
     def _execute_query(self):
         
-        def execute_async_blocking(query,pars,timeout):
-            future = self.session.execute_async(query,pars,timeout)  
-            handler = PagedResultHandler(future,self)
-            handler.finished_event.wait()
-            if handler.error:
-                sys.stderr.write(query)
-        
         n_matches = len(self.matches)
         self.session.row_factory = ordered_dict_factory
         query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
         
         if n_matches == 0:
+            
             print "No results!"
+            
         elif not self.test_mode:
             
             if self.matches == "*":
-                print "All rows match query."
-                query += " " + self.rest_of_query
                 
+                print "All rows match query."
+                query += " " + self.rest_of_query                
                 execute_async_blocking(query, (), self.timeout)
             
             else:
                 
                 print "%d rows match query." % len(self.matches)
+                step = len(self.matches) / self.nr_cores
                     
-                batch_size = 1000              
-                in_clause = ','.join(list(repeat("?",batch_size))) 
-                batch_query = query + " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)    
-                batch_query += " " + self.rest_of_query
+                procs = []
+                conns = []
                 
-                prepquery = self.session.prepare(batch_query)
-                
-                for i in range(n_matches / batch_size):
-                    print "batch %d" % i
-                    batch = self.matches[i*batch_size:(i+1)*batch_size]
+                output_folder = self.exp_id + "_results"
+                if not os.path.exists(output_folder):
+                    os.makedirs(output_folder)
+                output_path = output_folder + "/%s"
+                                       
+                for i in range(self.nr_cores):
+                    parent_conn, child_conn = Pipe()
+                    conns.append(parent_conn)
+                    p = Process(target=fetch_matches,
+                                args=(child_conn, output_path % i, query, self.from_table,\
+                                      self.get_partition_key(self.from_table), self.extra_columns,\
+                                      self.db_contact_points, self.keyspace))
+                    procs.append(p)
+                    p.start()
                     
-                    execute_async_blocking(prepquery, batch, self.timeout)
-                
-                if n_matches % batch_size != 0:
-                    leftovers_batch = self.matches[(n_matches / batch_size)*batch_size:]
-                    if self.from_table != 'samples':
-                        in_clause = ",".join(map(str, leftovers_batch))            
-                        leftover_query = query + " WHERE %s IN (%s)" % (self.get_partition_key(self.from_table), in_clause)
-                    else:
-                        in_clause = "','".join(leftovers_batch)            
-                        leftover_query = query + " WHERE %s IN ('%s')" % (self.get_partition_key(self.from_table), in_clause)
-                    execute_async_blocking(leftover_query, (), self.timeout)                          
-            
+                for i in range(self.nr_cores):
+                    n = len(self.matches)
+                    begin = i*step + min(i, n % self.nr_cores)
+                    end = begin + step
+                    if i < n % self.nr_cores:
+                        end += 1  
+                    conns[i].send(self.matches[begin:end])   
+                    conns[i].close()
+                    
+                for i in range(self.nr_cores):
+                    procs[i].join()
+                    
             time_taken = time.time() - self.start_time
             print "Query %s completed in %s s." % (self.exp_id, time_taken)
             log = open("querylog", 'a')
@@ -1089,17 +1095,7 @@ class GeminiQuery(object):
         for token in tokens_to_be_removed:
             self.requested_columns.remove(token)
             
-    def _info_dict_to_string(self, info):
-        """
-        Flatten the VCF info-field OrderedDict into a string,
-        including all arrays for allelic-level info.
-        """
-        if info is not None:
-            return ';'.join(['%s=%s' % (key, value) if not isinstance(value, list) \
-                             else '%s=%s' % (key, ','.join([str(v) for v in value])) \
-                             for (key, value) in info.items()])
-        else:
-            return None
+    
 
     def _tokenize_query(self):
         tokens = list(flatten([x.split(",") for x in self.query.split(" ")]))
@@ -1129,6 +1125,18 @@ def select_formatter(args):
                                   % (args.format, SUPPORTED_FORMATS))
     else:
         return SUPPORTED_FORMATS[args.format](args)
+    
+def _info_dict_to_string(info):
+    """
+    Flatten the VCF info-field OrderedDict into a string,
+    including all arrays for allelic-level info.
+    """
+    if info is not None:
+        return ';'.join(['%s=%s' % (key, value) if not isinstance(value, list) \
+                        else '%s=%s' % (key, ','.join([str(v) for v in value])) \
+                         for (key, value) in info.items()])
+    else:
+        return None
 
 
 def flatten(l):
@@ -1158,32 +1166,70 @@ def fold(function, iterable, initializer=None):
         accum_value = function(x, accum_value)
     return accum_value
 
-class PagedResultHandler(object):
-
-    def __init__(self, future, gq):
+def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace):
+        
+    matches = conn.recv()
+    n_matches = len(matches)
+    conn.close()
+    
+    cluster = Cluster(db)
+    session = cluster.connect(keyspace)
+    session.row_factory = ordered_dict_factory
+    
+    def execute_async_blocking(query,pars=(),timeout=13.7):
+        future = session.execute_async(query,pars,timeout)  
+        
+        handler = LoggedPagedResultHandler(future, extra_columns, output_path)
+        handler.finished_event.wait()
+        if handler.error:
+            sys.stderr.write(query)
+    
+    batch_size = 500              
+    in_clause = ','.join(list(repeat("?",batch_size))) 
+    batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
+                
+    prepquery = session.prepare(batch_query)
+                
+    for i in range(n_matches / batch_size):
+        print "batch %d" % i
+        batch = matches[i*batch_size:(i+1)*batch_size]
+                    
+        execute_async_blocking(prepquery, batch)
+                
+    if n_matches % batch_size != 0:
+        leftovers_batch = matches[(n_matches / batch_size)*batch_size:]
+        if table != 'samples':
+            in_clause = ",".join(map(str, leftovers_batch))            
+            leftover_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
+        else:
+            in_clause = "','".join(leftovers_batch)            
+            leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
+        execute_async_blocking(leftover_query)      
+    
+    session.shutdown()
+    
+class LoggedPagedResultHandler(object):
+    
+    def __init__(self, future, extra_columns, output_path):
         self.error = None
         self.finished_event = Event()
+        self.extra_columns = extra_columns
+        self.output_path = output_path
+        self.report_cols = None
         self.future = future
-        self.gq = gq
-        self.future.add_callbacks(
-            callback=self.handle_page,
-            errback=self.handle_error)
+        self.future.add_callbacks(callback=self.handle_page, errback=self.handle_error)
 
     def handle_page(self, results):
         
-        report_cols_set = False
-            
-        for row in results:
-            
-            if not report_cols_set:                
-                self.gq.set_report_cols(filter(lambda x: not x in self.gq.extra_columns, row.keys()))
-                report_cols_set = True
-                if self.gq.use_header and self.gq.header:
-                    print self.gq.header
-                
-            gemini_row = self.gq.row_2_GeminiRow(row)
-            if not gemini_row == None:
-                print gemini_row
+        with open(self.output_path, 'a') as output:
+                    
+            for row in results:                
+                if not self.report_cols:
+                    self.report_cols = filter(lambda x: not x in self.extra_columns, row.keys())
+                    
+                gemini_row = barebones_row2geminiRow(row, self.report_cols)
+                if not gemini_row == None:
+                    output.write("%s\n" % gemini_row)
 
         if self.future.has_more_pages:
             self.future.start_fetching_next_page()
@@ -1194,5 +1240,26 @@ class PagedResultHandler(object):
         self.error = exc
         sys.stderr.write("Final query failed: %s\n" % exc)
         self.finished_event.set()
+        
+def barebones_row2geminiRow(row, report_cols):
+    
+    info = None
+
+    if 'info' in report_cols:
+        info = compression.unpack_ordereddict_blob(row['info'])
+
+    fields = OrderedDict()
+
+    for col in report_cols:
+        if col == "*":
+            continue
+        if not col == "info":
+            fields[col] = row[col]
+        elif col == "info":
+            fields[col] = _info_dict_to_string(info)
+            
+    gemini_row = GeminiRow(fields, [], [], [], [], [], info)
+
+    return gemini_row
 
         
