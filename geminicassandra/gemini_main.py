@@ -387,6 +387,10 @@ def main():
                               dest='timeout',
                               default=10.0,
                               type=float)
+    parser_query.add_argument('-batch_size',
+                              dest='batch_size',
+                              default=100,
+                              type=int)
     
     def query_fn(parser, args):
         import gemini_query

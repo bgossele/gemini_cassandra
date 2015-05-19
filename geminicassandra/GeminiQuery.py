@@ -219,7 +219,7 @@ class GeminiQuery(object):
             show_families=False, test_mode=False, 
             needs_sample_names=False, nr_cores = 1,
             start_time = -42, use_header = False,
-            exp_id="Oink", timeout=10.0):
+            exp_id="Oink", timeout=10.0, batch_size = 100):
         """
         Execute a query against a Gemini database. The user may
         specify:
@@ -235,6 +235,7 @@ class GeminiQuery(object):
         self.use_header = use_header
         self.exp_id = exp_id
         self.timeout = timeout
+        self.batch_size = batch_size
         if self._is_gt_filter_safe() is False:
             sys.exit("ERROR: unsafe --gt-filter command.")
         
@@ -488,7 +489,7 @@ class GeminiQuery(object):
                     p = Process(target=fetch_matches,
                                 args=(child_conn, output_path % i, query, self.from_table,\
                                       self.get_partition_key(self.from_table), self.extra_columns,\
-                                      self.db_contact_points, self.keyspace))
+                                      self.db_contact_points, self.keyspace, self.batch_size))
                     procs.append(p)
                     p.start()
                     
@@ -966,7 +967,7 @@ class LoggedPagedResultHandler(object):
         sys.stderr.write("Final query failed: %s\n" % exc)
         self.finished_event.set()
 
-def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace):
+def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace, b_size):
         
     start = time.time()
     
@@ -984,9 +985,11 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
     session = cluster.connect(keyspace)
     session.row_factory = ordered_dict_factory
     
-    batch_size = 2500          
+    batch_size = b_size       
     in_clause = ','.join(list(repeat("?",batch_size))) 
     batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
+    
+    print "fetching per %d" % batch_size
                 
     prepquery = session.prepare(batch_query)
     
