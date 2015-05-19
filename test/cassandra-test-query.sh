@@ -31,7 +31,7 @@ chr1	69427	69428	T	G
 chr1	69510	69511	A	G
 chr1	69760	69761	A	T
 chr1	69870	69871	G	A" > exp
-geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db $cassandra_ips -ks test_query_db | head \
+geminicassandra query -q "select chrom, start, end, ref, alt from variants" --test-mode -db $cassandra_ips -ks test_query_db --exp_id query2 | head \
        > obs
 check obs exp
 rm obs exp
@@ -52,7 +52,7 @@ chr1	1219533	1219536	GTT	G	SCNN1D
 chr1	1219555	1219558	GTT	G	SCNN1D" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene \
                  from variants \
-                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db | head \
+                 where gene == 'SCNN1D'" --test-mode -db $cassandra_ips -ks test_query_db --exp_id query3 | head \
 	> obs
 check obs exp
 rm obs exp
