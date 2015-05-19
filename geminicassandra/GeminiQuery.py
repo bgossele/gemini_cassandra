@@ -544,10 +544,8 @@ class GeminiQuery(object):
             finally:
                 time_taken = time.time() - self.start_time
                 
-        log = open("querylog", 'a')
-        log.write("2::%s;%s\n" % (self.exp_id, time_taken))
-        log.close() 
-            
+        with open("querylog", 'a') as log:
+            log.write("2::%s;%s\n" % (self.exp_id, time_taken))
                 
     def set_report_cols(self, rep_cols):
         self.report_cols = rep_cols
@@ -988,8 +986,6 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
     batch_size = b_size       
     in_clause = ','.join(list(repeat("?",batch_size))) 
     batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
-    
-    print "fetching per %d" % batch_size
                 
     prepquery = session.prepare(batch_query)
     
