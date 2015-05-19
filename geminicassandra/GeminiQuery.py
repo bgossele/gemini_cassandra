@@ -966,23 +966,17 @@ class LoggedPagedResultHandler(object):
 
 def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace):
         
+    start = time.time()
+    
     matches = conn.recv()
     n_matches = len(matches)
     conn.close()
     
+    print "receiving matches took %.2f s" % (time.time() - start)
+    
     cluster = Cluster(db)
     session = cluster.connect(keyspace)
     session.row_factory = ordered_dict_factory
-    
-    def execute_async_blocking(query,pars=(),timeout=13.7):
-        future = session.execute_async(query,pars,timeout)  
-        
-        handler = LoggedPagedResultHandler(future, extra_columns, output_path)
-        handler.finished_event.wait()
-        if handler.error:
-            sys.stderr.write(str(query) + "\n")
-            
-    print "%s ready to roll!" % output_path
     
     batch_size = 50
     batch_buffer = []
@@ -993,7 +987,15 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
                 
     prepquery = session.prepare(batch_query)
     
-    print "%s query prepared" % os.getpid()
+    print "setup ready in %.2f s" % (time.time() - start)
+    
+    def execute_async_blocking(query,pars=(),timeout=13.7):
+        future = session.execute_async(query,pars,timeout)  
+        
+        handler = LoggedPagedResultHandler(future, extra_columns, output_path)
+        handler.finished_event.wait()
+        if handler.error:
+            sys.stderr.write(str(query) + "\n")
                 
     for i in range(n_matches / batch_size):
         batch_buffer.append(matches[i*batch_size:(i+1)*batch_size])
