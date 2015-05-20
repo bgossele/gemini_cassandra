@@ -973,8 +973,6 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
     n_matches = len(matches)
     conn.close()
     
-    print "receiving matches took %.2f s" % (time.time() - start)
-    
     if cpu_count() > 8:            
         nap = 3*randint(0,6)
         sleep(nap)
