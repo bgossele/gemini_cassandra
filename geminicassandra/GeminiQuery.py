@@ -456,6 +456,7 @@ class GeminiQuery(object):
         n_matches = len(self.matches)
         self.session.row_factory = ordered_dict_factory
         query = "SELECT %s FROM %s" % (','.join(self.requested_columns + self.extra_columns), self.from_table)
+        error_count = 0
         
         if n_matches == 0:
             
@@ -499,15 +500,18 @@ class GeminiQuery(object):
                     end = begin + step
                     if i < n % self.nr_cores:
                         end += 1  
-                    conns[i].send(self.matches[begin:end])   
-                    conns[i].close()
+                    conns[i].send(self.matches[begin:end]) 
                     
                 for i in range(self.nr_cores):
+                    errs = conns[i].recv()
+                    error_count += errs
+                    conns[i].close()
                     procs[i].join()
                 
                 time_taken = time.time() - self.start_time
                     
                 print "Query %s completed in %s s." % (self.exp_id, time_taken)
+                print "Query %s encountered %d errors" % (self.exp_id, error_count)
                    
         else: 
             signal(SIGPIPE,SIG_DFL) 
@@ -545,7 +549,7 @@ class GeminiQuery(object):
                 time_taken = time.time() - self.start_time
                 
         with open("querylog", 'a') as log:
-            log.write("2::%s;%s\n" % (self.exp_id, time_taken))
+            log.write("2::%s;%s;%d\n" % (self.exp_id, time_taken, error_count))
                 
     def set_report_cols(self, rep_cols):
         self.report_cols = rep_cols
@@ -962,8 +966,6 @@ class LoggedPagedResultHandler(object):
 
     def handle_error(self, exc):
         self.error = exc
-        sys.stderr.write("Final query failed: %s\n" % exc)
-        self.finished_event.set()
 
 def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace, b_size):
         
@@ -971,7 +973,8 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
     
     matches = conn.recv()
     n_matches = len(matches)
-    conn.close()
+    
+    error_count = 0
     
     if cpu_count() > 8:            
         nap = 3*randint(0,6)
@@ -994,7 +997,7 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
         handler = LoggedPagedResultHandler(future, extra_columns, output_path)
         handler.finished_event.wait()
         if handler.error:
-            sys.stderr.write(str(query) + "\n")
+            error_count += 1
                 
     for i in range(n_matches / batch_size):
         batch = matches[i*batch_size:(i+1)*batch_size]
@@ -1010,6 +1013,8 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
             leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
         execute_async_blocking(leftover_query)      
     
+    conn.send(error_count)
+    conn.close()
     session.shutdown()
         
 def barebones_row2geminiRow(row, report_cols):
