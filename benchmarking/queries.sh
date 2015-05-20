@@ -25,60 +25,60 @@ do
 	
 	rm -r exp3_results
 
-	geminicassandra query -q "select chrom, start, end, ref, alt, gene from variants" \
-	               --gt-filter "gt_types.HG00239 != HET" \
-	                -db $db_ips -ks $keyspace --exp_id exp4 --cores 24
+#	geminicassandra query -q "select chrom, start, end, ref, alt, gene from variants" \
+#	               --gt-filter "gt_types.HG00239 != HET" \
+#	                -db $db_ips -ks $keyspace --exp_id exp4 --cores 24
 	
-	rm -r exp4_results
+#	rm -r exp4_results
 
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_4 \
-			--cores 4
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_4 \
+#			--cores 4
 
-	rm -r exp5_4_results
+#	rm -r exp5_4_results
 
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_6 \
-					--cores 6
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_6 \
+#					--cores 6
 
-	rm -r exp5_6_results
+#	rm -r exp5_6_results
 	
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_8 \
-					--cores 8
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_8 \
+#					--cores 8
 
-	rm -r exp5_8_results
+#	rm -r exp5_8_results
 	
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_10 \
-			--cores 10
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_10 \
+#			--cores 10
 
-	rm -r exp5_10_results
+#	rm -r exp5_10_results
 	
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_12 \
-			--cores 12
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_12 \
+#			--cores 12
 
-	rm -r exp5_12_results
+#	rm -r exp5_12_results
 	
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_16 \
-			--cores 16
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_16 \
+#			--cores 16
 
-	rm -r exp5_16_results
+#	rm -r exp5_16_results
 			
-	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_24 \
-			--cores 24
+#	geminicassandra query \
+#	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+#	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_24 \
+#			--cores 24
 
-	rm -r exp5_24_results
+#	rm -r exp5_24_results
 		
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
