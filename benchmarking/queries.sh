@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 
 export db_ips=ly-1-00,ly-1-07,ly-2-10,ly-1-12,ly-1-14
 export keyspace=s_db
