@@ -171,6 +171,8 @@ benchmarking/res
 benchmarking/querylog
 test/loading_logs
 querylog
+benchmarking/exp*
+
 
 # emacs temporary file
 .#*
