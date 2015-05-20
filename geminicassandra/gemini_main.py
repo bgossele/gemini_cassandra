@@ -389,7 +389,7 @@ def main():
                               type=float)
     parser_query.add_argument('-batch_size',
                               dest='batch_size',
-                              default=100,
+                              default=50,
                               type=int)
     
     def query_fn(parser, args):
