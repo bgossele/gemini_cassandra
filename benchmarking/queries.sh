@@ -32,170 +32,162 @@ do
 	rm -r exp4_results
 
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_4 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_4 \
 			--cores 4
 
 	rm -r exp5_4_results
 
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_6 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_6 \
 					--cores 6
 
 	rm -r exp5_6_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_8 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_8 \
 					--cores 8
 
 	rm -r exp5_8_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_10 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_10 \
 			--cores 10
 
 	rm -r exp5_10_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_12 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_12 \
 			--cores 12
 
 	rm -r exp5_12_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_16 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_16 \
 			--cores 16
 
 	rm -r exp5_16_results
 			
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_24 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all]" -db $db_ips -ks $keyspace --exp_id exp5_24 \
 			--cores 24
 
 	rm -r exp5_24_results
 		
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_4 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_4 \
 			--cores 4
 	
 	rm -r exp6_4_results
 
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_6 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_6 \
 			--cores 6
 	
 	rm -r exp6_6_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_8 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_8 \
 			--cores 8
 	
 	rm -r exp6_8_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_10 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_10 \
 			--cores 10
 	
 	rm -r exp6_10_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_12 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_12 \
 			--cores 12
 	
 	rm -r exp6_12_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] &&\
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_16 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] &&\
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_16 \
 			--cores 16
 	
 	rm -r exp6_16_results
 			
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[==HOM_REF].[all] &&\
-	                            [gt_depths].[phenotype==2].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_24 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[==HOM_REF].[all] &&\
+	                            [gt_depths].[phenotype=='2'].[>=20].[all]" -db $db_ips -ks $keyspace --exp_id exp6_24 \
 			--cores 24
 	
 	rm -r exp6_24_results
 	
 	geminicassandra query \
 	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_4 \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_4 \
 			--cores 4
 	
 	rm -r exp7_4_results
 
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_6 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_6 \
 			--cores 6
 	
 	rm -r exp7_6_results
 	
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_8 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_8 \
 			--cores 8
 	
 	rm -r exp7_8_results
 	
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_10 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_10 \
 			--cores 10
 	
 	rm -r exp7_10_results
 	
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_12 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_12 \
 			--cores 12
 	
 	rm -r exp7_12_results
 	
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_16 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_16 \
 			--cores 16
 	
 	rm -r exp7_16_results
 	
 	geminicassandra query \
-	               -q "SELECT chrom, start, end, ref, alt, gene \
-	                   FROM variants" \
-	               --gt-filter "[gt_types].[phenotype==2].[!=HOM_REF].[all] && \
-	                            [gt_depths].[phenotype==2].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_24 \
+	               -q "SELECT chrom, start, end, ref, alt, gene FROM variants" \
+	               --gt-filter "[gt_types].[phenotype=='2'].[!=HOM_REF].[all] && \
+	                            [gt_depths].[phenotype=='2'].[<10].[count <= 20]" -db $db_ips -ks $keyspace --exp_id exp7_24 \
 			--cores 24
 	
 	rm -r exp7_24_results
