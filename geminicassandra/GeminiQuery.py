@@ -966,6 +966,7 @@ class LoggedPagedResultHandler(object):
 
     def handle_error(self, exc):
         self.error = exc
+        self.finished_event.set()
 
 def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace, b_size):
         
