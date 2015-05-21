@@ -3,17 +3,17 @@
 # 1. Test the samples table
 ####################################################################
 echo "    query.t01...\c"
-echo "1094PC0005	1	0	0	0	-9	-9
-1094PC0009	2	0	0	0	-9	-9
-1094PC0012	3	0	0	0	-9	-9
-1094PC0013	4	0	0	0	-9	-9
-1094PC0016	5	0	0	0	-9	-9
-1094PC0017	6	0	0	0	-9	-9
-1094PC0018	7	0	0	0	-9	-9
-1094PC0019	8	0	0	0	-9	-9
-1094PC0020	9	0	0	0	-9	-9
-1094PC0021	10	0	0	0	-9	-9" > exp
-geminicassandra query -q "select * from samples" --test-mode -db $cassandra_ips -ks test_query_db | head > obs
+echo "1094PC0005	1	0	0	0
+1094PC0009	2	0	0	0
+1094PC0012	3	0	0	0
+1094PC0013	4	0	0	0
+1094PC0016	5	0	0	0
+1094PC0017	6	0	0	0
+1094PC0018	7	0	0	0
+1094PC0019	8	0	0	0
+1094PC0020	9	0	0	0
+1094PC0021	10	0	0	0" > exp
+geminicassandra query -q "select name, sample_id, family_id, maternal_id, paternal_id from samples" --test-mode -db $cassandra_ips -ks test_query_db | head > obs
 check obs exp
 rm obs exp
 

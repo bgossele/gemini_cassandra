@@ -488,7 +488,7 @@ class GeminiQuery(object):
                     parent_conn, child_conn = Pipe()
                     conns.append(parent_conn)
                     p = Process(target=fetch_matches,
-                                args=(child_conn, output_path % i, query, self.from_table,\
+                                args=(child_conn, i, output_path % i, query, self.from_table,\
                                       self.get_partition_key(self.from_table), self.extra_columns,\
                                       self.db_contact_points, self.keyspace, self.batch_size))
                     procs.append(p)
@@ -695,20 +695,21 @@ class GeminiQuery(object):
         where_clause = where_clause.replace('==','=')
         clauses = where_clause.split("and")
         
-        has_range_clause = False
         range_clauses = filter(lambda x: '<' in x or '>' in x, clauses)    
-        if len(range_clauses) > 1:
-            sys.exit("ERROR: only one range clause within single table possible")
-        elif len(range_clauses) == 1:
-            range_clause = range_clauses[0] 
-            has_range_clause = True
+            
+        range_col = None
+        for range_clause in range_clauses:
             i = 0
             for op in ["<", ">"]:
                 temp = range_clause.find(op)
                 if temp > -1:
                     i = temp
                     break
-            range_col = range_clause[0:i].strip()
+            col = range_clause[0:i].strip()
+            if range_col and (col != range_col):
+                sys.exit("ERROR: range clauses only possible on at most one column")
+            else:
+                range_col = col            
             
         eq_clauses = filter(lambda x: not ('<' in x or '>' in x), clauses)
         eq_clauses = map(lambda x: x.split('='), eq_clauses)
@@ -720,7 +721,7 @@ class GeminiQuery(object):
             if all(x in eq_columns for x in t.partition_key):
                 other_cols = filter(lambda x: not x in t.partition_key, eq_columns)
                 if all (x in t.clustering_key[:len(other_cols)] for x in other_cols):
-                    if has_range_clause:
+                    if range_col:
                         if range_col == t.clustering_key[len(other_cols)]:
                             return t.name
                     else:
@@ -969,7 +970,7 @@ class LoggedPagedResultHandler(object):
         sys.stderr.write(str(type(exc)) + "\n")
         self.finished_event.set()
 
-def fetch_matches(conn, output_path, query, table, partition_key, extra_columns, db, keyspace, b_size):
+def fetch_matches(conn, proc_n, output_path, query, table, partition_key, extra_columns, db, keyspace, b_size):
         
     start = time.time()
     
@@ -979,18 +980,22 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
     error_count = 0
     
     if cpu_count() > 8:            
-        nap = 3*randint(0,6)
+        nap = 1*(proc_n % 11)
         sleep(nap)
     
-    cluster = Cluster(db)
-    session = cluster.connect(keyspace)
-    session.row_factory = ordered_dict_factory
+    session = connect_or_fail(db, keyspace)
+    if not session:
+        return       
+    
+    if cpu_count() > 8:            
+        nap = 1*(11 - (proc_n % 11))
+        sleep(nap)
     
     batch_size = b_size       
     in_clause = ','.join(list(repeat("?",batch_size))) 
     batch_query = query + " WHERE %s IN (%s)" % (partition_key, in_clause)
                 
-    prepquery = session.prepare(batch_query)
+    prepared_query = session.prepare(batch_query)
     
     print "setup ready in %.2f s" % (time.time() - start)
     
@@ -999,11 +1004,13 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
         handler = LoggedPagedResultHandler(future, extra_columns, output_path)
         handler.finished_event.wait()
         if handler.error:
-            error_count += 1
+            return 1
+        else:
+            return 0
                 
     for i in range(n_matches / batch_size):
         batch = matches[i*batch_size:(i+1)*batch_size]
-        execute_async_blocking(prepquery, batch)             
+        error_count += execute_async_blocking(prepared_query, batch)             
                 
     if n_matches % batch_size != 0:
         leftovers_batch = matches[(n_matches / batch_size)*batch_size:]
@@ -1013,12 +1020,25 @@ def fetch_matches(conn, output_path, query, table, partition_key, extra_columns,
         else:
             in_clause = "','".join(leftovers_batch)            
             leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
-        execute_async_blocking(leftover_query)      
+        error_count += execute_async_blocking(leftover_query)      
     
     conn.send(error_count)
     conn.close()
     session.shutdown()
-        
+    
+def connect_or_fail(db, keyspace, retry = 0):
+    
+    try:
+        cluster = Cluster(db)
+        session = cluster.connect(keyspace)
+        session.row_factory = ordered_dict_factory
+        return session
+    except Exception:
+        if retry < 10:
+            return connect_or_fail(db, keyspace, retry + 1)
+        else:
+            return None    
+           
 def barebones_row2geminiRow(row, report_cols):
     
     info = None
