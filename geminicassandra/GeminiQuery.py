@@ -1000,7 +1000,7 @@ def fetch_matches(conn, proc_n, output_path, query, table, partition_key, extra_
                 
     for i in range(n_matches / batch_size):
         batch = matches[i*batch_size:(i+1)*batch_size]
-        error_count += execute_async_blocking(session, prepared_query, output_path, batch)             
+        error_count += execute_async_blocking(session, prepared_query, output_path, extra_columns, batch)             
                 
     if n_matches % batch_size != 0:
         leftovers_batch = matches[(n_matches / batch_size)*batch_size:]
@@ -1010,7 +1010,7 @@ def fetch_matches(conn, proc_n, output_path, query, table, partition_key, extra_
         else:
             in_clause = "','".join(leftovers_batch)            
             leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
-        error_count += execute_async_blocking(session, leftover_query, output_path, batch)      
+        error_count += execute_async_blocking(session, leftover_query, output_path, extra_columns, leftovers_batch)      
     
     conn.send(error_count)
     conn.close()
