@@ -465,11 +465,16 @@ class GeminiQuery(object):
             
         elif not self.test_mode:
             
+            output_folder = self.exp_id + "_results"
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+            output_path = output_folder + "/%s"
+            
             if self.matches == "*":
                 
                 print "All rows match query."
                 query += " " + self.rest_of_query                
-                execute_async_blocking(query, (), self.timeout)
+                error_count += execute_async_blocking(self.session, query, output_path % 0, self.extra_columns, (), self.timeout)
             
             else:
                 
@@ -478,11 +483,6 @@ class GeminiQuery(object):
                     
                 procs = []
                 conns = []
-                
-                output_folder = self.exp_id + "_results"
-                if not os.path.exists(output_folder):
-                    os.makedirs(output_folder)
-                output_path = output_folder + "/%s"
                                        
                 for i in range(self.nr_cores):
                     parent_conn, child_conn = Pipe()
@@ -508,10 +508,10 @@ class GeminiQuery(object):
                     conns[i].close()
                     procs[i].join()
                 
-                time_taken = time.time() - self.start_time
+            time_taken = time.time() - self.start_time
                     
-                print "Query %s completed in %s s." % (self.exp_id, time_taken)
-                print "Query %s encountered %d errors" % (self.exp_id, error_count)
+            print "Query %s completed in %s s." % (self.exp_id, time_taken)
+            print "Query %s encountered %d errors" % (self.exp_id, error_count)
                    
         else: 
             signal(SIGPIPE,SIG_DFL) 
@@ -864,8 +864,7 @@ class GeminiQuery(object):
                 tokens_to_be_removed.add(token)
         
         for token in tokens_to_be_removed:
-            self.requested_columns.remove(token)
-            
+            self.requested_columns.remove(token)         
     
 
     def _tokenize_query(self):
@@ -998,19 +997,10 @@ def fetch_matches(conn, proc_n, output_path, query, table, partition_key, extra_
     prepared_query = session.prepare(batch_query)
     
     print "setup ready in %.2f s" % (time.time() - start)
-    
-    def execute_async_blocking(query,pars=(),timeout=13.7):
-        future = session.execute_async(query,pars,timeout)          
-        handler = LoggedPagedResultHandler(future, extra_columns, output_path)
-        handler.finished_event.wait()
-        if handler.error:
-            return 1
-        else:
-            return 0
                 
     for i in range(n_matches / batch_size):
         batch = matches[i*batch_size:(i+1)*batch_size]
-        error_count += execute_async_blocking(prepared_query, batch)             
+        error_count += execute_async_blocking(session, prepared_query, output_path, batch)             
                 
     if n_matches % batch_size != 0:
         leftovers_batch = matches[(n_matches / batch_size)*batch_size:]
@@ -1020,11 +1010,20 @@ def fetch_matches(conn, proc_n, output_path, query, table, partition_key, extra_
         else:
             in_clause = "','".join(leftovers_batch)            
             leftover_query = query + " WHERE %s IN ('%s')" % (partition_key, in_clause)
-        error_count += execute_async_blocking(leftover_query)      
+        error_count += execute_async_blocking(session, leftover_query, output_path, batch)      
     
     conn.send(error_count)
     conn.close()
     session.shutdown()
+    
+def execute_async_blocking(session, query, output_path, extra_columns, pars=(),timeout=13.7):
+    future = session.execute_async(query,pars,timeout)          
+    handler = LoggedPagedResultHandler(future, extra_columns, output_path)
+    handler.finished_event.wait()
+    if handler.error:
+        return 1
+    else:
+        return 0
     
 def connect_or_fail(db, keyspace, retry = 0):
     
