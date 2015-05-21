@@ -25,9 +25,9 @@ class Expression(object):
 
 class Basic_expression(Expression):
     
-    def __init__(self, from_table, SELECT_column, where_clause):
+    def __init__(self, from_table, select_column, where_clause):
         self.table = from_table
-        self.SELECT_column = SELECT_column
+        self.select_column = select_column
         self.where_clause = where_clause
   
     def evaluate(self, socket, starting_set):
@@ -36,18 +36,18 @@ class Basic_expression(Expression):
             return set()
         
         query = "SELECT %s FROM %s" % \
-            (self.SELECT_column, self.table)
+            (self.select_column, self.table)
         if self.where_clause != "":
             query += " WHERE %s" % self.where_clause            
         if self.can_prune() and not starting_set == "*":
             if self.table.startswith('samples'):
                 in_clause = "','".join(starting_set)            
                 query += " AND %s IN ('%s')" % \
-                    (self.SELECT_column, in_clause)
+                    (self.select_column, in_clause)
             else:
                 in_clause = ",".join(map(str, starting_set))            
                 query += " AND %s IN (%s)" % \
-                    (self.SELECT_column, in_clause)     
+                    (self.select_column, in_clause)     
         return async_rows_as_set(socket, query)
     
     def can_prune(self):
@@ -106,22 +106,29 @@ class OR_expression(Expression):
     
 class NOT_expression(Expression):
     
-    def __init__(self, exp, table, SELECT_column):
+    def __init__(self, exp, table, select_column, total_nr_variants):
         self.body = exp
         self.table = table
-        self.SELECT_column = SELECT_column
+        self.select_column = select_column
+        self.total_nr_variants = total_nr_variants
  
     def evaluate(self, session, starting_set):
         
         if len(starting_set) == 0:
             return set()        
         elif starting_set == '*':
-            correct_starting_set = async_rows_as_set(session, "SELECT %s FROM %s" % (self.SELECT_column, self.table))
+            if self.table == 'variants':
+                correct_starting_set = set(range(1, self.total_nr_variants+1))
+            else:
+                correct_starting_set = async_rows_as_set(session, "SELECT %s FROM %s" % (self.select_column, self.table))            
         else:
             correct_starting_set = starting_set
         
-        return correct_starting_set - \
-            self.body.evaluate(session, correct_starting_set)
+        if self.table == 'variants' and starting_set == "*":
+            return correct_starting_set - self.body.evaluate(session, "*")
+        else:
+            return correct_starting_set - \
+                self.body.evaluate(session, correct_starting_set)
 
     def __str__(self):
         return "NOT (" + str(self.body) + ")"
@@ -131,7 +138,7 @@ class NOT_expression(Expression):
     
 class GT_wildcard_expression(Expression):
     
-    def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, db_contact_points, keyspace, cores_for_eval = 1):
+    def __init__(self, column, wildcard_rule, rule_enforcement, sample_names, db_contact_points, keyspace, n_variants, cores_for_eval = 1):
         self.column = column
         self.wildcard_rule = wildcard_rule
         if rule_enforcement.startswith('count'):
@@ -143,6 +150,7 @@ class GT_wildcard_expression(Expression):
         self.nr_cores = cores_for_eval
         self.db_contact_points = db_contact_points
         self.keyspace = keyspace
+        self.n_variants = n_variants
         
     def __str__(self):
         return "[%s].[%s].[%s].[%s]" % (self.column, ','.join(self.names), self.wildcard_rule, self.rule_enforcement)
@@ -178,7 +186,7 @@ class GT_wildcard_expression(Expression):
             corrected_rule = self.wildcard_rule
             
         if starting_set == "*" and (invert or target_rule == 'none' or target_rule == 'count'):
-            correct_starting_set = array.array('i', async_rows_as_set(session, "SELECT variant_id FROM variants"))
+            correct_starting_set = array.array('i', range(1,self.n_variants+1))
         elif starting_set != "*":
             correct_starting_set = array.array('i', starting_set)
         else:

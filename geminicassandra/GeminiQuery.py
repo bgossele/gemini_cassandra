@@ -19,12 +19,11 @@ from cassandra.query import ordered_dict_factory, tuple_factory
 from string import strip
 import time
 from threading import Event
-from itertools import repeat, count
+from itertools import repeat
 from multiprocessing.process import Process
 from multiprocessing import Pipe, cpu_count
 from signal import signal, SIGPIPE, SIG_DFL
 import os
-from random import randint
 from time import sleep
 
 
@@ -197,6 +196,7 @@ class GeminiQuery(object):
 
         # try to connect to the provided database
         self._connect_to_database()
+        self.n_variants = self.get_n_variants()
 
         # list of samples ids for each clause in the --gt-filter
         self.sample_info = collections.defaultdict(list)
@@ -209,9 +209,10 @@ class GeminiQuery(object):
         self.sample_to_sample_object = util.map_samples_to_sample_objects(self.session)'''
         self.formatter = out_format
         self.predicates = [self.formatter.predicate]
-
-    def _set_gemini_browser(self, for_browser):
-        self.for_browser = for_browser
+        
+    def get_n_variants(self):
+        res = self.session.execute("select n_rows from row_counts where table_name = 'variants'")
+        return res[0].n_rows
 
     def run(self, query, gt_filter=None, show_variant_samples=False,
             variant_samples_delim=',', predicates=None,
@@ -670,7 +671,7 @@ class GeminiQuery(object):
                     if clause[i:i+3] == "NOT":
                         if depth == 0:
                             body = self.parse_clause(clause[i+3:].strip(), base_clause_parser, table)
-                            return NOT_expression(body, table, self.get_partition_key(table))
+                            return NOT_expression(body, table, self.get_partition_key(table), self.n_variants)
                         else:
                             min_depth = min(min_depth, depth)
         if depth == 0:
@@ -775,7 +776,7 @@ class GeminiQuery(object):
                 
         exp = Basic_expression('variants_by_samples_' + column, 'variant_id' , "sample_name = '" + sample + "' AND " + column + clause)
         if not_exp:
-            return NOT_expression(exp, 'variants', 'variant_id')
+            return NOT_expression(exp, 'variants', 'variant_id', self.n_variants)
         else:
             return exp
     
@@ -803,7 +804,8 @@ class GeminiQuery(object):
         
         actual_nr_cores = min(len(sample_names), self.nr_cores)
         
-        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, self.db_contact_points, self.keyspace, actual_nr_cores) 
+        return GT_wildcard_expression(column, wildcard_rule, wildcard_op, sample_names, \
+                                       self.db_contact_points, self.keyspace, self.n_variants, actual_nr_cores) 
     
     def _swap_genotype_for_number(self, token):
                 

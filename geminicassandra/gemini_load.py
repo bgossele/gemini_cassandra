@@ -10,6 +10,8 @@ import subprocess
 from gemini_load_chunk import GeminiLoader
 import time
 from cluster_helper.cluster import cluster_view
+from cassandra.cluster import Cluster
+from string import strip
 
 
 def load(parser, args):
@@ -50,14 +52,19 @@ def load(parser, args):
         time_2 = time.time()
         gemini_loader.single_core_stuff()
         time_3 = time.time()
+        
+    n_variants = 0
     
     if args.scheduler:
         #load_ipython(args)
         sys.stdout.write("Just testing, no fancy scheduler stuff available yet")
     elif args.cores > 1:
-        load_multicore(args)
+        n_variants = load_multicore(args)
     else:
-        load_singlecore(args)
+        n_variants = load_singlecore(args)
+        
+    insert_n_variants(map(strip, args.contact_points.split(',')), args.keyspace, n_variants)
+        
     end_time = time.time()
     total_time = str(end_time - start_time)
     db_creation_time = str(time_2 - start_time)
@@ -89,9 +96,14 @@ def load_singlecore(args):
         
     #geminicassandra.add_extras(args.db, [args.db])
 
+def insert_n_variants(db, ks, n):
+    session = Cluster(db).connect(ks)
+    from database_cassandra import insert
+    insert(session, 'row_counts', ['table_name', 'n_rows'], ['variants', n])
+
 def load_multicore(args):
     grabix_file = bgzip(args.vcf)
-    load_chunks_multicore(grabix_file, args)
+    return load_chunks_multicore(grabix_file, args)
     # geminicassandra.add_extras(args.db, chunks)
 
 
@@ -172,6 +184,7 @@ def load_chunks_multicore(grabix_file, args):
 
     wait_until_finished(procs)
     print "Done loading {0} variants in {1} chunks.".format(stop, chunk_num+1)
+    return stop
 
 def load_chunks_ipython(grabix_file, args, view):
     # specify the PED file if given one

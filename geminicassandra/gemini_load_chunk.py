@@ -80,7 +80,7 @@ class GeminiLoader(object):
         if not self.args.no_genotypes and not self.args.no_load_genotypes:
                 # load the sample info from the VCF file.
             self._prepare_samples()
-                # initialize genotype counts for each sampl  
+                # initialize genotype counts for each sample 
             
         if not self.args.skip_gene_tables:
             self._get_gene_detailed()
@@ -263,6 +263,8 @@ class GeminiLoader(object):
             sys.stderr.write("pid " + str(os.getpid()) + ": " +
                              str(self.skipped) + " skipped due to having the "
                              "FILTER field set.\n")
+            
+        return self.counter
             
     def prepared_batch_insert(self, types_buf, depth_buf, gt_buffer, queue_length=40):
         """
@@ -779,7 +781,9 @@ class GeminiLoader(object):
         column_names = get_column_names('samples') + self.extra_sample_columns  
         batch_insert(self.session, 'samples', column_names, samples_buffer)
         batch_insert(self.session, 'samples_by_phenotype', column_names, samples_buffer)
-        batch_insert(self.session, 'samples_by_sex', column_names, samples_buffer)        
+        batch_insert(self.session, 'samples_by_sex', column_names, samples_buffer)    
+        
+        insert(self.session, 'row_counts', ['table_name', 'n_rows'], ['samples', len(self.samples)])
         
     def _get_gene_detailed(self):
         """

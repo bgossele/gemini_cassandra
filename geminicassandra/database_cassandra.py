@@ -44,6 +44,10 @@ def create_tables(session, gt_column_names, extra_sample_columns):
     session.execute(SimpleStatement('''CREATE TABLE if not exists resources ( \
                      name text PRIMARY KEY,                  \
                      resource text)'''))
+    
+    session.execute(SimpleStatement('''CREATE TABLE if not exists row_counts ( \
+                     table_name text PRIMARY KEY,                  \
+                     n_rows int)'''))
 
     session.execute(SimpleStatement('''CREATE TABLE if not exists version ( \
                      version text PRIMARY KEY)'''))

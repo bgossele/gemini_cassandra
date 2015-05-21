@@ -7,7 +7,6 @@ from GeminiQuery import select_formatter
 from gemini_region import add_region_to_query
 from gemini_subjects import (get_subjects, get_subjects_in_family,
                              get_family_dict)
-from dgidb import query_dgidb
 import time
 
 def all_samples_predicate(args):
