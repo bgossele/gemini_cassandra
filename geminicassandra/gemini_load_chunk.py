@@ -59,6 +59,8 @@ class GeminiLoader(object):
         self.typed_gt_column_names = []
         self.gt_column_names = []
         
+        self.node_n = args.node_num
+        
         if not self.args.no_genotypes:
             self.samples = self.vcf_reader.samples
             self.gt_column_names, self.typed_gt_column_names = self._get_typed_gt_column_names()
@@ -128,9 +130,8 @@ class GeminiLoader(object):
         
         basic_query = 'INSERT INTO %s ( %s ) VALUES ( %s  )'
         
-        if cpu_count() > 8:
-            
-            nap = 20*randint(0,6)
+        if cpu_count() > 8:            
+            nap = 10 * (self.node_n % 11)
             sleep(nap)
         
         start_time = time.time()
@@ -153,8 +154,12 @@ class GeminiLoader(object):
                              ('variants_by_gene', 'variant_id, gene', ','.join(list(repeat("?", 2)))))
         self.insert_variant_chrom_start_query = self.session.prepare(basic_query % \
                              ('variants_by_chrom_start', 'variant_id, chrom, start', ','.join(list(repeat("?", 3)))))
-                       
+        
         end_time = time.time()
+        
+        if cpu_count() > 8:            
+            nap = 10 * (11 - (self.node_n % 11))
+            sleep(nap)                       
         
         print "Proc %s: preparing statements took %.2f s." % (os.getpid(), (end_time - start_time))
                                                  

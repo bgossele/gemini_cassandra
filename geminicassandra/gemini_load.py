@@ -55,10 +55,7 @@ def load(parser, args):
         
     n_variants = 0
     
-    if args.scheduler:
-        #load_ipython(args)
-        sys.stdout.write("Just testing, no fancy scheduler stuff available yet")
-    elif args.cores > 1:
+    if args.cores > 1:
         n_variants = load_multicore(args)
     else:
         n_variants = load_singlecore(args)
@@ -104,13 +101,6 @@ def insert_n_variants(db, ks, n):
 def load_multicore(args):
     grabix_file = bgzip(args.vcf)
     return load_chunks_multicore(grabix_file, args)
-    # geminicassandra.add_extras(args.db, chunks)
-
-
-def load_ipython(args):
-    grabix_file = bgzip(args.vcf)
-    with cluster_view(*get_ipython_args(args)) as view:
-        chunks = load_chunks_ipython(grabix_file, args, view)
     # geminicassandra.add_extras(args.db, chunks)
 
 
@@ -166,6 +156,7 @@ def load_chunks_multicore(grabix_file, args):
     keyspace = "-ks " + args.keyspace
     buffer_size = "--buffer-size " + str(args.buffer_size)
     max_queue = "--max_queue " + str(args.max_queue)
+    node_num = "--node_num "
     
     submit_command = "{cmd}"
     vcf, _ = os.path.splitext(grabix_file)
@@ -174,6 +165,7 @@ def load_chunks_multicore(grabix_file, args):
     procs = []
 
     for chunk_num, chunk in chunk_steps:
+        node_num = node_num + str(chunk_num)
         start, stop = chunk
         gemini_load = gemini_pipe_load_cmd().format(**locals())
         procs.append(subprocess.Popen(submit_command.format(cmd=gemini_load),
@@ -181,81 +173,13 @@ def load_chunks_multicore(grabix_file, args):
 
         chunk_vcf = vcf + ".chunk" + str(chunk_num)
         chunk_vcfs.append(chunk_vcf)
+        node_num = "--node_num "
 
     wait_until_finished(procs)
     print "Done loading {0} variants in {1} chunks.".format(stop, chunk_num+1)
     return stop
 
-def load_chunks_ipython(grabix_file, args, view):
-    # specify the PED file if given one
-    ped_file = ""
-    if args.ped_file is not None:
-        ped_file = "-p " + args.ped_file
 
-    # specify the annotation type if given one
-    anno_type = ""
-    if args.anno_type is not None:
-        anno_type = "-t " + args.anno_type
-
-    no_genotypes = ""
-    if args.no_genotypes is True:
-        no_genotypes = "--no-genotypes"
-
-    no_load_genotypes = ""
-    if args.no_load_genotypes is True:
-        no_load_genotypes = "--no-load-genotypes"
-
-    skip_gerp_bp = ""
-    if args.skip_gerp_bp is True:
-        skip_gerp_bp = "--skip-gerp-bp"
-
-    skip_gene_tables = ""
-    if args.skip_gene_tables is True:
-        skip_gene_tables = "--skip-gene-tables"
-    
-    skip_cadd = ""
-    if args.skip_cadd is True:
-        skip_cadd = "--skip-cadd"
-    
-    test_mode = ""
-    if args.test_mode is True:
-        test_mode = "--test-mode"
-
-    passonly = ""
-    if args.passonly is True:
-        passonly = "--passonly"
-        
-    contact_points = "-db \"" + args.contact_points + "\""
-    keyspace = "-ks \"" + args.keyspace + "\""
-    buffer_size = "--buffer-size " + args.buffer_size 
-
-    skip_info_string = ""
-    if args.skip_info_string is True:
-        skip_info_string = "--skip-info-string"
-
-
-    vcf, _ = os.path.splitext(grabix_file)
-    chunk_steps = get_chunk_steps(grabix_file, args)
-    total_chunks = len(chunk_steps)
-    scheduler, queue, cores = get_ipython_args(args)
-    load_args = {"ped_file": ped_file,
-                 "anno_type": anno_type,
-                 "vcf": vcf,
-                 "grabix_file": grabix_file,
-                 "no_genotypes": no_genotypes,
-                 "no_load_genotypes": no_load_genotypes,
-                 "skip_gerp_bp": skip_gerp_bp,
-                 "skip_gene_tables": skip_gene_tables,
-                 "skip_cadd": skip_cadd,
-                 "test_mode": test_mode,
-                 "passonly": passonly,
-                 "skip_info_string": skip_info_string,
-                 "contact_points": contact_points,
-                 "keyspace": keyspace}    
-    chunk_dbs = view.map(load_chunk, chunk_steps, [load_args] * total_chunks)
-
-    print "Done loading variants in {0} chunks.".format(total_chunks)
-    return chunk_dbs
 
 def load_chunk(chunk_step, kwargs):
     chunk_num, chunk = chunk_step
@@ -275,7 +199,7 @@ def gemini_pipe_load_cmd():
                        " {no_genotypes} {no_load_genotypes} {no_genotypes}"
                        " {skip_gerp_bp} {skip_gene_tables} {skip_cadd}"
                        " {passonly} {skip_info_string} {test_mode}"
-                       " -o {start} {contact_points} {keyspace} {buffer_size} {max_queue}")
+                       " -o {start} {contact_points} {keyspace} {buffer_size} {max_queue} {node_num}")
     return " | ".join([grabix_cmd, gemini_load_cmd])
 
 def get_chunk_steps(grabix_file, args):

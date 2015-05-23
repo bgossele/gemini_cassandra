@@ -278,6 +278,11 @@ def main():
                              default = 120,
                              type=int,
                              help="queue length (per core) for batched inserts to Cassandra")
+    parser_loadchunk.add_argument('--node_num',
+                             dest="node_num",
+                             default = 1,
+                             type=int)
+    
     
     def loadchunk_fn(parser, args):
         import gemini_load_chunk
