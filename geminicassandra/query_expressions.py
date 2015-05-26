@@ -190,10 +190,8 @@ class GT_wildcard_expression(Expression):
             target_rule = self.rule_enforcement
             corrected_rule = self.wildcard_rule
             
-        if starting_set == "*" and (invert or target_rule == 'none' or target_rule == 'count'):
-            correct_starting_set = array.array('i', range(1,self.n_variants+1))
-        elif starting_set != "*":
-            correct_starting_set = array.array('i', starting_set)
+        if starting_set == "*":
+            correct_starting_set = range(1,self.n_variants+1)
         else:
             correct_starting_set = starting_set
         
@@ -201,8 +199,7 @@ class GT_wildcard_expression(Expression):
             parent_conn, child_conn = Pipe()
             conns.append(parent_conn)
             p = Process(target=eval(target_rule +'_query'),\
-                args=(child_conn, self.column, corrected_rule,\
-                    correct_starting_set, self.db_contact_points, self.keyspace))
+                args=(child_conn, self.column, corrected_rule, self.db_contact_points, self.keyspace))
             procs.append(p)
             p.start()
         
@@ -213,7 +210,8 @@ class GT_wildcard_expression(Expression):
             end = begin + step
             if i < n % self.nr_cores:
                 end += 1  
-            conns[i].send(self.names[begin:end])                
+            conns[i].send(self.names[begin:end]) 
+            conns[i].send(correct_starting_set)               
         
         #Collect results
         for i in range(self.nr_cores):
@@ -250,20 +248,16 @@ class GT_wildcard_expression(Expression):
                        if eval(str(count) + self.count_comp)])
         
         return res
-
-
  
-def all_query(conn, field, clause, initial_set, contact_points, keyspace):
+def all_query(conn, field, clause, contact_points, keyspace):
         
     cluster = Cluster(contact_points)
     session = cluster.connect(keyspace)
     
     names = conn.recv()
-    
-    if initial_set != "*":
-        results = set(initial_set)
-    else:
-        results = initial_set
+    initial_set = conn.recv()
+  
+    results = set(initial_set)
     
     for name in names:
         
@@ -271,27 +265,21 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
             break
         
         query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
-                
-        if results == "*":
-            results = async_rows_as_set(session, query)
-            '''elif not any (op in clause for op in ["<", ">"]):
-            in_clause = ",".join(map(str, results))
-            query += " AND variant_id IN (%s)" % in_clause
-            results = async_rows_as_set(session, query)'''
-        else:
-            results = async_rows_as_set(session, query) & results
+       
+        results = async_rows_as_set(session, query) & results
         
     session.shutdown()   
     
     conn.send(results)
     conn.close()
 
-def any_query(conn, field, clause, initial_set, contact_points, keyspace):
+def any_query(conn, field, clause, contact_points, keyspace):
         
     cluster = Cluster(contact_points)
     session = cluster.connect(keyspace)
     
     names = conn.recv()
+    initial_set = set(conn.recv())
     
     results = set()
     
@@ -299,34 +287,29 @@ def any_query(conn, field, clause, initial_set, contact_points, keyspace):
         
         query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
-        '''if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
-            in_clause = ",".join(map(str, initial_set))
-            query += " AND variant_id IN (%s)" % in_clause  '''    
-        
         row = async_rows_as_set(session, query)
         results = row | results
         
-    session.shutdown()   
+    session.shutdown()  
+    
+    results = initial_set & results 
     
     conn.send(results)
     conn.close()
 
-def none_query(conn, field, clause, initial_set, contact_points, keyspace):
+def none_query(conn, field, clause, contact_points, keyspace):
         
     cluster = Cluster(contact_points)
     session = cluster.connect(keyspace)
     
     names = conn.recv()
+    initial_set = conn.recv()
     
     results = set(initial_set)
     
     for name in names:
         
         query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
-        
-        '''if not any (op in clause for op in ["<", ">"]):           
-            in_clause = ",".join(map(str, results))
-            query += " AND variant_id IN (%s)" % in_clause  '''    
         
         variants = async_rows_as_set(session, query)
         results = results - variants
@@ -336,22 +319,19 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
     conn.send(results)
     conn.close()   
     
-def count_query(conn, field, clause, initial_set, contact_points, keyspace):
+def count_query(conn, field, clause, contact_points, keyspace):
     
     cluster = Cluster(contact_points)
     session = cluster.connect(keyspace)    
-    names = conn.recv()    
+    names = conn.recv()   
+    initial_set = set(conn.recv()) 
     results = dict()
     
     for name in names:        
         query = '''SELECT variant_id FROM variants_by_samples_%s \
-                WHERE sample_name = '%s' AND %s %s ''' % (field, name, field, clause)
+                WHERE sample_name = '%s' AND %s %s ''' % (field, name, field, clause)   
         
-        '''if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
-            in_clause = ",".join(map(str, initial_set))
-            query += " AND variant_id IN (%s)" % in_clause  '''    
-        
-        variants = async_rows_as_set(session, query)
+        variants = initial_set & async_rows_as_set(session, query)
         results = add_row_to_count_dict(results, variants)
         
     session.shutdown()       
