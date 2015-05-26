@@ -39,7 +39,7 @@ class Basic_expression(Expression):
             (self.select_column, self.table)
         if self.where_clause != "":
             query += " WHERE %s" % self.where_clause            
-        if self.can_prune() and not starting_set == "*":
+        '''if self.can_prune() and not starting_set == "*":
             if self.table.startswith('samples'):
                 in_clause = "','".join(starting_set)            
                 query += " AND %s IN ('%s')" % \
@@ -47,7 +47,7 @@ class Basic_expression(Expression):
             else:
                 in_clause = ",".join(map(str, starting_set))            
                 query += " AND %s IN (%s)" % \
-                    (self.select_column, in_clause)     
+                    (self.select_column, in_clause)   '''  
         return async_rows_as_set(socket, query)
     
     def can_prune(self):
@@ -68,7 +68,7 @@ class AND_expression(Expression):
         if len(starting_set) == 0:
             return set()
         
-        if self.right.can_prune():
+        '''if self.right.can_prune():
             temp = self.left.evaluate(session, starting_set)
             return self.right.evaluate(session, temp)
         elif self.left.can_prune():
@@ -76,7 +76,10 @@ class AND_expression(Expression):
             return self.left.evaluate(session, temp)
         else:
             temp = self.left.evaluate(session, starting_set)
-            return temp & self.right.evaluate(session, temp)
+            return temp & self.right.evaluate(session, temp)'''
+         
+        temp = self.left.evaluate(session, starting_set)
+        return temp & self.right.evaluate(session, temp)        
 
     def __str__(self):
         res = "(" + str(self.left) + ")" + " AND " + "(" + str(self.right) + ")"
@@ -95,7 +98,7 @@ class OR_expression(Expression):
         
         if len(starting_set) == 0:
             return set()        
-        return self.left.evaluate(session, starting_set) | self.right.evaluate(session, starting_set)
+        return (self.left.evaluate(session, starting_set) | self.right.evaluate(session, starting_set))
 
     def __str__(self):
         res = "(" + str(self.left) + ")" + " OR " + "(" + str(self.right) + ")"
@@ -124,12 +127,14 @@ class NOT_expression(Expression):
         else:
             correct_starting_set = starting_set
         
-        if self.table == 'variants' and starting_set == "*":
+        '''if self.table == 'variants' and starting_set == "*":
             return correct_starting_set - self.body.evaluate(session, "*")
         else:
             return correct_starting_set - \
+                self.body.evaluate(session, correct_starting_set)'''
+        return correct_starting_set - \
                 self.body.evaluate(session, correct_starting_set)
-
+                
     def __str__(self):
         return "NOT (" + str(self.body) + ")"
 
@@ -268,10 +273,10 @@ def all_query(conn, field, clause, initial_set, contact_points, keyspace):
                 
         if results == "*":
             results = async_rows_as_set(session, query)
-        elif not any (op in clause for op in ["<", ">"]):
+            '''elif not any (op in clause for op in ["<", ">"]):
             in_clause = ",".join(map(str, results))
             query += " AND variant_id IN (%s)" % in_clause
-            results = async_rows_as_set(session, query)
+            results = async_rows_as_set(session, query)'''
         else:
             results = async_rows_as_set(session, query) & results
         
@@ -293,9 +298,9 @@ def any_query(conn, field, clause, initial_set, contact_points, keyspace):
         
         query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
-        if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
+        '''if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
             in_clause = ",".join(map(str, initial_set))
-            query += " AND variant_id IN (%s)" % in_clause      
+            query += " AND variant_id IN (%s)" % in_clause  '''    
         
         row = async_rows_as_set(session, query)
         results = row | results
@@ -318,9 +323,9 @@ def none_query(conn, field, clause, initial_set, contact_points, keyspace):
         
         query = "SELECT variant_id FROM variants_by_samples_%s WHERE sample_name = '%s' AND %s %s " % (field, name, field, clause)
         
-        if not any (op in clause for op in ["<", ">"]):           
+        '''if not any (op in clause for op in ["<", ">"]):           
             in_clause = ",".join(map(str, results))
-            query += " AND variant_id IN (%s)" % in_clause      
+            query += " AND variant_id IN (%s)" % in_clause  '''    
         
         variants = async_rows_as_set(session, query)
         results = results - variants
@@ -341,9 +346,9 @@ def count_query(conn, field, clause, initial_set, contact_points, keyspace):
         query = '''SELECT variant_id FROM variants_by_samples_%s \
                 WHERE sample_name = '%s' AND %s %s ''' % (field, name, field, clause)
         
-        if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
+        '''if initial_set != "*" and not any (op in clause for op in ["<", ">"]):           
             in_clause = ",".join(map(str, initial_set))
-            query += " AND variant_id IN (%s)" % in_clause      
+            query += " AND variant_id IN (%s)" % in_clause  '''    
         
         variants = async_rows_as_set(session, query)
         results = add_row_to_count_dict(results, variants)

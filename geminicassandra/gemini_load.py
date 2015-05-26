@@ -6,10 +6,8 @@ import sys
 
 import annotations
 import subprocess
-#from cluster_helper.cluster import cluster_view
 from gemini_load_chunk import GeminiLoader
 import time
-from cluster_helper.cluster import cluster_view
 from cassandra.cluster import Cluster
 from string import strip
 
@@ -160,7 +158,7 @@ def load_chunks_multicore(grabix_file, args):
     
     submit_command = "{cmd}"
     vcf, _ = os.path.splitext(grabix_file)
-    chunk_steps = get_chunk_steps(grabix_file, args)
+    n_lines, chunk_steps = get_chunk_steps(grabix_file, args)
     chunk_vcfs = []
     procs = []
 
@@ -177,7 +175,7 @@ def load_chunks_multicore(grabix_file, args):
 
     wait_until_finished(procs)
     print "Done loading {0} variants in {1} chunks.".format(stop, chunk_num+1)
-    return stop
+    return n_lines
 
 
 
@@ -220,7 +218,7 @@ def get_chunk_steps(grabix_file, args):
         print "Chunk %d from line %d to %d. Length = %d" % (chunk, start, stop, stop - start)
         starts.append(start)
         stops.append(stop)
-    return list(enumerate(zip(starts, stops)))
+    return num_lines, list(enumerate(zip(starts, stops)))
 
 def get_num_lines(index_file):
     with open(index_file) as index_handle:
