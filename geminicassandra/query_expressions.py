@@ -238,8 +238,7 @@ class GT_wildcard_expression(Expression):
             res_dict = {x: 0 for x in correct_starting_set}
             for sub_result_dict in results:
                 for var, count in sub_result_dict.iteritems():
-                    if var in res_dict: #When starting set != "*", the count query might return spurious variants
-                        res_dict[var] += count     
+                    res_dict[var] += count     
             if invert_count:
                 total = len(self.names)
                 for variant, count in res_dict.iteritems():

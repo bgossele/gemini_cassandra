@@ -797,6 +797,8 @@ class GeminiQuery(object):
             sys.exit("Unsupported wildcard operation: (%s). Exiting." % wildcard_op)
                     
         sample_names = self._get_matching_sample_ids(wildcard)
+        if not self.test_mode:
+            print "%d samples matching sample wildcard" % len(sample_names) 
     
         # Replace HET, etc. with 1, et.session to avoid eval() issues.
         wildcard_rule = self._swap_genotype_for_number(wildcard_rule)
