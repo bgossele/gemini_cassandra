@@ -117,15 +117,16 @@ rm obs exp
 #     and a more complex genotype filter
 ####################################################################
 echo "    query.t14...\c"
-echo "chr1      1219381 1219382 C       G       SCNN1D  C/C     C/C
-chr1    1219476 1219477 T       G       SCNN1D  T/T     T/T
-chr1    1219486 1219487 T       G       SCNN1D  T/T     T/T
-chr1    1219488 1219489 A       G       SCNN1D  A/A     A/A" > exp
+echo "chr1	1219381	1219382	C	G	SCNN1D	C/C	C/C
+chr1	1219476	1219477	T	G	SCNN1D	T/T	T/T
+chr1	1219486	1219487	T	G	SCNN1D	T/T	T/T
+chr1	1219488	1219489	A	G	SCNN1D	A/A	A/A
+chr1	1220953	1220954	G	A	SCNN1D	G/G	G/G" > exp
 geminicassandra query -q "select chrom, start, end, ref, alt, gene, gts_1094PC0018, gts_1094PC0019 from variants where gene == 'SCNN1D'" \
-	--gt-filter "gt_types.1094PC0018 == HET || gt_types.1094PC0019 == HOM_REF" -db $cassandra_ips -ks test_query_db --test-mode | head -5
+	--gt-filter "gt_types.1094PC0018 == HET || gt_types.1094PC0019 == HOM_REF" -db $cassandra_ips -ks test_query_db --test-mode | head -5 \
        > obs
 check obs exp
-rm obs exp
+rm exp
 
 ####################################################################
 # 15. Test a query of the variants table with a more complex genotype filter

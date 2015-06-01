@@ -2,15 +2,15 @@
 # 1. Test select * wildcard
 ########################################################################
 echo "    wildcard_mc.t1...\c"
-echo "G/G	G/A	G/G	G/G
-C/C	C/C	C/C	C/C
-T/T	T/T	T/C	T/C
+echo "C/C	C/C	C/C	C/C
 T/T	C/C	C/T	C/T
+./.	C/C	C/C	./.
 ./.	./.	C/C	C/C
-./.	A/A	./.	A/A
-T/T	T/T	C/C	C/C
 C/T	C/C	C/C	C/C
-./.	C/C	C/C	./." > exp
+G/G	G/A	G/G	G/G
+T/T	T/T	C/C	C/C
+./.	A/A	./.	A/A
+T/T	T/T	T/C	T/C" > exp
 geminicassandra query -q "select (gts).(*)from variants" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 2 > obs
 check obs exp
 rm obs exp
@@ -284,15 +284,15 @@ rm obs exp
 # 1. Test select * wildcard
 ########################################################################
 echo "    wildcard_mc3.t1...\c"
-echo "G/G	G/A	G/G	G/G
-C/C	C/C	C/C	C/C
-T/T	T/T	T/C	T/C
+echo "C/C	C/C	C/C	C/C
 T/T	C/C	C/T	C/T
+./.	C/C	C/C	./.
 ./.	./.	C/C	C/C
-./.	A/A	./.	A/A
-T/T	T/T	C/C	C/C
 C/T	C/C	C/C	C/C
-./.	C/C	C/C	./." > exp
+G/G	G/A	G/G	G/G
+T/T	T/T	C/C	C/C
+./.	A/A	./.	A/A
+T/T	T/T	T/C	T/C" > exp
 geminicassandra query -q "select (gts).(*)from variants" --test-mode -db $cassandra_ips -ks extended_ped_db --cores 3 > obs
 check obs exp
 rm obs exp
